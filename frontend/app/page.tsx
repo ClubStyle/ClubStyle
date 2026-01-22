@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Search, Home as HomeIcon, Users, BookOpen, ChevronRight, X, Heart } from "lucide-react";
+import { Search, Home as HomeIcon, Users, BookOpen, ChevronRight, X, Heart, PlayCircle, ChevronLeft } from "lucide-react";
 import BottomNav from "../components/BottomNav";
 import { useState, useEffect } from "react";
 
@@ -11,6 +11,26 @@ type Category = {
   subCategories?: string[];
   isEditable?: boolean; // For "adding" items logic if needed
 };
+
+type MaterialItem = {
+  id: string;
+  title: string;
+  hashtag: string;
+  image: string;
+  link: string;
+  description?: string;
+};
+
+const MATERIALS_DATA: MaterialItem[] = [
+  { id: '1', title: "Песочные часы", hashtag: "#песочныечасы", image: "/1пес.jpg", link: "https://t.me/c/2055411531/14930" },
+  { id: '2', title: "Перевернутый треугольник", hashtag: "#треугольник", image: "/треуг.jpg", link: "https://t.me/c/2055411531/14835" },
+  { id: '3', title: "Яблоко", hashtag: "#яблоко", image: "/яблоко.jpg", link: "https://t.me/c/2055411531/14785" },
+  { id: '4', title: "Груша", hashtag: "#груша", image: "/груша.jpg", link: "https://t.me/c/2055411531/13884" },
+  { id: '5', title: "Прямоугольник", hashtag: "#прямоугольник", image: "/прямоугольник.jpg", link: "https://t.me/c/2055411531/14428" },
+  { id: '6', title: "Plus size", hashtag: "#plussize", image: "/плюс.jpg", link: "https://t.me/c/2055411531/13948" },
+  { id: '7', title: "Капсула", hashtag: "#капсула", image: "/капсула.jpg", link: "https://t.me/c/2055411531/12058" },
+  { id: '8', title: "Образы", hashtag: "#образы", image: "/образы.jpg", link: "https://t.me/c/2055411531/13958", description: "Под этим хэштегами выкладываются готовые коллажи с образами" },
+];
 
 const CATEGORIES: Category[] = [
   { 
@@ -50,6 +70,8 @@ const CATEGORIES: Category[] = [
 export default function Home() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [subCategorySheet, setSubCategorySheet] = useState<{title: string, items: string[]} | null>(null);
+  const [subCategorySearchQuery, setSubCategorySearchQuery] = useState("");
+  const [selectedMaterial, setSelectedMaterial] = useState<MaterialItem | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [favorites, setFavorites] = useState<string[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
@@ -74,9 +96,27 @@ export default function Home() {
   };
 
   const handleItemClick = (item: string) => {
-    const newRecent = [item, ...recent.filter(i => i !== item)].slice(0, 20);
-    setRecent(newRecent);
-    localStorage.setItem("recent", JSON.stringify(newRecent));
+    let material = MATERIALS_DATA.find(m => m.title === item);
+    
+    // Fallback if not found in data
+    if (!material) {
+        material = {
+            id: Date.now().toString(),
+            title: item,
+            hashtag: "#" + item.toLowerCase().replace(/\s/g, ''),
+            image: "/ban.png", // placeholder
+            link: "https://t.me/c/2055411531/1" // default placeholder link
+        };
+    }
+
+    setSelectedMaterial(material);
+    setSubCategorySheet(null); // Close category sheet
+
+    if (!recent.includes(item)) {
+        const newRecent = [item, ...recent.filter(i => i !== item)].slice(0, 20);
+        setRecent(newRecent);
+        localStorage.setItem("recent", JSON.stringify(newRecent));
+    }
   };
 
   const filteredCategories = CATEGORIES.filter(cat => 
@@ -242,39 +282,183 @@ export default function Home() {
 
       </div>
 
-      {/* Sub-Category Bottom Sheet */}
+      {/* Sub-Category Full Page View */}
       {subCategorySheet && (
-          <>
-            <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={closeSheet}></div>
-            <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[2rem] z-50 p-6 pb-24 animate-in slide-in-from-bottom duration-300 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] max-w-md mx-auto">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-black uppercase tracking-wide">{subCategorySheet.title}</h3>
-                    <button onClick={closeSheet} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
-                        <X size={20} className="text-gray-500" />
+          <div className="fixed inset-0 z-50 bg-white overflow-y-auto animate-in slide-in-from-right duration-300">
+             {/* Header */}
+             <div className="sticky top-0 bg-white z-10 px-6 py-4 flex items-center gap-4 border-b border-gray-100">
+                <button onClick={closeSheet} className="p-2 -ml-2 text-gray-800 hover:bg-gray-100 rounded-full transition-colors">
+                    <ChevronLeft size={24} />
+                </button>
+                <h3 className="text-xl font-black uppercase tracking-wide">{subCategorySheet.title}</h3>
+             </div>
+             
+             <div className="p-6 space-y-6 pb-24">
+                {/* Search Input */}
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                        <Search className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                        type="text"
+                        className="block w-full pl-12 pr-4 py-3.5 rounded-2xl bg-gray-100/80 border-none text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-pink-200 focus:bg-white transition-all shadow-inner text-sm"
+                        placeholder="Поиск по названию или хэштегу..."
+                        value={subCategorySearchQuery}
+                        onChange={(e) => setSubCategorySearchQuery(e.target.value)}
+                    />
+                </div>
+
+                {subCategorySheet.items
+                    .filter(item => {
+                        const query = subCategorySearchQuery.toLowerCase();
+                        if (!query) return true;
+                        
+                        const material = MATERIALS_DATA.find(m => m.title === item);
+                        const titleMatch = item.toLowerCase().includes(query);
+                        const hashtagMatch = material 
+                            ? material.hashtag.toLowerCase().includes(query)
+                            : ("#" + item.toLowerCase().replace(/\s/g, '')).includes(query);
+                            
+                        return titleMatch || hashtagMatch;
+                    })
+                    .map((item) => {
+                         const material = MATERIALS_DATA.find(m => m.title === item);
+                         const displayImage = material ? material.image : "/ban.png";
+                         const displayHashtag = material ? material.hashtag : "#" + item.toLowerCase().replace(/\s/g, '');
+                         const displayLink = material ? material.link : `https://t.me/c/2055411531/1`;
+
+                        return (
+                        <div key={item} className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-gray-100 relative group">
+                             {/* Image Section */}
+                             <div className="relative h-48 w-full">
+                                 <Image
+                                     src={displayImage}
+                                     alt={item}
+                                     fill
+                                     className="object-cover"
+                                 />
+                                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+                                 
+                                 {/* Favorite Button */}
+                                 <button 
+                                     onClick={(e) => toggleFavorite(e, item)}
+                                     className="absolute top-4 right-4 bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white transition-colors"
+                                 >
+                                     <Heart 
+                                         size={20} 
+                                         className={`transition-colors ${favorites.includes(item) ? "fill-pink-500 text-pink-500" : "text-white"}`} 
+                                     />
+                                 </button>
+                             </div>
+
+                             {/* Content Section */}
+                             <div className="p-5">
+                                 <div className="flex gap-2 mb-2">
+                                     <span className="bg-pink-50 text-pink-500 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                                         {displayHashtag}
+                                     </span>
+                                 </div>
+                                 <h3 className="text-lg font-bold text-gray-900 mb-2 leading-tight">
+                                     {item}
+                                 </h3>
+                                 {material?.description && (
+                                     <p className="text-gray-500 text-xs mb-4 leading-relaxed">
+                                         {material.description}
+                                     </p>
+                                 )}
+                                 
+                                 <a 
+                                     href={displayLink} 
+                                     target="_blank" 
+                                     rel="noopener noreferrer"
+                                     onClick={(e) => {
+                                         handleItemClick(item);
+                                         e.preventDefault(); 
+                                     }}
+                                     className="w-full mt-2 bg-pink-500 text-white font-bold py-3 rounded-xl hover:bg-pink-600 transition-colors flex items-center justify-center gap-2 text-sm cursor-pointer"
+                                 >
+                                     <PlayCircle size={16} />
+                                     Перейти к материалу
+                                 </a>
+                             </div>
+                        </div>
+                    )})}
+                {/* Fallback if no items */}
+                {subCategorySheet.items.length === 0 && (
+                    <div className="text-center text-gray-400 py-12">
+                        Нет подкатегорий
+                    </div>
+                )}
+            </div>
+          </div>
+      )}
+
+      {/* Material Detail Modal */}
+      {selectedMaterial && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div 
+                className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
+                onClick={() => setSelectedMaterial(null)}
+            />
+            <div className="relative w-full max-w-sm bg-white rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+                {/* Close Button */}
+                <button 
+                    onClick={() => setSelectedMaterial(null)}
+                    className="absolute top-4 right-4 z-20 bg-black/20 hover:bg-black/40 text-white p-2 rounded-full backdrop-blur-md transition-colors"
+                >
+                    <X size={20} />
+                </button>
+
+                {/* Image Section */}
+                <div className="relative h-64 w-full">
+                    <Image
+                        src={selectedMaterial.image}
+                        alt={selectedMaterial.title}
+                        fill
+                        className="object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                    
+                    {/* Favorite Button */}
+                    <button 
+                        onClick={(e) => toggleFavorite(e, selectedMaterial!.title)}
+                        className="absolute bottom-4 right-4 bg-white/30 backdrop-blur-md p-3 rounded-full hover:bg-white transition-colors border border-white/20"
+                    >
+                        <Heart 
+                            size={24} 
+                            className={`transition-colors ${favorites.includes(selectedMaterial.title) ? "fill-pink-500 text-pink-500" : "text-white"}`} 
+                        />
                     </button>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                    {subCategorySheet.items.map((item) => (
-                        <div key={item} onClick={() => handleItemClick(item)} className="p-4 bg-gray-50 rounded-2xl text-left font-bold text-sm text-gray-800 hover:bg-pink-50 hover:text-pink-600 transition-colors flex justify-between items-center group cursor-pointer relative">
-                            <span className="pr-6">{item}</span>
-                            <button 
-                                onClick={(e) => toggleFavorite(e, item)}
-                                className="absolute top-2 right-2 p-1.5 rounded-full hover:bg-white/50 transition-colors"
-                            >
-                                <Heart 
-                                    size={18} 
-                                    className={`transition-colors ${favorites.includes(item) ? "fill-pink-500 text-pink-500" : "text-gray-300 hover:text-pink-400"}`} 
-                                />
-                            </button>
-                        </div>
-                    ))}
-                    {/* Add Button Placeholder */}
-                    <button className="p-4 border-2 border-dashed border-gray-200 rounded-2xl text-center font-bold text-sm text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-colors">
-                        + Добавить
-                    </button>
+
+                {/* Content Section */}
+                <div className="p-6 pt-6">
+                    <div className="flex gap-2 mb-3">
+                        <span className="bg-pink-50 text-pink-500 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                            {selectedMaterial.hashtag}
+                        </span>
+                    </div>
+                    <h3 className="text-2xl font-black text-gray-900 mb-3 leading-tight">
+                        {selectedMaterial.title}
+                    </h3>
+                    {selectedMaterial.description && (
+                        <p className="text-gray-500 text-sm mb-6 leading-relaxed">
+                            {selectedMaterial.description}
+                        </p>
+                    )}
+                    
+                    <a 
+                        href={selectedMaterial.link} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="w-full bg-pink-500 text-white font-bold py-4 rounded-2xl hover:bg-pink-600 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-pink-200"
+                    >
+                        <PlayCircle size={20} />
+                        Перейти к материалу
+                    </a>
                 </div>
             </div>
-          </>
+        </div>
       )}
 
       <BottomNav />
