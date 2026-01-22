@@ -284,16 +284,17 @@ export default function Home() {
 
       {/* Sub-Category Full Page View */}
       {subCategorySheet && (
-          <div className="fixed inset-0 z-50 bg-white overflow-y-auto animate-in slide-in-from-right duration-300">
-             {/* Header */}
-             <div className="sticky top-0 bg-white z-10 px-6 py-4 flex items-center gap-4 border-b border-gray-100">
-                <button onClick={closeSheet} className="p-2 -ml-2 text-gray-800 hover:bg-gray-100 rounded-full transition-colors">
-                    <ChevronLeft size={24} />
-                </button>
-                <h3 className="text-xl font-black uppercase tracking-wide">{subCategorySheet.title}</h3>
-             </div>
-             
-             <div className="p-6 space-y-6 pb-24">
+          <div className="fixed inset-0 z-50 bg-gray-50/50 overflow-y-auto animate-in slide-in-from-right duration-300 backdrop-blur-sm">
+             <div className="max-w-md mx-auto bg-white min-h-full shadow-2xl">
+                 {/* Header */}
+                 <div className="sticky top-0 bg-white z-10 px-6 py-4 flex items-center gap-4 border-b border-gray-100">
+                    <button onClick={closeSheet} className="p-2 -ml-2 text-gray-800 hover:bg-gray-100 rounded-full transition-colors">
+                        <ChevronLeft size={24} />
+                    </button>
+                    <h3 className="text-xl font-black uppercase tracking-wide">{subCategorySheet.title}</h3>
+                 </div>
+                 
+                 <div className="p-6 space-y-6 pb-24">
                 {/* Search Input */}
                 <div className="relative">
                     <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
@@ -391,6 +392,7 @@ export default function Home() {
                 )}
             </div>
           </div>
+        </div>
       )}
 
       {/* Material Detail Modal */}
