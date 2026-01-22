@@ -1,0 +1,57 @@
+"use client";
+
+import { Home as HomeIcon, Users, BookOpen } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+export default function BottomNav() {
+  const pathname = usePathname();
+  const isActive = (path: string) => pathname === path;
+
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-xs px-4">
+      <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_8px_32px_rgba(236,72,153,0.15)] px-4 py-2 flex justify-between items-center border border-pink-100/50 relative overflow-hidden ring-1 ring-pink-50">
+        <div className="flex justify-between w-full items-center">
+          <Link href="/" className="flex flex-col items-center gap-1 group relative">
+            <div
+              className={`p-2 rounded-xl transition-all duration-300 ${
+                isActive("/") 
+                  ? "bg-pink-500 text-white shadow-lg shadow-pink-200" 
+                  : "text-gray-400 hover:text-pink-400 hover:bg-pink-50"
+              }`}
+            >
+              <HomeIcon size={20} strokeWidth={isActive("/") ? 2.5 : 2} />
+            </div>
+            {isActive("/") && <span className="absolute -bottom-1 w-1 h-1 bg-pink-500 rounded-full"></span>}
+          </Link>
+          
+          <Link href="/community" className="flex flex-col items-center gap-1 group relative">
+            <div
+              className={`p-2 rounded-xl transition-all duration-300 ${
+                isActive("/community") 
+                  ? "bg-pink-500 text-white shadow-lg shadow-pink-200" 
+                  : "text-gray-400 hover:text-pink-400 hover:bg-pink-50"
+              }`}
+            >
+              <Users size={20} strokeWidth={isActive("/community") ? 2.5 : 2} />
+            </div>
+            {isActive("/community") && <span className="absolute -bottom-1 w-1 h-1 bg-pink-500 rounded-full"></span>}
+          </Link>
+
+          <Link href="/library" className="flex flex-col items-center gap-1 group relative">
+            <div
+              className={`p-2 rounded-xl transition-all duration-300 ${
+                isActive("/library") 
+                  ? "bg-pink-500 text-white shadow-lg shadow-pink-200" 
+                  : "text-gray-400 hover:text-pink-400 hover:bg-pink-50"
+              }`}
+            >
+              <BookOpen size={20} strokeWidth={isActive("/library") ? 2.5 : 2} />
+            </div>
+            {isActive("/library") && <span className="absolute -bottom-1 w-1 h-1 bg-pink-500 rounded-full"></span>}
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
