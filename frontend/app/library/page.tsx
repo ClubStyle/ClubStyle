@@ -63,6 +63,11 @@ const MATERIALS_DATA: MaterialItem[] = [
   { id: '6', title: "Plus size", hashtag: "#plussize", image: "/плюс.jpg", link: "https://t.me/c/2055411531/13948" },
   { id: '7', title: "Капсула", hashtag: "#капсула", image: "/капсула.jpg", link: "https://t.me/c/2055411531/12058" },
   { id: '8', title: "Образы", hashtag: "#образы", image: "/образы.jpg", link: "https://t.me/c/2055411531/13958", description: "Под этим хэштегами выкладываются готовые коллажи с образами" },
+  { id: '9', title: "Покупки по РФ", hashtag: "#покупкивроссии", image: "/пороссии.jpg", link: "https://t.me/c/2055411531/14810" },
+  { id: '10', title: "Покупки по миру", hashtag: "#покупкипомиру", image: "/помиру.jpg", link: "https://t.me/c/2055411531/14821", description: "Ссылки на покупки зарубежом" },
+  { id: '11', title: "#lookдняЛена", hashtag: "#lookдняЛена", image: "/лук.jpg", link: "https://t.me/c/2055411531/14859" },
+  { id: '12', title: "Вещь дня", hashtag: "#вещьдня", image: "/лукдня.jpg", link: "https://t.me/c/2055411531/14862", description: "Еще одна вещь: https://t.me/c/2055411531/14861" },
+  { id: '13', title: "Советы", hashtag: "#советы", image: "/ban.png", link: "https://t.me/c/2055411531/14959" },
 ];
 
 export default function Library() {
@@ -295,8 +300,18 @@ export default function Library() {
                             <button
                                 key={cat.name}
                                 onClick={() => {
-                                    setActiveCategory(cat.name);
-                                    setCategorySearchQuery("");
+                                    if (cat.subCategories) {
+                                        setActiveCategory(cat.name);
+                                        setCategorySearchQuery("");
+                                    } else {
+                                        const material = MATERIALS_DATA.find(m => m.title === cat.name);
+                                        if (material) {
+                                            handleMaterialClick(cat.name);
+                                        } else {
+                                            setActiveCategory(cat.name);
+                                            setCategorySearchQuery("");
+                                        }
+                                    }
                                 }}
                                 className={`
                                     whitespace-nowrap px-5 py-2.5 rounded-2xl text-xs font-bold tracking-wide shadow-sm transition-all duration-200 border
