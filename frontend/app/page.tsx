@@ -181,7 +181,12 @@ export default function Home() {
             События
           </h2>
           
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-5 shadow-lg border border-white/50">
+          <a 
+            href="https://t.me/c/2055411531/15005"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block bg-white/90 backdrop-blur-sm rounded-3xl p-5 shadow-lg border border-white/50 transition-transform active:scale-95"
+          >
             <div className="flex justify-between items-center mb-3">
               <span className="text-[10px] font-semibold text-gray-400">
                 Сегодня, 14:30
@@ -189,19 +194,50 @@ export default function Home() {
               <div className="h-2 w-2 rounded-full bg-pink-500 shadow-[0_0_8px_rgba(236,72,153,0.6)]"></div>
             </div>
             
-            <p className="text-sm text-gray-800 leading-relaxed font-medium mb-4">
-              Новый тренд этого сезона: сочетание несочетаемого! 🌸 Смотрите, как интегрировать спортивные элементы в классический гардероб.
-            </p>
-            
-            <div className="w-full h-40 bg-gray-100 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-200 overflow-hidden relative">
+            <div className="w-full h-80 bg-gray-100 rounded-2xl overflow-hidden relative mb-4 border border-gray-100">
                 <Image
-                    src="/ban.png"
-                    alt="Event Image"
+                    src="/новое.jpg" 
+                    alt="Дубленки"
                     fill
-                    className="object-cover opacity-50"
+                    className="object-cover"
                 />
             </div>
-          </div>
+
+            <div className="space-y-3 text-xs text-gray-800 font-medium mb-4">
+                <div className="flex justify-between items-start border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                    <span className="pr-2">Дубленка-косуха из овчины Снежная Королева</span>
+                    <span className="font-bold whitespace-nowrap">28 790 р.</span>
+                </div>
+                <div className="flex justify-between items-start border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                    <span className="pr-2">Дубленка Wildberries</span>
+                    <span className="font-bold whitespace-nowrap">21 164 р.</span>
+                </div>
+                <div className="flex justify-between items-start border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                    <span className="pr-2">Дубленка Wildberries</span>
+                    <span className="font-bold whitespace-nowrap">14 770 р.</span>
+                </div>
+                <div className="flex justify-between items-start border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                    <span className="pr-2">Дубленка Wildberries</span>
+                    <span className="font-bold whitespace-nowrap">12 814 р.</span>
+                </div>
+                <div className="flex justify-between items-start border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                    <span className="pr-2">Дубленка с отделкой искусственным мехом ASOS</span>
+                    <span className="font-bold whitespace-nowrap">120,00 $</span>
+                </div>
+                 <div className="flex justify-between items-start border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                    <span className="pr-2">Удлиненная дубленка-авиатор шоколадного цвета TOPSHOP</span>
+                    <span className="font-bold whitespace-nowrap">82,28 $</span>
+                </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+                {["#верхняяодежда", "#покупкивроссии", "#покупкипомиру", "#ссылкинавещи"].map(tag => (
+                    <span key={tag} className="text-[10px] font-bold text-pink-500 bg-pink-50 px-2 py-1 rounded-lg">
+                        {tag}
+                    </span>
+                ))}
+            </div>
+          </a>
         </div>
 
       </div>
