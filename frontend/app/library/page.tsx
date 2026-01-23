@@ -107,6 +107,8 @@ const MATERIALS_DATA: MaterialItem[] = [
   { id: '33', title: "Осенние капсулы", hashtag: "#капсула", image: "/ban.png", link: "https://t.me/c/2055411531/11955" },
   { id: '34', title: "Базовый гардероб", hashtag: "#база", image: "/ban.png", link: "https://t.me/c/2055411531/11803" },
   { id: '35', title: "Фишки стилизации", hashtag: "#стилизация", image: "/ban.png", link: "https://t.me/c/2055411531/11668" },
+  { id: '38', title: "Конкурс", hashtag: "#конкурс", image: "/ban.png", link: "https://t.me/c/2249399970/31710" },
+  { id: '39', title: "Ссылки на вещи", hashtag: "#ссылкинавещи", image: "/вещи.png", link: "https://t.me/c/2249399970/2" },
 ];
 
 export default function Library() {

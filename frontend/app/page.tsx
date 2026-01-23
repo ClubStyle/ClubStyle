@@ -60,6 +60,7 @@ const MATERIALS_DATA: MaterialItem[] = [
   { id: '36', title: "Plus Size", hashtag: "#plussize", image: "/ban.png", link: "https://t.me/c/2055411531/14351" },
   { id: '37', title: "Подборка образов (Пальто)", hashtag: "#образы #песочныечасы #прямоугольник #груша #яблоко #треугольник #платье #манишка #колготки #перчатки #пальто #сапоги #сумка #шапка #украшения #ссылкинавещи #покупкивроссии", image: "/ban.png", link: "https://t.me/c/2055411531/14743" },
   { id: '38', title: "Конкурс", hashtag: "#конкурс", image: "/ban.png", link: "https://t.me/c/2249399970/31710" },
+  { id: '39', title: "Ссылки на вещи", hashtag: "#ссылкинавещи", image: "/вещи.png", link: "https://t.me/c/2249399970/2" },
 ];
 
 const CATEGORIES: Category[] = [
@@ -288,7 +289,7 @@ export default function Home() {
             
             <div className="w-full h-80 bg-gray-100 rounded-2xl overflow-hidden relative mb-4 border border-gray-100">
                 <Image
-                    src="/новое.jpg" 
+                    src="/публ2.jpg" 
                     alt="Дубленки"
                     fill
                     className="object-cover"
