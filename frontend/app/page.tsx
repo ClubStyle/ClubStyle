@@ -30,7 +30,7 @@ const MATERIALS_DATA: MaterialItem[] = [
   { id: '6', title: "Plus size", hashtag: "#plussize", image: "/плюс.jpg", link: "https://t.me/c/2055411531/13948" },
   { id: '7', title: "Капсула", hashtag: "#капсула", image: "/капсула.jpg", link: "https://t.me/c/2055411531/12058" },
   { id: '8', title: "Образы", hashtag: "#образы", image: "/образы.jpg", link: "https://t.me/c/2055411531/13958", description: "Под этим хэштегами выкладываются готовые коллажи с образами" },
-  { id: '9', title: "Покупки по РФ", hashtag: "#покупкивроссии", image: "/пороссии.jpg", link: "https://t.me/c/2055411531/14810" },
+  { id: '9', title: "Покупки по РФ", hashtag: "#образы #песочныечасы #прямоугольник #груша #яблоко #plussize #жакет #топ #юбка #сапоги #шуба #сумка #украшения #ссылкинавещи #покупкивроссии", image: "/пороссии.jpg", link: "https://t.me/c/2055411531/14810" },
   { id: '10', title: "Покупки по миру", hashtag: "#покупкипомиру", image: "/помиру.jpg", link: "https://t.me/c/2055411531/14821", description: "Ссылки на покупки зарубежом" },
   { id: '11', title: "#lookдняЛена", hashtag: "#lookдняЛена", image: "/лук.jpg", link: "https://t.me/c/2055411531/14859" },
   { id: '12', title: "Вещь дня", hashtag: "#вещьдня", image: "/лукдня.jpg", link: "https://t.me/c/2055411531/14862", description: "Еще одна вещь: https://t.me/c/2055411531/14861" },
@@ -57,6 +57,9 @@ const MATERIALS_DATA: MaterialItem[] = [
   { id: '33', title: "Осенние капсулы", hashtag: "#капсула", image: "/ban.png", link: "https://t.me/c/2055411531/11955" },
   { id: '34', title: "Базовый гардероб", hashtag: "#база", image: "/ban.png", link: "https://t.me/c/2055411531/11803" },
   { id: '35', title: "Фишки стилизации", hashtag: "#стилизация", image: "/ban.png", link: "https://t.me/c/2055411531/11668" },
+  { id: '36', title: "Plus Size", hashtag: "#plussize", image: "/ban.png", link: "https://t.me/c/2055411531/14351" },
+  { id: '37', title: "Подборка образов (Пальто)", hashtag: "#образы #песочныечасы #прямоугольник #груша #яблоко #треугольник #платье #манишка #колготки #перчатки #пальто #сапоги #сумка #шапка #украшения #ссылкинавещи #покупкивроссии", image: "/ban.png", link: "https://t.me/c/2055411531/14743" },
+  { id: '38', title: "Конкурс", hashtag: "#конкурс", image: "/ban.png", link: "https://t.me/c/2249399970/31710" },
 ];
 
 const CATEGORIES: Category[] = [
