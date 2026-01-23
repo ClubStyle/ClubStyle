@@ -330,6 +330,42 @@ export default function Home() {
                 ))}
             </div>
           </a>
+
+          <a 
+            href="https://t.me/c/2055411531/14996"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block bg-white/90 backdrop-blur-sm rounded-3xl p-5 shadow-lg border border-white/50 transition-transform active:scale-95 mt-4"
+          >
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-[10px] font-semibold text-gray-400">
+                22 января, 17:02
+              </span>
+              <div className="h-2 w-2 rounded-full bg-pink-500 shadow-[0_0_8px_rgba(236,72,153,0.6)]"></div>
+            </div>
+            
+            <div className="w-full h-80 bg-gray-100 rounded-2xl overflow-hidden relative mb-4 border border-gray-100">
+                <Image
+                    src="/событие2.jpg" 
+                    alt="Шубы"
+                    fill
+                    className="object-cover"
+                />
+            </div>
+
+            <div className="text-xs text-gray-800 font-medium mb-4 leading-relaxed">
+               Привет, стильные ✨<br/>
+               Когда мы говорим про зимнюю верхнюю одежду, нельзя не упомянуть шубы. Тем более, что тренд на меховые изделия прочно держится уже не один сезон.
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+                {["#верхняяодежда", "#покупкивроссии", "#покупкипомиру", "#ссылкинавещи"].map(tag => (
+                    <span key={tag} className="text-[10px] font-bold text-pink-500 bg-pink-50 px-2 py-1 rounded-lg">
+                        {tag}
+                    </span>
+                ))}
+            </div>
+          </a>
         </div>
 
       </div>
