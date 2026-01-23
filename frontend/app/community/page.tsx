@@ -1,6 +1,6 @@
 import Image from "next/image";
 import BottomNav from "../../components/BottomNav";
-import { Check, Star, Zap, Heart, MessageCircle, Gift, PlayCircle, BookOpen, ChevronRight } from "lucide-react";
+import { Check, Star, Zap, Heart, MessageCircle, Gift, PlayCircle, BookOpen, ChevronRight, ShoppingBag } from "lucide-react";
 
 export default function Community() {
   const BENEFITS = [
@@ -34,22 +34,23 @@ export default function Community() {
         </div>
 
         {/* Quick Links */}
-        <div className="grid grid-cols-1 gap-3 mb-8">
+        <div className="grid grid-cols-2 gap-3 mb-8">
             {[
-                { name: "Эфиры", color: "bg-purple-100 text-purple-600", icon: <PlayCircle size={20} /> },
-                { name: "Мастер-классы", color: "bg-blue-100 text-blue-600", icon: <Zap size={20} /> },
-                { name: "Гайды и чек-листы", color: "bg-pink-100 text-pink-600", icon: <BookOpen size={20} /> }
+                { name: "Эфиры", color: "bg-purple-100 text-purple-600", icon: <PlayCircle size={28} /> },
+                { name: "Мастер-классы", color: "bg-blue-100 text-blue-600", icon: <Zap size={28} /> },
+                { name: "Гайды и чек-листы", color: "bg-pink-100 text-pink-600", icon: <BookOpen size={28} /> },
+                { name: "Продукты школы", color: "bg-green-100 text-green-600", icon: <ShoppingBag size={28} /> }
             ].map((item) => (
                 <a 
                     key={item.name}
                     href={`/?category=${encodeURIComponent(item.name)}`}
-                    className={`${item.color} p-4 rounded-2xl flex items-center justify-between font-bold shadow-sm hover:opacity-90 transition-opacity`}
+                    className={`${item.color} p-4 rounded-3xl flex flex-col justify-between aspect-[4/3] font-bold shadow-sm hover:opacity-90 transition-opacity`}
                 >
-                    <div className="flex items-center gap-3">
+                    <div className="flex justify-between items-start w-full">
                         {item.icon}
-                        <span>{item.name}</span>
+                        <ChevronRight size={20} className="opacity-50" />
                     </div>
-                    <ChevronRight size={20} />
+                    <span className="text-sm leading-tight">{item.name}</span>
                 </a>
             ))}
         </div>
