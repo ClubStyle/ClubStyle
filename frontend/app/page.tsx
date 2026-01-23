@@ -10,6 +10,7 @@ type Category = {
   name: string;
   subCategories?: string[];
   isEditable?: boolean; // For "adding" items logic if needed
+  hidden?: boolean;
 };
 
 type MaterialItem = {
@@ -22,6 +23,8 @@ type MaterialItem = {
 };
 
 const MATERIALS_DATA: MaterialItem[] = [
+  { id: 'community_1', title: "Эфиры", hashtag: "#эфиры", image: "/ЭФИРЫ.png", link: "#" },
+  { id: 'community_2', title: "Гайды и чек-листы", hashtag: "#гайды", image: "/ban.png", link: "https://t.me/c/2055411531/1" },
   { id: '1', title: "Песочные часы", hashtag: "#песочныечасы", image: "/1пес.jpg", link: "https://t.me/c/2055411531/14930" },
   { id: '2', title: "Перевернутый треугольник", hashtag: "#треугольник", image: "/треуг.jpg", link: "https://t.me/c/2055411531/14835" },
   { id: '3', title: "Яблоко", hashtag: "#яблоко", image: "/яблоко.jpg", link: "https://t.me/c/2055411531/14785" },
@@ -65,6 +68,10 @@ const MATERIALS_DATA: MaterialItem[] = [
 
 const CATEGORIES: Category[] = [
   { 
+    name: "Сообщество", 
+    subCategories: ["Эфиры", "Мастер-классы", "Гайды и чек-листы"] 
+  },
+  { 
     name: "Типы фигуры", 
     subCategories: ["Груша", "Яблоко", "Песочные часы", "Перевернутый треугольник", "Прямоугольник"] 
   },
@@ -96,9 +103,10 @@ const CATEGORIES: Category[] = [
   { name: "Покупки по миру" },
   { name: "Покупки по РФ" },
   { name: "Конкурс" },
-  { name: "Гайды и чек-листы" },
+  { name: "Гайды и чек-листы", hidden: true },
   { 
     name: "Эфиры",
+    hidden: true,
     subCategories: [
       "Ответы на вопросы",
       "Как собрать капсулу",
@@ -111,7 +119,7 @@ const CATEGORIES: Category[] = [
       "Как быть яркой"
     ]
   },
-  { name: "Мастер-классы" },
+  { name: "Мастер-классы", hidden: true },
   { name: "Бренды" },
 ];
 
@@ -167,8 +175,17 @@ export default function Home() {
     }
   };
 
+  const handleHashtagClick = (hashtag: string) => {
+    const items = MATERIALS_DATA.filter(m => m.hashtag.includes(hashtag)).map(m => m.title);
+    setSubCategorySheet({
+        title: hashtag,
+        items: items
+    });
+    setActiveCategory(hashtag);
+  };
+
   const filteredCategories = CATEGORIES.filter(cat => 
-    cat.name.toLowerCase().includes(searchQuery.toLowerCase())
+    !cat.hidden && cat.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleCategoryClick = (category: Category) => {
@@ -325,9 +342,16 @@ export default function Home() {
 
             <div className="flex flex-wrap gap-2">
                 {["#верхняяодежда", "#покупкивроссии", "#покупкипомиру", "#ссылкинавещи"].map(tag => (
-                    <span key={tag} className="text-[10px] font-bold text-pink-500 bg-pink-50 px-2 py-1 rounded-lg">
+                    <button 
+                        key={tag} 
+                        onClick={(e) => {
+                            e.preventDefault();
+                            handleHashtagClick(tag);
+                        }}
+                        className="text-[10px] font-bold text-pink-500 bg-pink-50 px-2 py-1 rounded-lg hover:bg-pink-100 transition-colors"
+                    >
                         {tag}
-                    </span>
+                    </button>
                 ))}
             </div>
           </a>
@@ -361,9 +385,16 @@ export default function Home() {
 
             <div className="flex flex-wrap gap-2">
                 {["#верхняяодежда", "#покупкивроссии", "#покупкипомиру", "#ссылкинавещи"].map(tag => (
-                    <span key={tag} className="text-[10px] font-bold text-pink-500 bg-pink-50 px-2 py-1 rounded-lg">
+                    <button 
+                        key={tag} 
+                        onClick={(e) => {
+                            e.preventDefault();
+                            handleHashtagClick(tag);
+                        }}
+                        className="text-[10px] font-bold text-pink-500 bg-pink-50 px-2 py-1 rounded-lg hover:bg-pink-100 transition-colors"
+                    >
                         {tag}
-                    </span>
+                    </button>
                 ))}
             </div>
           </a>
@@ -413,6 +444,8 @@ export default function Home() {
                     })
                     .map((item) => {
                          const material = MATERIALS_DATA.find(m => m.title === item);
+                         const categoryItem = CATEGORIES.find(c => c.name === item && c.subCategories);
+
                          const displayImage = material ? material.image : "/ban.png";
                          const displayHashtag = material ? material.hashtag : "#" + item.toLowerCase().replace(/\s/g, '');
                          const displayLink = material ? material.link : `https://t.me/c/2055411531/1`;
@@ -458,17 +491,21 @@ export default function Home() {
                                  )}
                                  
                                  <a 
-                                     href={displayLink} 
-                                     target="_blank" 
+                                     href={categoryItem ? "#" : displayLink} 
+                                     target={categoryItem ? "_self" : "_blank"} 
                                      rel="noopener noreferrer"
                                      onClick={(e) => {
-                                         handleItemClick(item);
                                          e.preventDefault(); 
+                                         if (categoryItem) {
+                                             handleCategoryClick(categoryItem);
+                                         } else {
+                                             handleItemClick(item);
+                                         }
                                      }}
                                      className="w-full mt-2 bg-pink-500 text-white font-bold py-3 rounded-xl hover:bg-pink-600 transition-colors flex items-center justify-center gap-2 text-sm cursor-pointer"
                                  >
-                                     <PlayCircle size={16} />
-                                     Перейти к материалу
+                                     {categoryItem ? <BookOpen size={16} /> : <PlayCircle size={16} />}
+                                     {categoryItem ? "Открыть категорию" : "Перейти к материалу"}
                                  </a>
                              </div>
                         </div>
