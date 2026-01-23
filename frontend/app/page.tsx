@@ -281,7 +281,7 @@ export default function Home() {
           >
             <div className="flex justify-between items-center mb-3">
               <span className="text-[10px] font-semibold text-gray-400">
-                Сегодня, 14:30
+                22 января, 17:02
               </span>
               <div className="h-2 w-2 rounded-full bg-pink-500 shadow-[0_0_8px_rgba(236,72,153,0.6)]"></div>
             </div>
