@@ -43,7 +43,7 @@ const CATEGORIES: Category[] = [
   { name: "Plus Size" },
   { 
     name: "Сезоны", 
-    subCategories: ["Лето", "Зима", "Демисезон"] 
+    subCategories: ["Лето", "Зима", "Демисезон", "Осенние образы для работы", "Повседневные осенние образы"] 
   },
   { 
     name: "Советы",
@@ -98,6 +98,7 @@ const MATERIALS_DATA: MaterialItem[] = [
   { id: '24', title: "Платья. Лето 2024", hashtag: "#платья", image: "/платья.png", link: "https://t.me/c/2055411531/9" },
   { id: '25', title: "Cтильные приемы, которые помогут не замерзнуть", hashtag: "#советы", image: "/приемы.png", link: "https://t.me/c/2055411531/13050" },
   { id: '26', title: "Бренды", hashtag: "#бренды", image: "/ban.png", link: "https://t.me/c/2249399970/3/41" },
+  { id: '27', title: "Осенние образы для работы", hashtag: "#осень", image: "/70.jpg", link: "https://t.me/c/2055411531/12880" },
 ];
 
 export default function Library() {
