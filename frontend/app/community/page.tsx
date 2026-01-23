@@ -1,6 +1,6 @@
 import Image from "next/image";
 import BottomNav from "../../components/BottomNav";
-import { Check, Star, Zap, Heart, MessageCircle, Gift } from "lucide-react";
+import { Check, Star, Zap, Heart, MessageCircle, Gift, PlayCircle, BookOpen, ChevronRight } from "lucide-react";
 
 export default function Community() {
   const BENEFITS = [
@@ -31,6 +31,27 @@ export default function Community() {
               Клуб стильных
             </h1>
             <p className="text-sm text-gray-500 font-medium">Твое стильное пространство</p>
+        </div>
+
+        {/* Quick Links */}
+        <div className="grid grid-cols-1 gap-3 mb-8">
+            {[
+                { name: "Эфиры", color: "bg-purple-100 text-purple-600", icon: <PlayCircle size={20} /> },
+                { name: "Мастер-классы", color: "bg-blue-100 text-blue-600", icon: <Zap size={20} /> },
+                { name: "Гайды и чек-листы", color: "bg-pink-100 text-pink-600", icon: <BookOpen size={20} /> }
+            ].map((item) => (
+                <a 
+                    key={item.name}
+                    href={`/?category=${encodeURIComponent(item.name)}`}
+                    className={`${item.color} p-4 rounded-2xl flex items-center justify-between font-bold shadow-sm hover:opacity-90 transition-opacity`}
+                >
+                    <div className="flex items-center gap-3">
+                        {item.icon}
+                        <span>{item.name}</span>
+                    </div>
+                    <ChevronRight size={20} />
+                </a>
+            ))}
         </div>
 
         {/* Benefits List */}

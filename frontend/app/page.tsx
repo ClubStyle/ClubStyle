@@ -3,7 +3,8 @@
 import Image from "next/image";
 import { Search, Home as HomeIcon, Users, BookOpen, ChevronRight, X, Heart, PlayCircle, ChevronLeft } from "lucide-react";
 import BottomNav from "../components/BottomNav";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 
 // Types
 type Category = {
@@ -22,53 +23,10 @@ type MaterialItem = {
   description?: string;
 };
 
-const MATERIALS_DATA: MaterialItem[] = [
-  { id: 'community_1', title: "Эфиры", hashtag: "#эфиры", image: "/ЭФИРЫ.png", link: "#" },
-  { id: 'community_2', title: "Гайды и чек-листы", hashtag: "#гайды", image: "/ban.png", link: "https://t.me/c/2055411531/1" },
-  { id: '1', title: "Песочные часы", hashtag: "#песочныечасы", image: "/1пес.jpg", link: "https://t.me/c/2055411531/14930" },
-  { id: '2', title: "Перевернутый треугольник", hashtag: "#треугольник", image: "/треуг.jpg", link: "https://t.me/c/2055411531/14835" },
-  { id: '3', title: "Яблоко", hashtag: "#яблоко", image: "/яблоко.jpg", link: "https://t.me/c/2055411531/14785" },
-  { id: '4', title: "Груша", hashtag: "#груша", image: "/груша.jpg", link: "https://t.me/c/2055411531/13884" },
-  { id: '5', title: "Прямоугольник", hashtag: "#прямоугольник", image: "/прямоугольник.jpg", link: "https://t.me/c/2055411531/14428" },
-  { id: '6', title: "Plus size", hashtag: "#plussize", image: "/плюс.jpg", link: "https://t.me/c/2055411531/13948" },
-  { id: '7', title: "Капсула", hashtag: "#капсула", image: "/капсула.jpg", link: "https://t.me/c/2055411531/12058" },
-  { id: '8', title: "Образы", hashtag: "#образы", image: "/образы.jpg", link: "https://t.me/c/2055411531/13958", description: "Под этим хэштегами выкладываются готовые коллажи с образами" },
-  { id: '9', title: "Покупки по РФ", hashtag: "#образы #песочныечасы #прямоугольник #груша #яблоко #plussize #жакет #топ #юбка #сапоги #шуба #сумка #украшения #ссылкинавещи #покупкивроссии", image: "/пороссии.jpg", link: "https://t.me/c/2055411531/14810" },
-  { id: '10', title: "Покупки по миру", hashtag: "#покупкипомиру", image: "/помиру.jpg", link: "https://t.me/c/2055411531/14821", description: "Ссылки на покупки зарубежом" },
-  { id: '11', title: "#lookдняЛена", hashtag: "#lookдняЛена", image: "/лук.jpg", link: "https://t.me/c/2055411531/14859" },
-  { id: '12', title: "Вещь дня", hashtag: "#вещьдня", image: "/лукдня.jpg", link: "https://t.me/c/2055411531/14862", description: "Еще одна вещь: https://t.me/c/2055411531/14861" },
-  { id: '13', title: "Советы", hashtag: "#советы", image: "/ban.png", link: "https://t.me/c/2055411531/14959" },
-  { id: '14', title: "Ответы на вопросы", hashtag: "#эфиры", image: "/ЭФИРЫ.png", link: "https://t.me/c/2055411531/651", description: "Дорогие участницы, вчера прошёл закрытый эфир Клуба стильных, где Лена отвечала на ваши вопросы ❤️" },
-  { id: '15', title: "Как собрать капсулу", hashtag: "#эфиры", image: "/ЭФИРЫ.png", link: "https://t.me/c/2055411531/1544", description: "Вчера состоялся наш закрытый эфир только для участниц Клуба на тему «Капсульный гардероб»!" },
-  { id: '16', title: "Разбор образов участниц", hashtag: "#эфиры", image: "/ЭФИРЫ.png", link: "https://t.me/c/2055411531/2046", description: "Мы разобрали ваши образы, которые вы присылали в чат Клуба." },
-  { id: '17', title: "Осенний гардероб", hashtag: "#эфиры", image: "/ЭФИРЫ.png", link: "https://t.me/c/2055411531/2924", description: "Вчера состоялся наш закрытый эфир только для участниц Клуба на тему «Осенний гардероб», где я отвечала на ваши вопросы ❤️" },
-  { id: '18', title: "Ответы на вопросы участниц", hashtag: "#эфиры", image: "/ЭФИРЫ.png", link: "https://t.me/c/2055411531/4214", description: "Вчера состоялся наш закрытый эфир только для участниц Клуба, где я отвечала на ваши вопросы ❤️" },
-  { id: '19', title: "Разбор праздничных образов", hashtag: "#эфиры", image: "/ЭФИРЫ.png", link: "https://t.me/c/2055411531/4742", description: "я разбирала ваши праздничные образы❤️" },
-  { id: '20', title: "Как составить праздничный новогодний стол", hashtag: "#эфиры", image: "/ЭФИРЫ.png", link: "https://t.me/c/2055411531/4847", description: "В субботу состоялся закрытый эфир с диетологом Анастасией Егоровой, на котором Анастасия рассказывала как подготовиться к новогоднему застолью 🥗" },
-  { id: '21', title: "Неделя моды, тренды", hashtag: "#эфиры", image: "/ЭФИРЫ.png", link: "https://t.me/c/2055411531/7595", description: "Вчера состоялся наш закрытый эфир только для участниц Клуба, где я рассказывала про неделю моды в Париже, делилась впечатлениями и историями со стритстайла..." },
-  { id: '22', title: "Как быть яркой", hashtag: "#эфиры", image: "/ЭФИРЫ.png", link: "https://t.me/c/2055411531/9498", description: "В субботу состоялся закрытый эфир с психологом Ольгой Добряковой, на котором обсуждали очень важную тему о том, как разрешить себе быть яркой..." },
-  { id: '23', title: "Мастер-классы", hashtag: "#мастеркласс", image: "/МАСТЕРКЛ.png", link: "https://t.me/c/2055411531/13191", description: "Привет, стильные ✨ Октябрь в Клубе стильных был посвящен теме \"Как быть стильной, когда пора утепляться\", и завершить его я хочу своим мастер классом 🔥" },
-  { id: '24', title: "Платья. Лето 2024", hashtag: "#платья", image: "/платья.png", link: "https://t.me/c/2055411531/9" },
-  { id: '25', title: "Cтильные приемы, которые помогут не замерзнуть", hashtag: "#советы", image: "/приемы.png", link: "https://t.me/c/2055411531/13050" },
-  { id: '26', title: "Бренды", hashtag: "#бренды", image: "/ban.png", link: "https://t.me/c/2249399970/3/41" },
-  { id: '27', title: "Осенние образы для работы", hashtag: "#осень", image: "/70.jpg", link: "https://t.me/c/2055411531/12880" },
-  { id: '28', title: "Повседневные осенние образы", hashtag: "#осень", image: "/ban.png", link: "https://t.me/c/2055411531/12717" },
-  { id: '29', title: "Верхняя одежда на осень", hashtag: "#осень", image: "/ban.png", link: "https://t.me/c/2055411531/12564" },
-  { id: '30', title: "Осенние образы с трикотажем", hashtag: "#трикотаж", image: "/ban.png", link: "https://t.me/c/2055411531/12402" },
-  { id: '31', title: "Как сделать базовый гардероб нескучным", hashtag: "#советы", image: "/ban.png", link: "https://t.me/c/2055411531/12248" },
-  { id: '32', title: "Обувь и аксессуары на осень", hashtag: "#mango", image: "/ban.png", link: "https://t.me/c/2055411531/12098" },
-  { id: '33', title: "Осенние капсулы", hashtag: "#капсула", image: "/ban.png", link: "https://t.me/c/2055411531/11955" },
-  { id: '34', title: "Базовый гардероб", hashtag: "#база", image: "/ban.png", link: "https://t.me/c/2055411531/11803" },
-  { id: '35', title: "Фишки стилизации", hashtag: "#стилизация", image: "/ban.png", link: "https://t.me/c/2055411531/11668" },
-  { id: '36', title: "Plus Size", hashtag: "#plussize", image: "/ban.png", link: "https://t.me/c/2055411531/14351" },
-  { id: '37', title: "Подборка образов (Пальто)", hashtag: "#образы #песочныечасы #прямоугольник #груша #яблоко #треугольник #платье #манишка #колготки #перчатки #пальто #сапоги #сумка #шапка #украшения #ссылкинавещи #покупкивроссии", image: "/ban.png", link: "https://t.me/c/2055411531/14743" },
-  { id: '38', title: "Конкурс", hashtag: "#конкурс", image: "/ban.png", link: "https://t.me/c/2249399970/31710" },
-  { id: '39', title: "Ссылки на вещи", hashtag: "#ссылкинавещи", image: "/вещи.png", link: "https://t.me/c/2249399970/2" },
-];
-
 const CATEGORIES: Category[] = [
   { 
     name: "Сообщество", 
+    hidden: true,
     subCategories: ["Эфиры", "Мастер-классы", "Гайды и чек-листы"] 
   },
   { 
@@ -124,6 +82,15 @@ const CATEGORIES: Category[] = [
 ];
 
 export default function Home() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
+function HomeContent() {
+  const [materials, setMaterials] = useState<MaterialItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [subCategorySheet, setSubCategorySheet] = useState<{title: string, items: string[]} | null>(null);
   const [subCategorySearchQuery, setSubCategorySearchQuery] = useState("");
@@ -132,7 +99,31 @@ export default function Home() {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
 
+  const searchParams = useSearchParams();
+
   useEffect(() => {
+    // Handle URL params for direct category access
+    const categoryParam = searchParams.get('category');
+    if (categoryParam) {
+        const category = CATEGORIES.find(c => c.name === categoryParam);
+        if (category) {
+            handleCategoryClick(category);
+        }
+    }
+  }, [searchParams]);
+
+
+  useEffect(() => {
+    // Fetch materials from API
+    fetch('/api/materials')
+        .then(res => res.json())
+        .then(data => {
+            if (Array.isArray(data)) {
+                setMaterials(data);
+            }
+        })
+        .catch(err => console.error("Failed to fetch materials:", err));
+
     const savedFavs = localStorage.getItem("favorites");
     const savedRecent = localStorage.getItem("recent");
     if (savedFavs) setFavorites(JSON.parse(savedFavs));
@@ -152,7 +143,7 @@ export default function Home() {
   };
 
   const handleItemClick = (item: string) => {
-    let material = MATERIALS_DATA.find(m => m.title === item);
+    let material = materials.find(m => m.title === item);
     
     // Fallback if not found in data
     if (!material) {
@@ -176,7 +167,7 @@ export default function Home() {
   };
 
   const handleHashtagClick = (hashtag: string) => {
-    const items = MATERIALS_DATA.filter(m => m.hashtag.includes(hashtag)).map(m => m.title);
+    const items = materials.filter(m => m.hashtag.includes(hashtag)).map(m => m.title);
     setSubCategorySheet({
         title: hashtag,
         items: items
@@ -188,6 +179,21 @@ export default function Home() {
     !cat.hidden && cat.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const filteredMaterials = searchQuery 
+      ? materials.filter(m => 
+          m.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+          m.hashtag.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : [];
+
+  const foundSubCategories = searchQuery
+      ? CATEGORIES.flatMap(cat => 
+          (cat.subCategories || [])
+            .filter(sub => sub.toLowerCase().includes(searchQuery.toLowerCase()))
+            .map(sub => ({ sub, parent: cat }))
+        )
+      : [];
+
   const handleCategoryClick = (category: Category) => {
     if (category.subCategories) {
       setActiveCategory(category.name);
@@ -197,7 +203,7 @@ export default function Home() {
       });
     } else {
       // Check if it matches a material item directly
-      const material = MATERIALS_DATA.find(m => m.title === category.name);
+      const material = materials.find(m => m.title === category.name);
       if (material) {
           handleItemClick(category.name);
       } else {
@@ -260,6 +266,53 @@ export default function Home() {
           />
         </div>
 
+        {/* Search Results */}
+        {(searchQuery && (filteredMaterials.length > 0 || foundSubCategories.length > 0)) && (
+            <div className="mb-8 space-y-6">
+                 {/* Found Materials */}
+                 {filteredMaterials.length > 0 && (
+                    <div>
+                        <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 pl-1">
+                            Найденные материалы
+                        </h2>
+                        <div className="grid grid-cols-1 gap-4">
+                            {filteredMaterials.map(item => (
+                                <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm flex gap-4 items-center" onClick={() => handleItemClick(item.title)}>
+                                    <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
+                                        <Image src={item.image} alt={item.title} fill className="object-cover" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-bold text-gray-900 leading-tight mb-1">{item.title}</h3>
+                                        <span className="text-[10px] text-pink-500 font-bold bg-pink-50 px-2 py-0.5 rounded-md">{item.hashtag}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                 )}
+
+                 {/* Found Subcategories */}
+                 {foundSubCategories.length > 0 && (
+                    <div>
+                         <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 pl-1">
+                            Найденные темы
+                        </h2>
+                        <div className="flex flex-wrap gap-2">
+                            {foundSubCategories.map(({ sub, parent }) => (
+                                <button
+                                    key={`${parent.name}-${sub}`}
+                                    onClick={() => handleCategoryClick(parent)}
+                                    className="whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold bg-white text-gray-700 border border-gray-100 shadow-sm hover:bg-gray-50 hover:border-pink-200 transition-all"
+                                >
+                                    <span className="text-gray-400 mr-1">{parent.name} /</span> {sub}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                 )}
+            </div>
+        )}
+
         {/* Categories Carousel (2 Rows) */}
         <div className="mb-8">
             <div className="grid grid-rows-2 grid-flow-col gap-2 overflow-x-auto pb-4 no-scrollbar -mx-6 px-6">
@@ -280,10 +333,6 @@ export default function Home() {
                 ))}
             </div>
         </div>
-
-        {/* Video Categories Removed */}
-
-        {/* Tags Removed */}
 
         {/* Events Section */}
         <div className="mb-24">
@@ -311,6 +360,15 @@ export default function Home() {
                     fill
                     className="object-cover"
                 />
+                <button 
+                    onClick={(e) => toggleFavorite(e, "event_15005")}
+                    className="absolute top-4 right-4 bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white transition-colors z-10"
+                >
+                    <Heart 
+                        size={20} 
+                        className={`transition-colors ${favorites.includes("event_15005") ? "fill-pink-500 text-pink-500" : "text-white"}`} 
+                    />
+                </button>
             </div>
 
             <div className="space-y-3 text-xs text-gray-800 font-medium mb-4">
@@ -376,6 +434,15 @@ export default function Home() {
                     fill
                     className="object-cover"
                 />
+                <button 
+                    onClick={(e) => toggleFavorite(e, "event_14996")}
+                    className="absolute top-4 right-4 bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white transition-colors z-10"
+                >
+                    <Heart 
+                        size={20} 
+                        className={`transition-colors ${favorites.includes("event_14996") ? "fill-pink-500 text-pink-500" : "text-white"}`} 
+                    />
+                </button>
             </div>
 
             <div className="text-xs text-gray-800 font-medium mb-4 leading-relaxed">
@@ -434,7 +501,7 @@ export default function Home() {
                         const query = subCategorySearchQuery.toLowerCase();
                         if (!query) return true;
                         
-                        const material = MATERIALS_DATA.find(m => m.title === item);
+                        const material = materials.find(m => m.title === item);
                         const titleMatch = item.toLowerCase().includes(query);
                         const hashtagMatch = material 
                             ? material.hashtag.toLowerCase().includes(query)
@@ -443,7 +510,7 @@ export default function Home() {
                         return titleMatch || hashtagMatch;
                     })
                     .map((item) => {
-                         const material = MATERIALS_DATA.find(m => m.title === item);
+                         const material = materials.find(m => m.title === item);
                          const categoryItem = CATEGORIES.find(c => c.name === item && c.subCategories);
 
                          const displayImage = material ? material.image : "/ban.png";
