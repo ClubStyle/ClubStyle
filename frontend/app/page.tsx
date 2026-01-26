@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Search, Home as HomeIcon, Users, BookOpen, ChevronRight, X, Heart, PlayCircle, ChevronLeft } from "lucide-react";
+import { Search, Home as HomeIcon, Users, BookOpen, ChevronRight, X, Heart, PlayCircle, ChevronLeft, ExternalLink, Play } from "lucide-react";
 import BottomNav from "../components/BottomNav";
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -531,8 +531,34 @@ function HomeContent() {
                          const displayHashtag = material ? material.hashtag : "#" + item.toLowerCase().replace(/\s/g, '');
                          const displayLink = material ? material.link : `https://t.me/c/2055411531/1`;
 
+                         const handleCardClick = () => {
+                            if (categoryItem) {
+                                handleCategoryClick(categoryItem);
+                            } else {
+                                // Logic to handle "folders" of materials (same hashtag)
+                                const query = item.toLowerCase().replace(/\s/g, '');
+                                // Check if we are not already inside this folder
+                                if (subCategorySheet.title !== item) {
+                                     // Find materials that match this item as a hashtag
+                                     const relatedMaterials = materials.filter(m => 
+                                         m.hashtag.toLowerCase().includes(query) || 
+                                         m.hashtag.toLowerCase().includes("#" + query)
+                                     );
+                                     
+                                     if (relatedMaterials.length > 1) {
+                                          setSubCategorySheet({
+                                              title: item, // Keep title same as item name to prevent re-opening on click
+                                              items: relatedMaterials.map(m => m.title)
+                                          });
+                                          return;
+                                     }
+                                }
+                                handleItemClick(item);
+                            }
+                         };
+
                         return (
-                        <div key={item} className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-gray-100 relative group">
+                        <div key={item} onClick={handleCardClick} className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-gray-100 relative group cursor-pointer active:scale-[0.98] transition-transform">
                              {/* Image Section */}
                              <div className="relative h-48 w-full">
                                  <Image
@@ -545,7 +571,10 @@ function HomeContent() {
                                  
                                  {/* Favorite Button */}
                                  <button 
-                                     onClick={(e) => toggleFavorite(e, item)}
+                                     onClick={(e) => {
+                                         e.stopPropagation();
+                                         toggleFavorite(e, item);
+                                     }}
                                      className="absolute top-4 right-4 bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white transition-colors"
                                  >
                                      <Heart 
@@ -566,46 +595,22 @@ function HomeContent() {
                                      {item}
                                  </h3>
                                  {material?.description && (
-                                     <p className="text-gray-500 text-xs mb-4 leading-relaxed">
-                                         {material.description}
-                                     </p>
-                                 )}
-                                 
-                                 <a 
-                                     href={categoryItem ? "#" : displayLink} 
-                                     target={categoryItem ? "_self" : "_blank"} 
-                                     rel="noopener noreferrer"
-                                     onClick={(e) => {
-                                         e.preventDefault(); 
-                                         if (categoryItem) {
-                                             handleCategoryClick(categoryItem);
-                                         } else {
-                                             // Logic to handle "folders" of materials (same hashtag)
-                                             const query = item.toLowerCase().replace(/\s/g, '');
-                                             // Check if we are not already inside this folder
-                                             if (subCategorySheet.title !== item) {
-                                                  // Find materials that match this item as a hashtag
-                                                  const relatedMaterials = materials.filter(m => 
-                                                      m.hashtag.toLowerCase().includes(query) || 
-                                                      m.hashtag.toLowerCase().includes("#" + query)
-                                                  );
-                                                  
-                                                  if (relatedMaterials.length > 1) {
-                                                       setSubCategorySheet({
-                                                           title: item, // Keep title same as item name to prevent re-opening on click
-                                                           items: relatedMaterials.map(m => m.title)
-                                                       });
-                                                       return;
-                                                  }
-                                             }
-                                             handleItemClick(item);
-                                         }
-                                     }}
-                                     className="w-full mt-2 bg-pink-500 text-white font-bold py-3 rounded-xl hover:bg-pink-600 transition-colors flex items-center justify-center gap-2 text-sm cursor-pointer"
-                                 >
-                                     {categoryItem ? <BookOpen size={16} /> : <PlayCircle size={16} />}
-                                     {categoryItem ? "Открыть категорию" : "Перейти к материалу"}
-                                 </a>
+                                    <p className="text-gray-500 text-xs mb-4 leading-relaxed line-clamp-2">
+                                        {material.description}
+                                    </p>
+                                )}
+                                
+                                <button 
+                                    onClick={(e) => {
+                                        e.preventDefault(); 
+                                        e.stopPropagation();
+                                        handleCardClick();
+                                    }}
+                                    className="w-full mt-2 bg-pink-500 text-white font-bold py-3 rounded-xl hover:bg-pink-600 transition-colors flex items-center justify-center gap-2 text-sm cursor-pointer shadow-md shadow-pink-100"
+                                >
+                                    {categoryItem ? <BookOpen size={16} /> : <PlayCircle size={16} />}
+                                    {categoryItem ? "Открыть категорию" : "Смотреть"}
+                                </button>
                              </div>
                         </div>
                     )})}
@@ -620,70 +625,97 @@ function HomeContent() {
         </div>
       )}
 
-      {/* Material Detail Modal */}
+      {/* Selected Material Full Screen View */}
       {selectedMaterial && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <div 
-                className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
-                onClick={() => setSelectedMaterial(null)}
-            />
-            <div className="relative w-full max-w-sm bg-white rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
-                {/* Close Button */}
-                <button 
+        <div className="fixed inset-0 z-[60] bg-white overflow-y-auto animate-in slide-in-from-bottom-10 duration-300">
+            {/* Header with Back Button */}
+            <div className="fixed top-0 left-0 right-0 z-20 flex justify-between items-center p-4 pointer-events-none">
+                 <button 
                     onClick={() => setSelectedMaterial(null)}
-                    className="absolute top-4 right-4 z-20 bg-black/20 hover:bg-black/40 text-white p-2 rounded-full backdrop-blur-md transition-colors"
-                >
-                    <X size={20} />
-                </button>
+                    className="pointer-events-auto flex items-center gap-2 text-white bg-black/30 backdrop-blur-md px-4 py-2 rounded-full hover:bg-black/40 transition-colors shadow-sm"
+                 >
+                    <ChevronLeft size={18} />
+                    <span className="text-sm font-medium">Назад</span>
+                 </button>
+            </div>
 
-                {/* Image Section */}
-                <div className="relative h-64 w-full">
+            <div className="pt-20">
+                {/* Hero Image Section */}
+                <div className="relative mx-4 aspect-[16/9] rounded-[20px] overflow-hidden bg-black shadow-md shrink-0">
                     <Image
                         src={selectedMaterial.image}
                         alt={selectedMaterial.title}
                         fill
-                        className="object-cover"
+                        className="object-cover opacity-90"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                    <div className="absolute inset-0 bg-black/20" />
                     
-                    {/* Favorite Button */}
-                    <button 
-                        onClick={(e) => toggleFavorite(e, selectedMaterial!.title)}
-                        className="absolute bottom-4 right-4 bg-white/30 backdrop-blur-md p-3 rounded-full hover:bg-white transition-colors border border-white/20"
-                    >
-                        <Heart 
-                            size={24} 
-                            className={`transition-colors ${favorites.includes(selectedMaterial.title) ? "fill-pink-500 text-pink-500" : "text-white"}`} 
-                        />
-                    </button>
+                    {/* Play Button Overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                        <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center pl-1 border border-white/30 shadow-2xl">
+                            <Play size={32} fill="white" className="text-white" />
+                        </div>
+                    </div>
+
+                    {/* Fake Video Controls */}
+                    <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-10 pointer-events-none">
+                        <div className="h-1 bg-white/30 rounded-full overflow-hidden mb-2">
+                            <div className="h-full w-1/3 bg-pink-500 rounded-full relative">
+                                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full shadow-sm scale-150"></div>
+                            </div>
+                        </div>
+                        <div className="flex justify-between text-[10px] text-white/90 font-medium font-mono">
+                            <span>04:20</span>
+                            <span>15:00</span>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Content Section */}
-                <div className="p-6 pt-6">
-                    <div className="flex gap-2 mb-3">
-                        <span className="bg-pink-50 text-pink-500 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                {/* Content Container */}
+                <div className="relative z-10 bg-white px-6 pt-6 pb-40">
+                    <div className="flex flex-wrap gap-2 mb-4">
+                        <span className="bg-pink-50 text-pink-500 text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">
                             {selectedMaterial.hashtag}
                         </span>
                     </div>
-                    <h3 className="text-2xl font-black text-gray-900 mb-3 leading-tight">
+
+                    <h2 className="text-2xl font-black text-gray-900 mb-6 leading-tight">
                         {selectedMaterial.title}
-                    </h3>
+                    </h2>
+
                     {selectedMaterial.description && (
-                        <p className="text-gray-500 text-sm mb-6 leading-relaxed">
+                        <div className="text-gray-600 text-[15px] leading-relaxed whitespace-pre-wrap mb-8">
                             {selectedMaterial.description}
-                        </p>
+                        </div>
                     )}
-                    
-                    <a 
-                        href={selectedMaterial.link} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="w-full bg-pink-500 text-white font-bold py-4 rounded-2xl hover:bg-pink-600 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-pink-200"
-                    >
-                        <PlayCircle size={20} />
-                        Перейти к материалу
-                    </a>
                 </div>
+            </div>
+
+            {/* Fixed Bottom Action Buttons */}
+            <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-gray-100 pb-8 z-20">
+                 <div className="flex flex-col gap-3 max-w-md mx-auto">
+                      <button 
+                          onClick={(e) => toggleFavorite(e, selectedMaterial.title)}
+                          className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold transition-all border ${
+                              favorites.includes(selectedMaterial.title)
+                                  ? "bg-pink-50 border-pink-200 text-pink-500"
+                                  : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                          }`}
+                      >
+                          <Heart size={20} className={favorites.includes(selectedMaterial.title) ? "fill-current" : ""} />
+                          {favorites.includes(selectedMaterial.title) ? "В избранном" : "Добавить в избранное"}
+                      </button>
+
+                      <a 
+                          href={selectedMaterial.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full bg-pink-500 text-white font-bold py-3.5 rounded-xl hover:bg-pink-600 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-pink-200"
+                      >
+                          <ExternalLink size={20} />
+                          Перейти к оригинальному посту
+                      </a>
+                 </div>
             </div>
         </div>
       )}
