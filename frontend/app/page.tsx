@@ -4,7 +4,7 @@ import Image from "next/image";
 import { Search, Home as HomeIcon, Users, BookOpen, ChevronRight, X, Heart, PlayCircle, ChevronLeft } from "lucide-react";
 import BottomNav from "../components/BottomNav";
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 
 // Types
 type Category = {
@@ -39,7 +39,7 @@ const CATEGORIES: Category[] = [
   { name: "Вещь дня" },
   { 
     name: "Обувь", 
-    subCategories: ["Сапоги", "Ботильоны", "Мюли", "Туфли", "Босоножки", "Тапки"] 
+    subCategories: ["Сапоги", "Ботильоны", "Мюли", "Туфли", "Босоножки", "Тапки", "Зимние инвестиции: расслабленная обувь"] 
   },
   {
     name: "Одежда",
@@ -108,6 +108,7 @@ function HomeContent() {
   const [recent, setRecent] = useState<string[]>([]);
 
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   useEffect(() => {
     // Handle URL params for direct category access
@@ -222,6 +223,11 @@ function HomeContent() {
   };
 
   const closeSheet = () => {
+    const fromParam = searchParams.get('from');
+    if (fromParam === 'community') {
+        router.push('/community');
+        return;
+    }
     setSubCategorySheet(null);
     setActiveCategory(null); // Optional: clear selection on close
   };

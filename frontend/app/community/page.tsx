@@ -43,7 +43,7 @@ export default function Community() {
             ].map((item) => (
                 <a 
                     key={item.name}
-                    href={`/?category=${encodeURIComponent(item.name)}`}
+                    href={`/?category=${encodeURIComponent(item.name)}&from=community`}
                     className={`${item.color} p-4 rounded-3xl flex flex-col justify-between aspect-[4/3] font-bold shadow-sm hover:opacity-90 transition-opacity`}
                 >
                     <div className="flex justify-between items-start w-full">
