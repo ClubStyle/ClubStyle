@@ -580,6 +580,24 @@ function HomeContent() {
                                          if (categoryItem) {
                                              handleCategoryClick(categoryItem);
                                          } else {
+                                             // Logic to handle "folders" of materials (same hashtag)
+                                             const query = item.toLowerCase().replace(/\s/g, '');
+                                             // Check if we are not already inside this folder
+                                             if (subCategorySheet.title !== item) {
+                                                  // Find materials that match this item as a hashtag
+                                                  const relatedMaterials = materials.filter(m => 
+                                                      m.hashtag.toLowerCase().includes(query) || 
+                                                      m.hashtag.toLowerCase().includes("#" + query)
+                                                  );
+                                                  
+                                                  if (relatedMaterials.length > 1) {
+                                                       setSubCategorySheet({
+                                                           title: item, // Keep title same as item name to prevent re-opening on click
+                                                           items: relatedMaterials.map(m => m.title)
+                                                       });
+                                                       return;
+                                                  }
+                                             }
                                              handleItemClick(item);
                                          }
                                      }}
