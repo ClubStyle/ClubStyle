@@ -345,7 +345,20 @@ function HomeContent() {
                                     </div>
                                     <div>
                                         <h3 className="text-sm font-bold text-gray-900 leading-tight mb-1">{item.title}</h3>
-                                        <span className="text-[10px] text-pink-500 font-bold bg-pink-50 px-2 py-0.5 rounded-md">{item.hashtag}</span>
+                                        <div className="flex flex-wrap gap-1">
+                                            {item.hashtag.split(' ').map((tag, i) => (
+                                                <button 
+                                                    key={i}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleHashtagClick(tag);
+                                                    }}
+                                                    className="text-[10px] text-pink-500 font-bold bg-pink-50 px-2 py-0.5 rounded-md hover:bg-pink-100 transition-colors"
+                                                >
+                                                    {tag}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             ))}
@@ -608,10 +621,19 @@ function HomeContent() {
                         if (material?.type === 'text') {
                              return (
                                 <div key={item} className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 relative group transition-transform">
-                                     <div className="flex gap-2 mb-4">
-                                         <span className="bg-pink-50 text-pink-500 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                                             {displayHashtag}
-                                         </span>
+                                     <div className="flex flex-wrap gap-2 mb-4">
+                                         {displayHashtag.split(' ').map((tag, i) => (
+                                             <button
+                                                 key={i}
+                                                 onClick={(e) => {
+                                                     e.stopPropagation();
+                                                     handleHashtagClick(tag);
+                                                 }}
+                                                 className="bg-pink-50 text-pink-500 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider hover:bg-pink-100 transition-colors"
+                                             >
+                                                 {tag}
+                                             </button>
+                                         ))}
                                      </div>
                                      <h3 className="text-xl font-black text-gray-900 mb-4 leading-tight">
                                          {item}
@@ -651,10 +673,19 @@ function HomeContent() {
 
                              {/* Content Section */}
                              <div className="p-5">
-                                 <div className="flex gap-2 mb-2">
-                                     <span className="bg-pink-50 text-pink-500 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                                         {displayHashtag}
-                                     </span>
+                                 <div className="flex flex-wrap gap-2 mb-2">
+                                     {displayHashtag.split(' ').map((tag, i) => (
+                                         <button
+                                             key={i}
+                                             onClick={(e) => {
+                                                 e.stopPropagation();
+                                                 handleHashtagClick(tag);
+                                             }}
+                                             className="bg-pink-50 text-pink-500 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider hover:bg-pink-100 transition-colors"
+                                         >
+                                             {tag}
+                                         </button>
+                                     ))}
                                  </div>
                                  <h3 className="text-lg font-bold text-gray-900 mb-2 leading-tight">
                                      {item}
@@ -768,9 +799,18 @@ function HomeContent() {
                 {/* Content Container */}
                 <div className="relative z-10 bg-white px-6 pt-6 pb-40">
                     <div className="flex flex-wrap gap-2 mb-4">
-                        <span className="bg-pink-50 text-pink-500 text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">
-                            {selectedMaterial.hashtag}
-                        </span>
+                        {selectedMaterial.hashtag.split(' ').map((tag, i) => (
+                            <button
+                                key={i}
+                                onClick={() => {
+                                    setSelectedMaterial(null);
+                                    handleHashtagClick(tag);
+                                }}
+                                className="bg-pink-50 text-pink-500 text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider hover:bg-pink-100 transition-colors"
+                            >
+                                {tag}
+                            </button>
+                        ))}
                     </div>
 
                     <h2 className="text-2xl font-black text-gray-900 mb-6 leading-tight">
