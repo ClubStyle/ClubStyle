@@ -39,7 +39,7 @@ export default function Community() {
                 { name: "Эфиры", color: "bg-purple-100 text-purple-600", icon: <PlayCircle size={28} /> },
                 { name: "Мастер-классы", color: "bg-blue-100 text-blue-600", icon: <Zap size={28} /> },
                 { name: "Гайды и чек-листы", color: "bg-pink-100 text-pink-600", icon: <BookOpen size={28} /> },
-                { name: "Продукты школы", color: "bg-green-100 text-green-600", icon: <ShoppingBag size={28} /> }
+                { name: "Мои обучения", color: "bg-green-100 text-green-600", icon: <ShoppingBag size={28} /> }
             ].map((item) => (
                 <a 
                     key={item.name}

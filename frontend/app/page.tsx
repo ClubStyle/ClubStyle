@@ -20,14 +20,16 @@ type MaterialItem = {
   hashtag: string;
   image: string;
   link: string;
+  video_link?: string;
   description?: string;
+  type?: string;
 };
 
 const CATEGORIES: Category[] = [
   { 
     name: "Сообщество", 
     hidden: true,
-    subCategories: ["Эфиры", "Мастер-классы", "Гайды и чек-листы", "Продукты школы"] 
+    subCategories: ["Эфиры", "Мастер-классы", "Гайды и чек-листы", "Мои обучения"] 
   },
   { 
     name: "Типы фигуры", 
@@ -61,7 +63,7 @@ const CATEGORIES: Category[] = [
   { name: "Покупки по миру" },
   { name: "Покупки по РФ" },
   { name: "Конкурс" },
-  { name: "Гайды и чек-листы", hidden: true, subCategories: ["Гайд"] },
+  { name: "Гайды и чек-листы", hidden: true, subCategories: ["Новогодние образы"] },
   { 
     name: "Эфиры",
     hidden: true,
@@ -72,7 +74,7 @@ const CATEGORIES: Category[] = [
       "Осенний гардероб",
       "Ответы на вопросы участниц",
       "Эфир с Леной",
-      "Эфир с диетологом",
+      "Запись с диетологом",
       "Неделя моды, тренды",
       "Как быть яркой"
     ]
@@ -87,7 +89,40 @@ const CATEGORIES: Category[] = [
     ] 
   },
   { name: "Бренды" },
+  {
+    name: "Мои обучения",
+    hidden: true,
+    subCategories: [
+       "Гайд Базовый гардероб",
+       "Стилист будущего",
+      "10 = 100",
+      "Мастер-класс ПРОКАЧКА СТИЛЯ",
+      "Мастер-класс Тренды 2026",
+      "УКРАШЕНИЯ: как выбирать, сочетать и хранить",
+      "Чек-лист по ПОДБОРУ СУМОК"
+    ]
+  },
 ];
+
+const getEmbedUrl = (url: string) => {
+    if (!url) return null;
+    
+    // YouTube
+    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const youtubeMatch = url.match(youtubeRegex);
+    if (youtubeMatch && youtubeMatch[1]) {
+        return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
+    }
+
+    // Vimeo
+    const vimeoRegex = /(?:vimeo\.com\/)(\d+)/;
+    const vimeoMatch = url.match(vimeoRegex);
+    if (vimeoMatch && vimeoMatch[1]) {
+        return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+    }
+
+    return null;
+};
 
 export default function Home() {
   return (
@@ -156,17 +191,29 @@ function HomeContent() {
     
     // Fallback if not found in data
     if (!material) {
-        material = {
-            id: Date.now().toString(),
-            title: item,
-            hashtag: "#" + item.toLowerCase().replace(/\s/g, ''),
-            image: "/ban.png", // placeholder
-            link: "https://t.me/c/2055411531/1" // default placeholder link
-        };
+        if (item === "Бренды") {
+            material = {
+                id: "brands_review_fallback",
+                title: "Бренды",
+                hashtag: "#бренды",
+                image: "/ban.png",
+                type: "text",
+                link: "https://t.me/c/2055411531/1",
+                description: "ZARA (май 2024)\nLOVE REPUBLIC (июнь 2024)\nBEFREE (август 2024)\nZARINA (август 2024)\nH&M (август 2024)\nMAAG мини обзор (август 2024)\n4FORMS (август 2024)\nASOS CURVE (сентябрь 2024)\nLIME (сентябрь 2024)\nMANGO (октябрь 2024)\nEKONIKA (октябрь 2024)\nSHUBECO (октябрь 2024)\nFOREVER 21 (ноябрь 2024)\nMAAG (новогодняя коллекция 2024)\nZARINA (новогодняя коллекция 2024)\nDAISYKNIT (новогодняя коллекция 2024)\nALL WE NEED (новогодняя коллекция 2024)\nMONZA| Моностиль (новогодняя коллекция 2024)\nRESERVED (новогодняя коллекция 2024)\nLIME (январь 2025)\nLOVE REPUBLIC (февраль 2025)\nLICHI (верхняя одежда февраль 2025)\nIDOL (март 2025)\nZARINA (март 2025)\nSELA (апрель 2025)\nMANGO (сентябрь 2025)"
+            };
+        } else {
+            material = {
+                id: Date.now().toString(),
+                title: item,
+                hashtag: "#" + item.toLowerCase().replace(/\s/g, ''),
+                image: "/ban.png", // placeholder
+                link: "https://t.me/c/2055411531/1" // default placeholder link
+            };
+        }
     }
 
     setSelectedMaterial(material);
-    setSubCategorySheet(null); // Close category sheet
+    // setSubCategorySheet(null); // Keep category sheet open for "Back" navigation
 
     if (!recent.includes(item)) {
         const newRecent = [item, ...recent.filter(i => i !== item)].slice(0, 20);
@@ -557,6 +604,24 @@ function HomeContent() {
                             }
                          };
 
+                        if (material?.type === 'text') {
+                             return (
+                                <div key={item} className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 relative group transition-transform">
+                                     <div className="flex gap-2 mb-4">
+                                         <span className="bg-pink-50 text-pink-500 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                                             {displayHashtag}
+                                         </span>
+                                     </div>
+                                     <h3 className="text-xl font-black text-gray-900 mb-4 leading-tight">
+                                         {item}
+                                     </h3>
+                                     <div className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap font-medium">
+                                         {material.description}
+                                     </div>
+                                </div>
+                             );
+                        }
+
                         return (
                         <div key={item} onClick={handleCardClick} className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-gray-100 relative group cursor-pointer active:scale-[0.98] transition-transform">
                              {/* Image Section */}
@@ -565,8 +630,8 @@ function HomeContent() {
                                      src={displayImage}
                                      alt={item}
                                      fill
-                                     className="object-cover"
-                                 />
+                                    className="object-cover object-center"
+                                />
                                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
                                  
                                  {/* Favorite Button */}
@@ -640,36 +705,65 @@ function HomeContent() {
             </div>
 
             <div className="pt-20">
-                {/* Hero Image Section */}
-                <div className="relative mx-4 aspect-[16/9] rounded-[20px] overflow-hidden bg-black shadow-md shrink-0">
-                    <Image
-                        src={selectedMaterial.image}
-                        alt={selectedMaterial.title}
-                        fill
-                        className="object-cover opacity-90"
-                    />
-                    <div className="absolute inset-0 bg-black/20" />
-                    
-                    {/* Play Button Overlay */}
-                    <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                        <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center pl-1 border border-white/30 shadow-2xl">
-                            <Play size={32} fill="white" className="text-white" />
-                        </div>
-                    </div>
+                {/* Hero Image Section - Only for non-text types */}
+                {selectedMaterial.type !== 'text' && (
+                    <div className={`relative mx-4 rounded-[20px] overflow-hidden bg-black shadow-md shrink-0 ${
+                        selectedMaterial.hashtag?.toLowerCase().includes('#эфиры') ? 'aspect-[16/9]' : 'aspect-auto'
+                    }`}>
+                        {selectedMaterial.video_link && getEmbedUrl(selectedMaterial.video_link) ? (
+                            <iframe
+                                src={getEmbedUrl(selectedMaterial.video_link)!}
+                                title={selectedMaterial.title}
+                                className="absolute inset-0 w-full h-full"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                            />
+                        ) : (
+                            <>
+                                <Image
+                                    src={selectedMaterial.image}
+                                    alt={selectedMaterial.title}
+                                    {...(selectedMaterial.hashtag?.toLowerCase().includes('#эфиры')
+                                        ? { 
+                                            fill: true,
+                                            className: "object-cover object-center opacity-90"
+                                          }
+                                        : {
+                                            width: 800, 
+                                            height: 600,
+                                            className: "w-full h-auto object-contain opacity-90"
+                                          }
+                                    )}
+                                />
+                                <div className="absolute inset-0 bg-black/20" />
+                                
+                                {/* Play Button Overlay */}
+                                {selectedMaterial.hashtag?.toLowerCase().includes('#эфиры') && (
+                                <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                                    <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center pl-1 border border-white/30 shadow-2xl">
+                                        <Play size={32} fill="white" className="text-white" />
+                                    </div>
+                                </div>
+                                )}
 
-                    {/* Fake Video Controls */}
-                    <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-10 pointer-events-none">
-                        <div className="h-1 bg-white/30 rounded-full overflow-hidden mb-2">
-                            <div className="h-full w-1/3 bg-pink-500 rounded-full relative">
-                                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full shadow-sm scale-150"></div>
-                            </div>
-                        </div>
-                        <div className="flex justify-between text-[10px] text-white/90 font-medium font-mono">
-                            <span>04:20</span>
-                            <span>15:00</span>
-                        </div>
+                                {/* Fake Video Controls */}
+                                {selectedMaterial.hashtag?.toLowerCase().includes('#эфиры') && (
+                                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-10 pointer-events-none">
+                                    <div className="h-1 bg-white/30 rounded-full overflow-hidden mb-2">
+                                        <div className="h-full w-1/3 bg-pink-500 rounded-full relative">
+                                            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full shadow-sm scale-150"></div>
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-between text-[10px] text-white/90 font-medium font-mono">
+                                        <span>04:20</span>
+                                        <span>15:00</span>
+                                    </div>
+                                </div>
+                                )}
+                            </>
+                        )}
                     </div>
-                </div>
+                )}
 
                 {/* Content Container */}
                 <div className="relative z-10 bg-white px-6 pt-6 pb-40">
@@ -706,6 +800,18 @@ function HomeContent() {
                           {favorites.includes(selectedMaterial.title) ? "В избранном" : "Добавить в избранное"}
                       </button>
 
+                      {selectedMaterial.video_link && (
+                          <a 
+                              href={selectedMaterial.video_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-full bg-black text-white font-bold py-3.5 rounded-xl hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-gray-200"
+                          >
+                              <PlayCircle size={20} />
+                              Смотреть запись
+                          </a>
+                      )}
+
                       <a 
                           href={selectedMaterial.link}
                           target="_blank"
@@ -713,7 +819,7 @@ function HomeContent() {
                           className="w-full bg-pink-500 text-white font-bold py-3.5 rounded-xl hover:bg-pink-600 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-pink-200"
                       >
                           <ExternalLink size={20} />
-                          Перейти к оригинальному посту
+                          {selectedMaterial.id.startsWith('edu_') ? "Смотреть" : "Перейти к оригинальному посту"}
                       </a>
                  </div>
             </div>
