@@ -23,6 +23,7 @@ type MaterialItem = {
   video_link?: string;
   description?: string;
   type?: string;
+  image_position?: string;
 };
 
 const CATEGORIES: Category[] = [
@@ -630,7 +631,7 @@ function HomeContent() {
                                      src={displayImage}
                                      alt={item}
                                      fill
-                                    className="object-cover object-center"
+                                    className={`object-cover ${material?.image_position || "object-center"}`}
                                 />
                                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
                                  
