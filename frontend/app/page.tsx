@@ -30,13 +30,15 @@ const CATEGORIES: Category[] = [
   { 
     name: "Сообщество", 
     hidden: true,
-    subCategories: ["Эфиры", "Мастер-классы", "Гайды и чек-листы", "Мои обучения"] 
+    subCategories: ["Эфиры", "Мастер-классы", "Гайды и чек-листы", "Мои обучения", "Разбор образов участниц"] 
   },
   { 
     name: "Типы фигуры", 
     subCategories: ["Груша", "Яблоко", "Песочные часы", "Перевернутый треугольник", "Прямоугольник"] 
   },
   { name: "Капсула" },
+  { name: "Идеи образов" }, // New
+  { name: "Разборы образов" }, // New (alias for subcategory or separate)
   { name: "#lookдняЛена" },
   { name: "Ссылки на вещи" },
   { name: "Вещь дня" },
@@ -96,13 +98,38 @@ const CATEGORIES: Category[] = [
     subCategories: [
        "Гайд Базовый гардероб",
        "Стилист будущего",
-      "10 = 100",
-      "Мастер-класс ПРОКАЧКА СТИЛЯ",
-      "Мастер-класс Тренды 2026",
-      "УКРАШЕНИЯ: как выбирать, сочетать и хранить",
-      "Чек-лист по ПОДБОРУ СУМОК"
+       "10 = 100",
+       "Мастер-класс ПРОКАЧКА СТИЛЯ",
+       "Мастер-класс Тренды 2026",
+       "УКРАШЕНИЯ: как выбирать, сочетать и хранить",
+       "Чек-лист по ПОДБОРУ СУМОК"
     ]
   },
+];
+
+const QUICK_FILTERS = [
+    { label: "типы фигур", category: "Типы фигуры" },
+    { label: "plus size", category: "Plus Size" },
+    { label: "находки в рф", category: "Покупки по РФ" },
+    { label: "находки мир", category: "Покупки по миру" },
+    { label: "обувь", category: "Обувь" },
+    { label: "сумки", category: "Аксессуары" },
+    { label: "верхняя одежда", category: "Сезоны" },
+    { label: "верха", category: "Одежда" },
+    { label: "низы", category: "Одежда" },
+    { label: "аксессуары", category: "Аксессуары" },
+    { label: "образы участниц", category: "Разборы образов" }
+];
+
+const MENU_ITEMS = [
+  { title: "ОБЗОРЫ БРЕНДОВ", image: "/обзорыбрендов.png", category: "Бренды", count: 18 },
+  { title: "ИДЕИ ОБРАЗОВ", image: "/идеиобразов.png", category: "Идеи образов", count: 11 },
+  { title: "МАСТЕР-КЛАССЫ", image: "/мастерклассы.png", category: "Мастер-классы", count: 99 },
+  { title: "ГАЙДЫ", image: "/гайды2.png", category: "Гайды и чек-листы", count: 2 },
+  { title: "РАЗБОРЫ ОБРАЗОВ", image: "/разборыобразов.png", category: "Разборы образов", count: 70 },
+  { title: "ОБУЧЕНИЯ", image: "/обучения.png", category: "Мои обучения", count: 53 },
+  { title: "СОВЕТЫ И ЛАЙФХАКИ", image: "/советылайф.png", category: "Советы", count: 37 },
+  { title: "ОБРАЗЫ", image: "/образы.png", category: "#lookдняЛена", count: 7 },
 ];
 
 const getEmbedUrl = (url: string) => {
@@ -142,6 +169,7 @@ function HomeContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [favorites, setFavorites] = useState<string[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
+  const [tgUser, setTgUser] = useState<{first_name: string, photo_url?: string} | null>(null);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -173,6 +201,14 @@ function HomeContent() {
     const savedRecent = localStorage.getItem("recent");
     if (savedFavs) setFavorites(JSON.parse(savedFavs));
     if (savedRecent) setRecent(JSON.parse(savedRecent));
+
+    if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp) {
+        const tg = (window as any).Telegram.WebApp;
+        tg.ready();
+        if (tg.initDataUnsafe?.user) {
+            setTgUser(tg.initDataUnsafe.user);
+        }
+    }
   }, []);
 
   const toggleFavorite = (e: React.MouseEvent, item: string) => {
@@ -288,31 +324,60 @@ function HomeContent() {
         <div className="flex justify-between items-start mb-6">
           <div>
             <h1 className="text-2xl font-black text-black">
-              Привет, Анна!
+              Привет, {tgUser?.first_name || "Анна"}!
             </h1>
             <p className="text-sm text-gray-500">Твой стиль — это ты.</p>
           </div>
-          <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden border border-white shadow-sm">
-             {/* Avatar Placeholder */}
-             <div className="w-full h-full bg-gray-300 flex items-center justify-center text-xs text-gray-600">AV</div>
+          <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden border border-white shadow-sm relative">
+             {tgUser?.photo_url ? (
+                <Image src={tgUser.photo_url} alt="Avatar" fill className="object-cover" />
+             ) : (
+                <div className="w-full h-full bg-gray-300 flex items-center justify-center text-xs text-gray-600">
+                    {tgUser?.first_name?.[0] || "AV"}
+                </div>
+             )}
           </div>
         </div>
 
-        {/* Banner Section */}
-        <div className="relative w-full h-48 bg-white overflow-hidden rounded-3xl shadow-lg mb-8">
-          <Image
-            src="/ban.png"
-            alt="New Season Banner"
-            fill
-            className="object-cover"
-            priority
-          />
+        {/* Grid Navigation (Replaces Banner and Carousel) */}
+        <div className="grid grid-cols-2 gap-3 mb-8">
+            {MENU_ITEMS.map((item, index) => (
+                <button 
+                    key={index}
+                    onClick={() => {
+                        const cat = CATEGORIES.find(c => c.name === item.category);
+                        if (cat) handleCategoryClick(cat);
+                    }}
+                    className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden shadow-md group active:scale-[0.98] transition-transform"
+                >
+                    <Image 
+                        src={item.image} 
+                        alt={item.title} 
+                        fill 
+                        className="object-cover"
+                    />
+                    {/* Dark Overlay - removed */}
+                    {/* <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors"></div> */}
+                    
+                    {/* Badge - removed */}
+                    {/* <div className="absolute top-2 right-2 bg-blue-600 text-white text-[10px] font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-lg">
+                        {item.count}
+                    </div> */}
+
+                    {/* Title - removed */}
+                    {/* <div className="absolute bottom-3 left-3 right-3 text-left">
+                        <span className="text-white font-black text-sm uppercase leading-tight drop-shadow-md">
+                            {item.title}
+                        </span>
+                    </div> */}
+                </button>
+            ))}
         </div>
 
-        {/* Title */}
-        <h1 className="text-center text-2xl font-black uppercase tracking-wide mb-6 text-black drop-shadow-sm">
+        {/* Title (Hidden/Removed if Grid is main nav) */}
+        {/* <h1 className="text-center text-2xl font-black uppercase tracking-wide mb-6 text-black drop-shadow-sm">
           База знаний
-        </h1>
+        </h1> */}
 
         {/* Search Bar */}
         <div className="relative mb-6">
@@ -326,6 +391,30 @@ function HomeContent() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+        </div>
+
+        {/* Quick Filters (Restored & Reordered) */}
+        <div className="mb-8">
+            <div className="grid grid-rows-2 grid-flow-col gap-3 overflow-x-auto pb-4 no-scrollbar -mx-6 px-6">
+                {QUICK_FILTERS.map((item, index) => (
+                    <button
+                        key={index}
+                        onClick={() => {
+                            const cat = CATEGORIES.find(c => c.name === item.category);
+                            if (cat) handleCategoryClick(cat);
+                        }}
+                        className={`
+                            whitespace-nowrap px-5 py-2.5 rounded-2xl text-[11px] font-bold uppercase tracking-wide border transition-all duration-200
+                            ${activeCategory === item.category 
+                                ? "bg-black text-white border-black" 
+                                : "bg-white text-gray-900 border-gray-300 hover:border-gray-900"
+                            }
+                        `}
+                    >
+                        {item.label}
+                    </button>
+                ))}
+            </div>
         </div>
 
         {/* Search Results */}
@@ -388,8 +477,8 @@ function HomeContent() {
             </div>
         )}
 
-        {/* Categories Carousel (2 Rows) */}
-        <div className="mb-8">
+        {/* Categories Carousel (Hidden as requested) */}
+        {/* <div className="mb-8">
             <div className="grid grid-rows-2 grid-flow-col gap-2 overflow-x-auto pb-4 no-scrollbar -mx-6 px-6">
                 {filteredCategories.map((cat) => (
                     <button
@@ -407,7 +496,7 @@ function HomeContent() {
                     </button>
                 ))}
             </div>
-        </div>
+        </div> */}
 
         {/* Events Section */}
         <div className="mb-24">
@@ -430,7 +519,7 @@ function HomeContent() {
             
             <div className="w-full h-80 bg-gray-100 rounded-2xl overflow-hidden relative mb-4 border border-gray-100">
                 <Image
-                    src="/публ2.jpg" 
+                    src="/событие2.jpg" 
                     alt="Дубленки"
                     fill
                     className="object-cover"

@@ -1,6 +1,6 @@
 "use client";
 
-import { Home as HomeIcon, Users, BookOpen } from "lucide-react";
+import { Home as HomeIcon, Users, Heart } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -38,7 +38,7 @@ export default function BottomNav() {
               <Users size={20} strokeWidth={isActive("/community") ? 2.5 : 2} />
             </div>
             <span className={`text-[10px] font-medium transition-colors ${isActive("/community") ? "text-pink-500" : "text-gray-400 group-hover:text-pink-400"}`}>
-              Сообщество
+              О клубе
             </span>
           </Link>
 
@@ -50,10 +50,10 @@ export default function BottomNav() {
                   : "text-gray-400 group-hover:text-pink-400 group-hover:bg-pink-50"
               }`}
             >
-              <BookOpen size={20} strokeWidth={isActive("/library") ? 2.5 : 2} />
+              <Heart size={20} strokeWidth={isActive("/library") ? 2.5 : 2} />
             </div>
             <span className={`text-[10px] font-medium transition-colors ${isActive("/library") ? "text-pink-500" : "text-gray-400 group-hover:text-pink-400"}`}>
-              Библиотека
+              Избранное
             </span>
           </Link>
         </div>
