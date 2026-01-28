@@ -212,7 +212,7 @@ const MENU_ITEMS = [
   { title: "ИДЕИ ОБРАЗОВ", image: "/идеиобразов.png", category: "Идеи образов", count: 11 },
   { title: "МАСТЕР-КЛАССЫ", image: "/мастерклассы.png", category: "Мастер-классы", count: 99 },
   { title: "ГАЙДЫ", image: "/гайды2.png", category: "Гайды и чек-листы", count: 2 },
-  { title: "РАЗБОРЫ ОБРАЗОВ", image: "/разборыобразов.png", category: "Разборы образов", count: 70 },
+  { title: "РАЗБОРЫ ОБРАЗОВ", image: "/эфиры2.png", category: "Разборы образов", count: 70 },
   { title: "ОБУЧЕНИЯ", image: "/обучения.png", category: "Мои обучения", count: 53 },
   { title: "СОВЕТЫ И ЛАЙФХАКИ", image: "/советылайф.png", category: "Советы", count: 37 },
   { title: "ОБРАЗЫ", image: "/образы.png", category: "#lookдняЛена", count: 7 },
