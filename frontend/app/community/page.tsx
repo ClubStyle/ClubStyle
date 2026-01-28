@@ -175,8 +175,8 @@ export default function Community() {
                   В чате работают стилисты из моей команды - <strong>Света и Люда</strong>, они помогают отвечать на ваши вопросы с понедельника по пятницу.
                 </p>
                 <div className="bg-blue-50 p-4 rounded-xl text-blue-800">
-                  <p className="mb-2">По техническим вопросам вам всегда помогут в службе заботы <a href="https://t.me/elennne_school_bot" target="_blank" rel="noopener noreferrer" className="font-bold underline decoration-blue-300 underline-offset-2">@elennne_school_bot</a></p>
-                  <p className="text-xs opacity-80">(срок ответа службы заботы до 24 часов с 10 до 20 часов МСК по будням)</p>
+                  <p className="mb-2">По техническим вопросам вам всегда помогут в службе заботы <a href="https://t.me/ElennneHelp_bot" target="_blank" rel="noopener noreferrer" className="font-bold underline decoration-blue-300 underline-offset-2">@ElennneHelp_bot</a></p>
+                  <p className="text-xs opacity-80">(срок ответа службы заботы до 24 часов с 10:00 до 19:00 МСК по будням)</p>
                 </div>
               </div>
             </div>

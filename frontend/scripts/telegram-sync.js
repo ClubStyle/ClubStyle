@@ -1,8 +1,10 @@
-const TelegramBot = require('node-telegram-bot-api');
-const fs = require('fs');
-const path = require('path');
-const https = require('https');
-require('dotenv').config({ path: path.join(__dirname, '../.env') });
+import TelegramBot from 'node-telegram-bot-api';
+import fs from 'fs';
+import path from 'path';
+import https from 'https';
+import dotenv from 'dotenv';
+
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -16,6 +18,9 @@ const bot = new TelegramBot(token, { polling: false });
 
 const DATA_FILE = path.join(__dirname, '../data/materials.json');
 const UPLOADS_DIR = path.join(__dirname, '../public/uploads');
+const TARGET_CHAT_ID = -1002055411531; // КЛУБ СТИЛЬНЫХ (из используемых ссылок в проекте)
+const DAYS_WINDOW = 10; // расширяем окно, чтобы захватить больше постов
+const CUTOFF_TS = Math.floor(Date.now() / 1000) - (DAYS_WINDOW * 24 * 60 * 60);
 
 // Ensure directories exist
 if (!fs.existsSync(UPLOADS_DIR)) {
@@ -58,66 +63,92 @@ async function sync() {
         }
 
         let addedCount = 0;
+        const newItems = [];
+        const groups = new Map(); // key: media_group_id or single:<message_id>
 
         for (const update of updates) {
             const msg = update.channel_post || update.message;
             if (!msg) continue;
 
-            // Use message ID as unique ID
-            const id = msg.message_id.toString();
+            // Only channel posts from target channel
+            if (!msg.chat || msg.chat.id !== TARGET_CHAT_ID) continue;
+            // Only posts within last 5 days
+            if (!msg.date || msg.date < CUTOFF_TS) continue;
 
-            // Check if already exists
-            if (materials.find(m => m.id === id)) continue;
+            const key = msg.media_group_id ? `group:${msg.media_group_id}` : `single:${msg.message_id}`;
+            if (!groups.has(key)) {
+                groups.set(key, {
+                    ids: [],
+                    chatId: msg.chat.id,
+                    date: msg.date,
+                    text: '',
+                    photos: []
+                });
+            }
+            const g = groups.get(key);
+            g.ids.push(msg.message_id);
+            g.date = Math.max(g.date, msg.date);
 
-            // Extract content
             const text = msg.caption || msg.text || '';
-            const title = text.split('\n')[0].substring(0, 100) || 'Новый пост';
-            const hashtags = (text.match(/#[a-zа-я0-9_]+/gi) || []).join(' ');
-            
-            let imageUrl = '/ban.png'; // Placeholder
-            
+            if (text && text.length > (g.text?.length || 0)) {
+                g.text = text;
+            }
+
             if (msg.photo) {
                 try {
-                    // Get highest resolution photo
                     const photo = msg.photo[msg.photo.length - 1];
                     const fileLink = await bot.getFileLink(photo.file_id);
-                    const fileName = `${id}.jpg`;
+                    const fileName = `${msg.message_id}.jpg`;
                     const localFilePath = path.join(UPLOADS_DIR, fileName);
-                    
                     await downloadImage(fileLink, localFilePath);
-                    imageUrl = `/uploads/${fileName}`;
+                    g.photos.push(`/uploads/${fileName}`);
                 } catch (err) {
-                    console.error(`Failed to download image for msg ${id}:`, err.message);
+                    console.error(`Failed to download image for msg ${msg.message_id}:`, err.message);
                 }
             }
+        }
 
-            // Construct link (assuming public or private structure)
-            // For private channels with -100 prefix: t.me/c/ID/MSG_ID
-            let link = '#';
-            if (msg.chat && msg.chat.id) {
-                const chatId = msg.chat.id.toString().replace('-100', '');
-                link = `https://t.me/c/${chatId}/${id}`;
-            }
+        for (const g of groups.values()) {
+            const minId = g.ids.length ? Math.min(...g.ids) : undefined;
+            if (!minId) continue;
+            const id = String(minId);
+            if (materials.find(m => m.id === id) || newItems.find(m => m.id === id)) continue;
+
+            const title = g.text.split('\n')[0].substring(0, 100) || 'Новый пост';
+            const hashtags = (g.text.match(/#[a-zа-я0-9_]+/gi) || []).join(' ');
+            const chatId = g.chatId.toString().replace('-100', '');
+            const link = `https://t.me/c/${chatId}/${id}`;
+            const images = g.photos;
+            const image = images.length ? images[0] : '/ban.png';
 
             const newItem = {
                 id,
                 title,
                 hashtag: hashtags || '#новинка',
-                image: imageUrl,
+                image,
+                images,
                 link,
-                description: text
+                description: g.text,
+                date: g.date
             };
 
-            materials.unshift(newItem); // Add to top
+            newItems.unshift(newItem); // Add to top
             addedCount++;
         }
 
-        if (addedCount > 0) {
-            fs.writeFileSync(DATA_FILE, JSON.stringify(materials, null, 2));
-            console.log(`Successfully added ${addedCount} new posts.`);
-        } else {
-            console.log('No new posts to add.');
-        }
+        // Filter existing to last 5 days and target channel only (by link pattern)
+        const existingFiltered = (materials || []).filter(m => {
+            if (!m.date) return false;
+            if (m.date < CUTOFF_TS) return false;
+            // link like https://t.me/c/2055411531/MSG_ID
+            return typeof m.link === 'string' && m.link.includes('/c/2055411531/');
+        });
+
+        const combined = [...newItems, ...existingFiltered]
+            .sort((a, b) => (b.date || 0) - (a.date || 0));
+
+        fs.writeFileSync(DATA_FILE, JSON.stringify(combined, null, 2));
+        console.log(`Prepared ${combined.length} posts from the last ${DAYS_WINDOW} days. Newly added: ${addedCount}.`);
 
     } catch (error) {
         console.error('Error syncing with Telegram:', error.message);

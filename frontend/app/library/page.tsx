@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Heart, Clock, Trash2, PlayCircle, FileText, X, ChevronLeft, Search } from "lucide-react";
+import { Heart, Clock, Trash2, PlayCircle, X, ChevronLeft, Search } from "lucide-react";
 import BottomNav from "../../components/BottomNav";
 import Image from "next/image";
 
@@ -122,8 +122,14 @@ export default function Library() {
   useEffect(() => {
     const savedFavs = localStorage.getItem("favorites");
     const savedRecent = localStorage.getItem("recent");
-    if (savedFavs) setFavorites(JSON.parse(savedFavs));
-    if (savedRecent) setRecent(JSON.parse(savedRecent));
+    if (savedFavs) {
+        const favs = JSON.parse(savedFavs);
+        setTimeout(() => setFavorites(favs), 0);
+    }
+    if (savedRecent) {
+        const rec = JSON.parse(savedRecent);
+        setTimeout(() => setRecent(rec), 0);
+    }
   }, []);
 
   const toggleFavorite = (item: string) => {
@@ -148,7 +154,7 @@ export default function Library() {
     // Fallback if not found in data
     if (!material) {
         material = {
-            id: Date.now().toString(),
+            id: 'fallback-' + materialTitle.replace(/\s+/g, '-').toLowerCase(),
             title: materialTitle,
             hashtag: "#" + materialTitle.toLowerCase().replace(/\s/g, ''),
             image: "/ban.png", // placeholder
@@ -413,7 +419,6 @@ export default function Library() {
                         })
                         .map((sub) => {
                          const material = MATERIALS_DATA.find(m => m.title === sub);
-                         const isFallback = !material;
                          const displayImage = material ? material.image : "/ban.png";
                          const displayHashtag = material ? material.hashtag : "#" + sub.toLowerCase().replace(/\s/g, '');
                          const displayLink = material ? material.link : `https://t.me/c/2055411531/1`;

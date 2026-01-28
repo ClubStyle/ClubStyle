@@ -1,9 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { Search, Home as HomeIcon, Users, BookOpen, ChevronRight, X, Heart, PlayCircle, ChevronLeft, ExternalLink, Play } from "lucide-react";
+import { Search, BookOpen, Heart, PlayCircle, ChevronLeft, ExternalLink, Play } from "lucide-react";
 import BottomNav from "../components/BottomNav";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
 // Types
@@ -19,11 +19,13 @@ type MaterialItem = {
   title: string;
   hashtag: string;
   image: string;
+  images?: string[];
   link: string;
   video_link?: string;
   description?: string;
   type?: string;
   image_position?: string;
+  date?: number;
 };
 
 const CATEGORIES: Category[] = [
@@ -121,6 +123,90 @@ const QUICK_FILTERS = [
     { label: "образы участниц", category: "Разборы образов" }
 ];
 
+type CuratedItem = { title: string; hashtag: string; link: string; id: string };
+type CuratedGroup = { group: string; items: CuratedItem[] };
+const CURATED_TAGS: CuratedGroup[] = [
+  {
+    group: "Верхняя одежда",
+    items: [
+      { title: "Куртка", hashtag: "#куртка", link: "https://t.me/c/2055411531/13648", id: "13648" },
+      { title: "Пальто", hashtag: "#пальто", link: "https://t.me/c/2055411531/13958", id: "13958" },
+      { title: "Дубленка", hashtag: "#дубленка", link: "https://t.me/c/2055411531/14821", id: "14821" },
+      { title: "Шуба", hashtag: "#шуба", link: "https://t.me/c/2055411531/5222", id: "5222" },
+      { title: "Парка", hashtag: "#парка", link: "https://t.me/c/2055411531/12653", id: "12653" },
+      { title: "Косуха", hashtag: "#косуха", link: "https://t.me/c/2055411531/11848", id: "11848" },
+      { title: "Бомбер", hashtag: "#бомбер", link: "https://t.me/c/2055411531/12378", id: "12378" }
+    ]
+  },
+  {
+    group: "Верха",
+    items: [
+      { title: "Топ", hashtag: "#топ", link: "https://t.me/c/2055411531/14821", id: "14821" },
+      { title: "Футболка", hashtag: "#футболка", link: "https://t.me/c/2055411531/14835", id: "14835" },
+      { title: "Лонгслив", hashtag: "#лонгслив", link: "https://t.me/c/2055411531/13937", id: "13937" },
+      { title: "Майка", hashtag: "#майка", link: "https://t.me/c/2055411531/11905", id: "11905" },
+      { title: "Кардиган", hashtag: "#кардиган", link: "https://t.me/c/2055411531/14842", id: "14842" },
+      { title: "Жакет", hashtag: "#жакет", link: "https://t.me/c/2055411531/14810", id: "14810" },
+      { title: "Жилет", hashtag: "#жилет", link: "https://t.me/c/2055411531/12953", id: "12953" },
+      { title: "Блуза", hashtag: "#блузка", link: "https://t.me/c/2055411531/13791", id: "13791" },
+      { title: "Рубашка", hashtag: "#рубашка", link: "https://t.me/c/2055411531/13452", id: "13452" },
+      { title: "Корсет", hashtag: "#корсет", link: "https://t.me/c/2055411531/11050", id: "11050" }
+    ]
+  },
+  {
+    group: "Низы",
+    items: [
+      { title: "Брюки", hashtag: "#брюки", link: "https://t.me/c/2055411531/15042", id: "15042" },
+      { title: "Юбка", hashtag: "#юбка", link: "https://t.me/c/2055411531/14930", id: "14930" },
+      { title: "Джинсы", hashtag: "#джинсы", link: "https://t.me/c/2055411531/14732", id: "14732" },
+      { title: "Шорты", hashtag: "#шорты", link: "https://t.me/c/2055411531/11269", id: "11269" },
+      { title: "Бермуды", hashtag: "#бермуды", link: "https://t.me/c/2055411531/12394", id: "12394" },
+      { title: "Легинсы", hashtag: "#легинсы", link: "https://t.me/c/2055411531/14753", id: "14753" },
+      { title: "Комбинезон", hashtag: "#комбинезон", link: "https://t.me/c/2055411531/14778", id: "14778" },
+      { title: "Платье", hashtag: "#платье", link: "https://t.me/c/2055411531/14802", id: "14802" }
+    ]
+  },
+  {
+    group: "Аксессуары",
+    items: [
+      { title: "Украшения", hashtag: "#украшения", link: "https://t.me/c/2055411531/14848", id: "14848" },
+      { title: "Сумка", hashtag: "#сумка", link: "https://t.me/c/2055411531/15042", id: "15042" },
+      { title: "Носки", hashtag: "#носки", link: "https://t.me/c/2055411531/11684", id: "11684" },
+      { title: "Гольфы", hashtag: "#гольфы", link: "https://t.me/c/2055411531/13408", id: "13408" },
+      { title: "Колготки", hashtag: "#колготки", link: "https://t.me/c/2055411531/14792", id: "14792" },
+      { title: "Варежки", hashtag: "#варежки", link: "https://t.me/c/2055411531/14702", id: "14702" },
+      { title: "Перчатки", hashtag: "#перчатки", link: "https://t.me/c/2055411531/15022", id: "15022" },
+      { title: "Платок", hashtag: "#платок", link: "https://t.me/c/2055411531/12826", id: "12826" },
+      { title: "Шапка", hashtag: "#шапка", link: "https://t.me/c/2055411531/14753", id: "14753" },
+      { title: "Капор", hashtag: "#капор", link: "https://t.me/c/2055411531/13906", id: "13906" },
+      { title: "Шарф", hashtag: "#шарф", link: "https://t.me/c/2055411531/14693", id: "14693" },
+      { title: "Очки", hashtag: "#очки", link: "https://t.me/c/2055411531/13215", id: "13215" }
+    ]
+  },
+  {
+    group: "Обувь",
+    items: [
+      { title: "Босоножки", hashtag: "#босоножки", link: "https://t.me/c/2055411531/14570", id: "14570" },
+      { title: "Мюли", hashtag: "#мюли", link: "https://t.me/c/2055411531/11277", id: "11277" },
+      { title: "Сабо", hashtag: "#сабо", link: "https://t.me/c/2055411531/10207", id: "10207" },
+      { title: "Туфли", hashtag: "#туфли", link: "https://t.me/c/2055411531/14785", id: "14785" },
+      { title: "Балетки", hashtag: "#балетки", link: "https://t.me/c/2055411531/14540", id: "14540" },
+      { title: "Ботинки", hashtag: "#ботинки", link: "https://t.me/c/2055411531/13894", id: "13894" },
+      { title: "Ботильоны", hashtag: "#ботильоны", link: "https://t.me/c/2055411531/13924", id: "13924" },
+      { title: "Сапоги", hashtag: "#сапоги", link: "https://t.me/c/2055411531/14792", id: "14792" },
+      { title: "Угги", hashtag: "#угги", link: "https://t.me/c/2055411531/6016", id: "6016" },
+      { title: "Кеды", hashtag: "#кеды", link: "https://t.me/c/2055411531/11534", id: "11534" },
+      { title: "Кроссовки", hashtag: "#кроссовки", link: "https://t.me/c/2055411531/10649", id: "10649" }
+    ]
+  },
+  {
+    group: "Купальники",
+    items: [
+      { title: "Купальники", hashtag: "#купальник", link: "https://t.me/c/2055411531/9790", id: "9790" }
+    ]
+  }
+];
+
 const MENU_ITEMS = [
   { title: "ОБЗОРЫ БРЕНДОВ", image: "/обзорыбрендов.png", category: "Бренды", count: 18 },
   { title: "ИДЕИ ОБРАЗОВ", image: "/идеиобразов.png", category: "Идеи образов", count: 11 },
@@ -131,6 +217,25 @@ const MENU_ITEMS = [
   { title: "СОВЕТЫ И ЛАЙФХАКИ", image: "/советылайф.png", category: "Советы", count: 37 },
   { title: "ОБРАЗЫ", image: "/образы.png", category: "#lookдняЛена", count: 7 },
 ];
+
+// Specific images for "Мои обучения"
+const TRAINING_IMAGES: Record<string, string> = {
+  "Гайд Базовый гардероб": "/baza.png",
+  "Стилист будущего": "/стилист.png",
+  "10 = 100": "/10-100.png",
+  "Мастер-класс ПРОКАЧКА СТИЛЯ": "/прокачка.png",
+  "Мастер-класс Тренды 2026": "/тренды.png",
+  "УКРАШЕНИЯ: как выбирать, сочетать и хранить": "/украшения.png",
+  "Чек-лист по ПОДБОРУ СУМОК": "/сумки.png"
+};
+
+// Map categories to curated tag groups shown inside their views
+const CATEGORY_TO_GROUPS: Record<string, string[]> = {
+  "Одежда": ["Верха", "Низы"],
+  "Аксессуары": ["Аксессуары"],
+  "Обувь": ["Обувь"],
+  "Сезоны": ["Верхняя одежда"]
+};
 
 const getEmbedUrl = (url: string) => {
     if (!url) return null;
@@ -167,23 +272,123 @@ function HomeContent() {
   const [subCategorySearchQuery, setSubCategorySearchQuery] = useState("");
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialItem | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [favorites, setFavorites] = useState<string[]>([]);
-  const [recent, setRecent] = useState<string[]>([]);
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem("favorites") : null;
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [recent, setRecent] = useState<string[]>(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem("recent") : null;
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [tgUser, setTgUser] = useState<{first_name: string, photo_url?: string} | null>(null);
 
   const searchParams = useSearchParams();
   const router = useRouter();
 
+  const handleItemClick = useCallback((item: string) => {
+    let material = materials.find(m => m.title === item);
+    if (!material) {
+        if (item === "Бренды") {
+            material = {
+                id: "brands_review_fallback",
+                title: "Бренды",
+                hashtag: "#бренды",
+                image: "/ban.png",
+                type: "text",
+                link: "https://t.me/c/2055411531/1",
+                description: "ZARA (май 2024)\nLOVE REPUBLIC (июнь 2024)\nBEFREE (август 2024)\nZARINA (август 2024)\nH&M (август 2024)\nMAAG мини обзор (август 2024)\n4FORMS (август 2024)\nASOS CURVE (сентябрь 2024)\nLIME (сентябрь 2024)\nMANGO (октябрь 2024)\nEKONIKA (октябрь 2024)\nSHUBECO (октябрь 2024)\nFOREVER 21 (ноябрь 2024)\nMAAG (новогодняя коллекция 2024)\nZARINA (новогодняя коллекция 2024)\nDAISYKNIT (новогодняя коллекция 2024)\nALL WE NEED (новогодняя коллекция 2024)\nMONZA| Моностиль (новогодняя коллекция 2024)\nRESERVED (новогодняя коллекция 2024)\nLIME (январь 2025)\nLOVE REPUBLIC (февраль 2025)\nLICHI (верхняя одежда февраль 2025)\nIDOL (март 2025)\nZARINA (март 2025)\nSELA (апрель 2025)\nMANGO (сентябрь 2025)"
+            };
+        } else {
+            material = {
+                id: `fallback_${item.toLowerCase().replace(/\s/g, '_')}`,
+                title: item,
+                hashtag: "#" + item.toLowerCase().replace(/\s/g, ''),
+                image: "/ban.png",
+                link: "https://t.me/c/2055411531/1"
+            };
+        }
+    }
+    setSelectedMaterial(material);
+    if (!recent.includes(item)) {
+        const newRecent = [item, ...recent.filter(i => i !== item)].slice(0, 20);
+        setRecent(newRecent);
+        localStorage.setItem("recent", JSON.stringify(newRecent));
+    }
+  }, [materials, recent]);
+
+  const handleCategoryClick = useCallback((category: Category) => {
+    if (category.subCategories) {
+      setActiveCategory(category.name);
+      setSubCategorySheet({
+        title: category.name,
+        items: category.subCategories
+      });
+    } else {
+      const material = materials.find(m => m.title === category.name);
+      if (material) {
+          handleItemClick(category.name);
+      } else {
+          setActiveCategory(category.name);
+          console.log("Selected:", category.name);
+      }
+    }
+  }, [materials, handleItemClick]);
+
+  const openCurated = (item: CuratedItem) => {
+    const found = materials.find(m => m.link === item.link || m.id === item.id);
+    if (found) {
+      setSelectedMaterial(found);
+      return;
+    }
+    const fallback: MaterialItem = {
+      id: item.id,
+      title: item.title,
+      hashtag: item.hashtag,
+      image: `/uploads/${item.id}.jpg`,
+      images: [`/uploads/${item.id}.jpg`],
+      link: item.link,
+      description: ""
+    };
+    setSelectedMaterial(fallback);
+  };
+
+  const openCuratedGroup = (group: CuratedGroup) => {
+    const images: string[] = [];
+    const hashtags = Array.from(new Set(group.items.map(it => it.hashtag))).join(' ');
+    for (const it of group.items) {
+      const found = materials.find(m => m.link === it.link || m.id === it.id);
+      const img = found?.image || `/uploads/${it.id}.jpg`;
+      images.push(img);
+    }
+    const synthetic: MaterialItem = {
+      id: `curated_${group.group}`,
+      title: group.group,
+      hashtag: hashtags || '#пост',
+      image: images[0] || '/ban.png',
+      images,
+      link: group.items[0]?.link || '#',
+      description: ""
+    };
+    setSelectedMaterial(synthetic);
+  };
   useEffect(() => {
     // Handle URL params for direct category access
     const categoryParam = searchParams.get('category');
     if (categoryParam) {
         const category = CATEGORIES.find(c => c.name === categoryParam);
         if (category) {
-            handleCategoryClick(category);
+            setTimeout(() => handleCategoryClick(category), 0);
         }
     }
-  }, [searchParams]);
+  }, [searchParams, handleCategoryClick]);
 
 
   useEffect(() => {
@@ -192,21 +397,74 @@ function HomeContent() {
         .then(res => res.json())
         .then(data => {
             if (Array.isArray(data)) {
-                setMaterials(data);
+                const items = data as unknown as MaterialItem[];
+                const dayKey = (ts?: number) => ts ? new Date(ts * 1000).toISOString().slice(0, 10) : '';
+                const byDay = new Map<string, MaterialItem[]>();
+                for (const m of items) {
+                    const key = dayKey(m.date);
+                    if (!key) continue;
+                    const list = byDay.get(key) || [];
+                    list.push(m);
+                    byDay.set(key, list);
+                }
+                const merged: MaterialItem[] = [];
+                const consumed = new Set<string>();
+                for (const list of byDay.values()) {
+                    const anchors = list
+                        .filter(m => (m.description && m.description.trim().length > 0))
+                        .sort((a, b) => (a.date || 0) - (b.date || 0));
+                    const singles = list
+                        .filter(m => (!m.description || m.description.trim().length === 0))
+                        .sort((a, b) => (a.date || 0) - (b.date || 0));
+                    for (const anchor of anchors) {
+                        const imgs: string[] = [];
+                        if (anchor.images?.length) imgs.push(...anchor.images);
+                        if (anchor.image && anchor.image !== '/ban.png') imgs.push(anchor.image);
+                        const tags = new Set<string>();
+                        (anchor.hashtag || '').split(' ').forEach(t => t && tags.add(t));
+                        const baseTs = anchor.date || 0;
+                        const nearbySingles = singles.filter(s => !consumed.has(s.id) && Math.abs((s.date || 0) - baseTs) <= 120);
+                        for (const s of nearbySingles) {
+                            if (s.image && s.image !== '/ban.png') imgs.push(s.image);
+                            (s.hashtag || '').split(' ').forEach(t => t && tags.add(t));
+                            consumed.add(s.id);
+                        }
+                        const mergedItem: MaterialItem = {
+                            id: anchor.id,
+                            title: anchor.title || "Новый пост",
+                            hashtag: Array.from(tags).join(' ') || '#новинка',
+                            image: imgs[0] || anchor.image,
+                            images: Array.from(new Set(imgs)),
+                            link: anchor.link,
+                            description: anchor.description,
+                            date: anchor.date
+                        };
+                        merged.push(mergedItem);
+                        consumed.add(anchor.id);
+                    }
+                }
+                const rest = items.filter(m => !consumed.has(m.id))
+                    .filter(m => !(m.title === 'Новый пост' && m.image === '/ban.png' && (!m.description || m.description.trim() === '')));
+                setMaterials([...merged, ...rest].sort((a, b) => (b.date || 0) - (a.date || 0)));
             }
         })
         .catch(err => console.error("Failed to fetch materials:", err));
 
-    const savedFavs = localStorage.getItem("favorites");
-    const savedRecent = localStorage.getItem("recent");
-    if (savedFavs) setFavorites(JSON.parse(savedFavs));
-    if (savedRecent) setRecent(JSON.parse(savedRecent));
+    
 
-    if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp) {
-        const tg = (window as any).Telegram.WebApp;
+    type TgWindow = {
+        Telegram?: {
+            WebApp?: {
+                ready: () => void;
+                initDataUnsafe?: { user?: { first_name: string; photo_url?: string } };
+            };
+        };
+    };
+    if (typeof window !== 'undefined' && (window as unknown as TgWindow).Telegram?.WebApp) {
+        const tg = (window as unknown as TgWindow).Telegram!.WebApp!;
         tg.ready();
         if (tg.initDataUnsafe?.user) {
-            setTgUser(tg.initDataUnsafe.user);
+            setTimeout(() => setTgUser(tg.initDataUnsafe!.user!), 0);
         }
     }
   }, []);
@@ -223,41 +481,6 @@ function HomeContent() {
     localStorage.setItem("favorites", JSON.stringify(newFavs));
   };
 
-  const handleItemClick = (item: string) => {
-    let material = materials.find(m => m.title === item);
-    
-    // Fallback if not found in data
-    if (!material) {
-        if (item === "Бренды") {
-            material = {
-                id: "brands_review_fallback",
-                title: "Бренды",
-                hashtag: "#бренды",
-                image: "/ban.png",
-                type: "text",
-                link: "https://t.me/c/2055411531/1",
-                description: "ZARA (май 2024)\nLOVE REPUBLIC (июнь 2024)\nBEFREE (август 2024)\nZARINA (август 2024)\nH&M (август 2024)\nMAAG мини обзор (август 2024)\n4FORMS (август 2024)\nASOS CURVE (сентябрь 2024)\nLIME (сентябрь 2024)\nMANGO (октябрь 2024)\nEKONIKA (октябрь 2024)\nSHUBECO (октябрь 2024)\nFOREVER 21 (ноябрь 2024)\nMAAG (новогодняя коллекция 2024)\nZARINA (новогодняя коллекция 2024)\nDAISYKNIT (новогодняя коллекция 2024)\nALL WE NEED (новогодняя коллекция 2024)\nMONZA| Моностиль (новогодняя коллекция 2024)\nRESERVED (новогодняя коллекция 2024)\nLIME (январь 2025)\nLOVE REPUBLIC (февраль 2025)\nLICHI (верхняя одежда февраль 2025)\nIDOL (март 2025)\nZARINA (март 2025)\nSELA (апрель 2025)\nMANGO (сентябрь 2025)"
-            };
-        } else {
-            material = {
-                id: Date.now().toString(),
-                title: item,
-                hashtag: "#" + item.toLowerCase().replace(/\s/g, ''),
-                image: "/ban.png", // placeholder
-                link: "https://t.me/c/2055411531/1" // default placeholder link
-            };
-        }
-    }
-
-    setSelectedMaterial(material);
-    // setSubCategorySheet(null); // Keep category sheet open for "Back" navigation
-
-    if (!recent.includes(item)) {
-        const newRecent = [item, ...recent.filter(i => i !== item)].slice(0, 20);
-        setRecent(newRecent);
-        localStorage.setItem("recent", JSON.stringify(newRecent));
-    }
-  };
 
   const handleHashtagClick = (hashtag: string) => {
     const items = materials.filter(m => m.hashtag.includes(hashtag)).map(m => m.title);
@@ -267,10 +490,6 @@ function HomeContent() {
     });
     setActiveCategory(hashtag);
   };
-
-  const filteredCategories = CATEGORIES.filter(cat => 
-    !cat.hidden && cat.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   const filteredMaterials = searchQuery 
       ? materials.filter(m => 
@@ -287,24 +506,6 @@ function HomeContent() {
         )
       : [];
 
-  const handleCategoryClick = (category: Category) => {
-    if (category.subCategories) {
-      setActiveCategory(category.name);
-      setSubCategorySheet({
-        title: category.name,
-        items: category.subCategories
-      });
-    } else {
-      // Check if it matches a material item directly
-      const material = materials.find(m => m.title === category.name);
-      if (material) {
-          handleItemClick(category.name);
-      } else {
-          setActiveCategory(category.name);
-          console.log("Selected:", category.name);
-      }
-    }
-  };
 
   const closeSheet = () => {
     const fromParam = searchParams.get('from');
@@ -339,6 +540,7 @@ function HomeContent() {
           </div>
         </div>
 
+        {/* Навигацию по тегам переносим внутрь страниц категорий */}
         {/* Grid Navigation (Replaces Banner and Carousel) */}
         <div className="grid grid-cols-2 gap-3 mb-8">
             {MENU_ITEMS.map((item, index) => (
@@ -501,134 +703,96 @@ function HomeContent() {
         {/* Events Section */}
         <div className="mb-24">
           <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 pl-1">
-            События
+            Лента новостей
           </h2>
           
-          <a 
-            href="https://t.me/c/2055411531/15005"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block bg-white/90 backdrop-blur-sm rounded-3xl p-5 shadow-lg border border-white/50 transition-transform active:scale-95"
-          >
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-[10px] font-semibold text-gray-400">
-                22 января, 17:02
-              </span>
-              <div className="h-2 w-2 rounded-full bg-pink-500 shadow-[0_0_8px_rgba(236,72,153,0.6)]"></div>
-            </div>
-            
-            <div className="w-full h-80 bg-gray-100 rounded-2xl overflow-hidden relative mb-4 border border-gray-100">
-                <Image
-                    src="/событие2.jpg" 
-                    alt="Дубленки"
-                    fill
-                    className="object-cover"
-                />
-                <button 
-                    onClick={(e) => toggleFavorite(e, "event_15005")}
-                    className="absolute top-4 right-4 bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white transition-colors z-10"
-                >
-                    <Heart 
-                        size={20} 
-                        className={`transition-colors ${favorites.includes("event_15005") ? "fill-pink-500 text-pink-500" : "text-white"}`} 
-                    />
-                </button>
-            </div>
-
-            <div className="space-y-3 text-xs text-gray-800 font-medium mb-4">
-                <div className="flex justify-between items-start border-b border-gray-100 pb-2 last:border-0 last:pb-0">
-                    <span className="pr-2">Дубленка-косуха из овчины Снежная Королева</span>
-                    <span className="font-bold whitespace-nowrap">28 790 р.</span>
-                </div>
-                <div className="flex justify-between items-start border-b border-gray-100 pb-2 last:border-0 last:pb-0">
-                    <span className="pr-2">Дубленка Wildberries</span>
-                    <span className="font-bold whitespace-nowrap">21 164 р.</span>
-                </div>
-                <div className="flex justify-between items-start border-b border-gray-100 pb-2 last:border-0 last:pb-0">
-                    <span className="pr-2">Дубленка Wildberries</span>
-                    <span className="font-bold whitespace-nowrap">14 770 р.</span>
-                </div>
-                <div className="flex justify-between items-start border-b border-gray-100 pb-2 last:border-0 last:pb-0">
-                    <span className="pr-2">Дубленка Wildberries</span>
-                    <span className="font-bold whitespace-nowrap">12 814 р.</span>
-                </div>
-                <div className="flex justify-between items-start border-b border-gray-100 pb-2 last:border-0 last:pb-0">
-                    <span className="pr-2">Дубленка с отделкой искусственным мехом ASOS</span>
-                    <span className="font-bold whitespace-nowrap">120,00 $</span>
-                </div>
-                 <div className="flex justify-between items-start border-b border-gray-100 pb-2 last:border-0 last:pb-0">
-                    <span className="pr-2">Удлиненная дубленка-авиатор шоколадного цвета TOPSHOP</span>
-                    <span className="font-bold whitespace-nowrap">82,28 $</span>
-                </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-                {["#верхняяодежда", "#покупкивроссии", "#покупкипомиру", "#ссылкинавещи"].map(tag => (
-                    <button 
-                        key={tag} 
-                        onClick={(e) => {
-                            e.preventDefault();
-                            handleHashtagClick(tag);
-                        }}
-                        className="text-[10px] font-bold text-pink-500 bg-pink-50 px-2 py-1 rounded-lg hover:bg-pink-100 transition-colors"
+          <div className="space-y-4">
+            {materials.length > 0 ? (
+                materials.slice(0, 20).map((item) => (
+                    <div
+                        key={item.id}
+                        onClick={() => setSelectedMaterial(item)}
+                        className="block bg-white/90 backdrop-blur-sm rounded-3xl p-5 shadow-lg border border-white/50 transition-transform active:scale-95 cursor-pointer"
                     >
-                        {tag}
-                    </button>
-                ))}
-            </div>
-          </a>
+                        <div className="flex justify-between items-center mb-3">
+                            <span className="text-[10px] font-semibold text-gray-400">
+                                {item.date ? new Date(item.date * 1000).toLocaleString('ru-RU', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' }) : 'Новое'}
+                            </span>
+                            <div className="h-2 w-2 rounded-full bg-pink-500 shadow-[0_0_8px_rgba(236,72,153,0.6)]"></div>
+                        </div>
+                        
+                        { (item.images?.length || 0) > 0 ? (
+                            <div className="w-full h-80 bg-gray-100 rounded-2xl overflow-hidden relative mb-4 border border-gray-100">
+                                <Image
+                                    src={item.images![0]} 
+                                    alt={item.title}
+                                    fill
+                                    className="object-cover"
+                                />
+                                <button 
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        toggleFavorite(e, item.id);
+                                    }}
+                                    className="absolute top-4 right-4 bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white transition-colors z-10"
+                                >
+                                    <Heart 
+                                        size={20} 
+                                        className={`transition-colors ${favorites.includes(item.id) ? "fill-pink-500 text-pink-500" : "text-white"}`} 
+                                    />
+                                </button>
+                            </div>
+                        ) : item.image && item.image !== '/ban.png' && (
+                            <div className="w-full h-80 bg-gray-100 rounded-2xl overflow-hidden relative mb-4 border border-gray-100">
+                                <Image
+                                    src={item.image} 
+                                    alt={item.title}
+                                    fill
+                                    className="object-cover"
+                                />
+                                <button 
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        toggleFavorite(e, item.id);
+                                    }}
+                                    className="absolute top-4 right-4 bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white transition-colors z-10"
+                                >
+                                    <Heart 
+                                        size={20} 
+                                        className={`transition-colors ${favorites.includes(item.id) ? "fill-pink-500 text-pink-500" : "text-white"}`} 
+                                    />
+                                </button>
+                            </div>
+                        )}
 
-          <a 
-            href="https://t.me/c/2055411531/14996"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block bg-white/90 backdrop-blur-sm rounded-3xl p-5 shadow-lg border border-white/50 transition-transform active:scale-95 mt-4"
-          >
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-[10px] font-semibold text-gray-400">
-                22 января, 17:02
-              </span>
-              <div className="h-2 w-2 rounded-full bg-pink-500 shadow-[0_0_8px_rgba(236,72,153,0.6)]"></div>
-            </div>
-            
-            <div className="w-full h-80 bg-gray-100 rounded-2xl overflow-hidden relative mb-4 border border-gray-100">
-                <Image
-                    src="/событие2.jpg" 
-                    alt="Шубы"
-                    fill
-                    className="object-cover"
-                />
-                <button 
-                    onClick={(e) => toggleFavorite(e, "event_14996")}
-                    className="absolute top-4 right-4 bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white transition-colors z-10"
-                >
-                    <Heart 
-                        size={20} 
-                        className={`transition-colors ${favorites.includes("event_14996") ? "fill-pink-500 text-pink-500" : "text-white"}`} 
-                    />
-                </button>
-            </div>
+                        <div className="text-xs text-gray-800 font-medium mb-4 leading-relaxed whitespace-pre-wrap line-clamp-6">
+                            {item.description || item.title}
+                        </div>
 
-            <div className="text-xs text-gray-800 font-medium mb-4 leading-relaxed">
-               Привет, стильные ✨<br/>
-               Когда мы говорим про зимнюю верхнюю одежду, нельзя не упомянуть шубы. Тем более, что тренд на меховые изделия прочно держится уже не один сезон.
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-                {["#верхняяодежда", "#покупкивроссии", "#покупкипомиру", "#ссылкинавещи"].map(tag => (
-                    <button 
-                        key={tag} 
-                        onClick={(e) => {
-                            e.preventDefault();
-                            handleHashtagClick(tag);
-                        }}
-                        className="text-[10px] font-bold text-pink-500 bg-pink-50 px-2 py-1 rounded-lg hover:bg-pink-100 transition-colors"
-                    >
-                        {tag}
-                    </button>
-                ))}
-            </div>
-          </a>
+                        {item.hashtag && (
+                            <div className="flex flex-wrap gap-2">
+                                {item.hashtag.split(' ').map((tag, i) => (
+                                    <button 
+                                        key={i} 
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            handleHashtagClick(tag);
+                                        }}
+                                        className="text-[10px] font-bold text-pink-500 bg-pink-50 px-2 py-1 rounded-lg hover:bg-pink-100 transition-colors"
+                                    >
+                                        {tag}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ))
+            ) : (
+                 <div className="text-center text-gray-400 text-sm py-4">
+                     Загрузка...
+                 </div>
+            )}
+          </div>
         </div>
 
       </div>
@@ -645,7 +809,7 @@ function HomeContent() {
                     <h3 className="text-xl font-black uppercase tracking-wide">{subCategorySheet.title}</h3>
                  </div>
                  
-                 <div className="p-6 space-y-6 pb-24">
+                <div className="p-6 space-y-6 pb-24">
                 {/* Search Input */}
                 <div className="relative">
                     <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
@@ -659,6 +823,43 @@ function HomeContent() {
                         onChange={(e) => setSubCategorySearchQuery(e.target.value)}
                     />
                 </div>
+
+                {/* Встроенные группы тегов для выбранной категории */}
+                {(() => {
+                  const catGroups: string[] = activeCategory ? (CATEGORY_TO_GROUPS[activeCategory] || []) : [];
+                  return catGroups.length > 0;
+                })() && (
+                  <div className="space-y-6">
+                    {((activeCategory ? (CATEGORY_TO_GROUPS[activeCategory] || []) : [])).map((grpName: string) => {
+                      const grp = CURATED_TAGS.find((g) => g.group === grpName);
+                      if (!grp) return null;
+                      return (
+                        <div key={grpName}>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="text-xs font-bold text-gray-900">{grp.group}</div>
+                            <button
+                              onClick={() => openCuratedGroup(grp)}
+                              className="text-[10px] font-bold text-pink-500 bg-pink-50 px-3 py-1 rounded-lg hover:bg-pink-100 transition-colors"
+                            >
+                              Открыть пост
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {grp.items.map((it) => (
+                              <button
+                                key={`${grp.group}-${it.id}`}
+                                onClick={() => openCurated(it)}
+                                className="whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold bg-white text-gray-700 border border-gray-100 shadow-sm hover:bg-gray-50 hover:border-pink-200 transition-all"
+                              >
+                                {it.title} <span className="text-pink-500">{it.hashtag}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {subCategorySheet.items
                     .filter(item => {
@@ -677,11 +878,12 @@ function HomeContent() {
                          const material = materials.find(m => m.title === item);
                          const categoryItem = CATEGORIES.find(c => c.name === item && c.subCategories);
 
-                         const displayImage = material ? material.image : "/ban.png";
-                         const displayHashtag = material ? material.hashtag : "#" + item.toLowerCase().replace(/\s/g, '');
-                         const displayLink = material ? material.link : `https://t.me/c/2055411531/1`;
+                        const displayImage = activeCategory === "Мои обучения"
+                            ? (TRAINING_IMAGES[item] ?? (material ? material.image : "/ban.png"))
+                            : (material ? material.image : "/ban.png");
+                        const displayHashtag = material ? material.hashtag : "#" + item.toLowerCase().replace(/\s/g, '');
 
-                         const handleCardClick = () => {
+                        const handleCardClick = () => {
                             if (categoryItem) {
                                 handleCategoryClick(categoryItem);
                             } else {
@@ -841,7 +1043,7 @@ function HomeContent() {
                         ) : (
                             <>
                                 <Image
-                                    src={selectedMaterial.image}
+                                    src={selectedMaterial.images?.[0] || selectedMaterial.image}
                                     alt={selectedMaterial.title}
                                     {...(selectedMaterial.hashtag?.toLowerCase().includes('#эфиры')
                                         ? { 
@@ -910,6 +1112,16 @@ function HomeContent() {
                         <div className="text-gray-600 text-[15px] leading-relaxed whitespace-pre-wrap mb-8">
                             {selectedMaterial.description}
                         </div>
+                    )}
+
+                    {selectedMaterial.images && selectedMaterial.images.length > 1 && (
+                      <div className="grid grid-cols-2 gap-3">
+                        {selectedMaterial.images.slice(1).map((img, idx) => (
+                          <div key={idx} className="relative rounded-xl overflow-hidden bg-gray-100 border border-gray-100">
+                            <Image src={img} alt={`${selectedMaterial.title} ${idx+2}`} width={600} height={600} className="w-full h-auto object-cover" />
+                          </div>
+                        ))}
+                      </div>
                     )}
                 </div>
             </div>
