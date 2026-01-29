@@ -1161,6 +1161,17 @@ function HomeContent() {
                         </div>
                     )}
 
+                    {typeof selectedMaterial.link === 'string' && selectedMaterial.link.toLowerCase().endsWith('.pdf') && (
+                        <div className="mb-8">
+                            <div className="relative rounded-xl overflow-hidden bg-gray-100 border border-gray-100">
+                                <iframe
+                                    src={`${selectedMaterial.link}#toolbar=1&navpanes=0`}
+                                    className="w-full h-[70vh]"
+                                />
+                            </div>
+                        </div>
+                    )}
+
                     {selectedMaterial.images && selectedMaterial.images.length > 1 && (
                       <div className="grid grid-cols-2 gap-3">
                         {selectedMaterial.images.slice(1).map((img, idx) => (
@@ -1207,7 +1218,9 @@ function HomeContent() {
                           className="w-full bg-pink-500 text-white font-bold py-3.5 rounded-xl hover:bg-pink-600 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-pink-200"
                       >
                           <ExternalLink size={20} />
-                          {selectedMaterial.id.startsWith('edu_') ? "Смотреть" : "Перейти к оригинальному посту"}
+                          {typeof selectedMaterial.link === 'string' && selectedMaterial.link.toLowerCase().endsWith('.pdf') 
+                              ? "Открыть PDF" 
+                              : (selectedMaterial.id.startsWith('edu_') ? "Смотреть" : "Перейти к оригинальному посту")}
                       </a>
                  </div>
             </div>
