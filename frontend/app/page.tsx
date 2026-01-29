@@ -41,7 +41,7 @@ const CATEGORIES: Category[] = [
   { name: "Капсула" },
   { name: "Идеи образов" }, // New
   { name: "Разборы образов" }, // New (alias for subcategory or separate)
-  { name: "#lookдняЛена" },
+  { name: "Образы" },
   { name: "Ссылки на вещи" },
   { name: "Вещь дня" },
   { 
@@ -71,18 +71,7 @@ const CATEGORIES: Category[] = [
   { name: "Гайды и чек-листы", hidden: true, subCategories: ["Новогодние образы"] },
   { 
     name: "Эфиры",
-    hidden: true,
-    subCategories: [
-      "Ответы на вопросы",
-      "Как собрать капсулу",
-      "Разбор образов участниц",
-      "Осенний гардероб",
-      "Ответы на вопросы участниц",
-      "Эфир с Леной",
-      "Запись с диетологом",
-      "Неделя моды, тренды",
-      "Как быть яркой"
-    ]
+    hidden: true
   },
   { 
     name: "Мастер-классы", 
@@ -120,7 +109,7 @@ const QUICK_FILTERS = [
     { label: "верха", category: "Одежда" },
     { label: "низы", category: "Одежда" },
     { label: "аксессуары", category: "Аксессуары" },
-    { label: "образы участниц", category: "Разборы образов" }
+    { label: "образы участниц", category: "LINK:https://t.me/c/2249399970/230/33059" }
 ];
 
 type CuratedItem = { title: string; hashtag: string; link: string; id: string };
@@ -208,14 +197,14 @@ const CURATED_TAGS: CuratedGroup[] = [
 ];
 
 const MENU_ITEMS = [
-  { title: "ОБЗОРЫ БРЕНДОВ", image: "/обзорыбрендов.png", category: "Бренды", count: 18 },
+  { title: "ОБЗОРЫ БРЕНДОВ", image: "/обзорыбрендов.png", category: "Бренды", count: 26 },
   { title: "ИДЕИ ОБРАЗОВ", image: "/идеиобразов.png", category: "Идеи образов", count: 11 },
   { title: "МАСТЕР-КЛАССЫ", image: "/мастерклассы.png", category: "Мастер-классы", count: 99 },
   { title: "ГАЙДЫ", image: "/гайды2.png", category: "Гайды и чек-листы", count: 2 },
-  { title: "РАЗБОРЫ ОБРАЗОВ", image: "/эфиры2.png", category: "Разборы образов", count: 70 },
+  { title: "ЭФИРЫ", image: "/эфиры2.png", category: "Эфиры", count: 3 },
   { title: "ОБУЧЕНИЯ", image: "/обучения.png", category: "Мои обучения", count: 53 },
   { title: "СОВЕТЫ И ЛАЙФХАКИ", image: "/советылайф.png", category: "Советы", count: 37 },
-  { title: "ОБРАЗЫ", image: "/образы.png", category: "#lookдняЛена", count: 7 },
+  { title: "ОБРАЗЫ", image: "/образы.png", category: "Образы", count: 7 },
 ];
 
 // Specific images for "Мои обучения"
@@ -293,10 +282,17 @@ function HomeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const handleItemClick = useCallback((item: string) => {
-    let material = materials.find(m => m.title === item);
+  const handleItemClick = useCallback((item: string | MaterialItem) => {
+    let material: MaterialItem | undefined;
+
+    if (typeof item === 'string') {
+        material = materials.find(m => m.title === item);
+    } else {
+        material = item;
+    }
+
     if (!material) {
-        if (item === "Бренды") {
+        if (typeof item === 'string' && item === "Бренды") {
             material = {
                 id: "brands_review_fallback",
                 title: "Бренды",
@@ -307,18 +303,24 @@ function HomeContent() {
                 description: "ZARA (май 2024)\nLOVE REPUBLIC (июнь 2024)\nBEFREE (август 2024)\nZARINA (август 2024)\nH&M (август 2024)\nMAAG мини обзор (август 2024)\n4FORMS (август 2024)\nASOS CURVE (сентябрь 2024)\nLIME (сентябрь 2024)\nMANGO (октябрь 2024)\nEKONIKA (октябрь 2024)\nSHUBECO (октябрь 2024)\nFOREVER 21 (ноябрь 2024)\nMAAG (новогодняя коллекция 2024)\nZARINA (новогодняя коллекция 2024)\nDAISYKNIT (новогодняя коллекция 2024)\nALL WE NEED (новогодняя коллекция 2024)\nMONZA| Моностиль (новогодняя коллекция 2024)\nRESERVED (новогодняя коллекция 2024)\nLIME (январь 2025)\nLOVE REPUBLIC (февраль 2025)\nLICHI (верхняя одежда февраль 2025)\nIDOL (март 2025)\nZARINA (март 2025)\nSELA (апрель 2025)\nMANGO (сентябрь 2025)"
             };
         } else {
-            material = {
-                id: `fallback_${item.toLowerCase().replace(/\s/g, '_')}`,
-                title: item,
-                hashtag: "#" + item.toLowerCase().replace(/\s/g, ''),
+             // If we can't find the material, we shouldn't show a broken "fallback"
+             // unless it's a specific known case.
+             // But for now, let's keep the fallback but make it less intrusive or try harder to find it.
+             const title = typeof item === 'string' ? item : item.title;
+             material = {
+                id: `fallback_${title.toLowerCase().replace(/\s/g, '_')}`,
+                title: title,
+                hashtag: "#" + title.toLowerCase().replace(/\s/g, ''),
                 image: "/ban.png",
                 link: "https://t.me/c/2055411531/1"
             };
         }
     }
     setSelectedMaterial(material);
-    if (!recent.includes(item)) {
-        const newRecent = [item, ...recent.filter(i => i !== item)].slice(0, 20);
+    
+    const title = material.title;
+    if (!recent.includes(title)) {
+        const newRecent = [title, ...recent.filter(i => i !== title)].slice(0, 20);
         setRecent(newRecent);
         localStorage.setItem("recent", JSON.stringify(newRecent));
     }
@@ -332,9 +334,34 @@ function HomeContent() {
         items: category.subCategories
       });
     } else {
+      // Try to find items by hashtag if no subcategories (e.g. "Разборы образов")
+      const query = category.name.toLowerCase().replace(/\s/g, '');
+      console.log(`Filtering for category: ${category.name} (query: ${query})`);
+      
+      const relatedMaterials = materials.filter(m => 
+          m.hashtag.toLowerCase().includes(query) || 
+          m.hashtag.toLowerCase().includes("#" + query) ||
+          (category.name === "Разборы образов" && (m.hashtag.includes("#разборобразов") || m.hashtag.includes("#лукдня"))) ||
+          (category.name === "Эфиры" && m.hashtag.includes("#эфир")) ||
+          (category.name === "Бренды" && m.hashtag.includes("#обзорыбрендов")) ||
+          (category.name === "Идеи образов" && (m.hashtag.includes("#идеиобразов") || m.hashtag.includes("#образ") || m.hashtag.includes("#образы") || m.hashtag.includes("#lookднялена"))) ||
+          (category.name === "Образы" && (m.hashtag.includes("#образы") || m.hashtag.includes("#образ")))
+      );
+      
+      console.log(`Found ${relatedMaterials.length} items for ${category.name}`);
+
+      if (relatedMaterials.length > 0) {
+           setActiveCategory(category.name);
+           setSubCategorySheet({
+               title: category.name,
+               items: relatedMaterials.map(m => m.title)
+           });
+           return;
+      }
+
       const material = materials.find(m => m.title === category.name);
       if (material) {
-          handleItemClick(category.name);
+          handleItemClick(material);
       } else {
           setActiveCategory(category.name);
           console.log("Selected:", category.name);
@@ -393,9 +420,11 @@ function HomeContent() {
 
   useEffect(() => {
     // Fetch materials from API
-    fetch('/api/materials')
+    console.log("Fetching materials...");
+    fetch('/api/materials', { cache: 'no-store' })
         .then(res => res.json())
         .then(data => {
+            console.log("Received materials count:", Array.isArray(data) ? data.length : 0);
             if (Array.isArray(data)) {
                 const items = data as unknown as MaterialItem[];
                 const dayKey = (ts?: number) => ts ? new Date(ts * 1000).toISOString().slice(0, 10) : '';
@@ -436,6 +465,7 @@ function HomeContent() {
                             image: imgs[0] || anchor.image,
                             images: Array.from(new Set(imgs)),
                             link: anchor.link,
+                            video_link: anchor.video_link,
                             description: anchor.description,
                             date: anchor.date
                         };
@@ -469,14 +499,13 @@ function HomeContent() {
     }
   }, []);
 
-  const toggleFavorite = (e: React.MouseEvent, item: string) => {
+  const toggleFavorite = (e: React.MouseEvent, itemKey: string) => {
     e.stopPropagation();
-    let newFavs;
-    if (favorites.includes(item)) {
-        newFavs = favorites.filter(i => i !== item);
-    } else {
-        newFavs = [...favorites, item];
-    }
+    let key = itemKey;
+    const material = materials.find(m => m.id === itemKey || m.title === itemKey);
+    if (material) key = material.id;
+    const exists = favorites.includes(key);
+    const newFavs = exists ? favorites.filter(i => i !== key) : [...favorites, key];
     setFavorites(newFavs);
     localStorage.setItem("favorites", JSON.stringify(newFavs));
   };
@@ -602,6 +631,10 @@ function HomeContent() {
                     <button
                         key={index}
                         onClick={() => {
+                            if (item.category.startsWith("LINK:")) {
+                                window.open(item.category.replace("LINK:", ""), "_blank");
+                                return;
+                            }
                             const cat = CATEGORIES.find(c => c.name === item.category);
                             if (cat) handleCategoryClick(cat);
                         }}
@@ -708,7 +741,13 @@ function HomeContent() {
           
           <div className="space-y-4">
             {materials.length > 0 ? (
-                materials.slice(0, 20).map((item) => (
+                materials
+                .filter(m => {
+                    const isChannelLink = typeof m.link === 'string' && /^https?:\/\/t\.me\/c\/2055411531\/\d+/.test(m.link);
+                    const isNumericId = /^\d+$/.test(m.id);
+                    return isChannelLink && isNumericId;
+                })
+                .slice(0, 20).map((item) => (
                     <div
                         key={item.id}
                         onClick={() => setSelectedMaterial(item)}
@@ -930,7 +969,7 @@ function HomeContent() {
                                          {item}
                                      </h3>
                                      <div className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap font-medium">
-                                         {material.description}
+                                         {material?.description?.replace(/(?:^|\s)(#[a-zA-Zа-яА-Я0-9_]+)/g, '').trim()}
                                      </div>
                                 </div>
                              );
@@ -948,18 +987,18 @@ function HomeContent() {
                                 />
                                  
                                  {/* Favorite Button */}
-                                 <button 
-                                     onClick={(e) => {
-                                         e.stopPropagation();
-                                         toggleFavorite(e, item);
-                                     }}
-                                     className="absolute top-4 right-4 bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white transition-colors"
-                                 >
-                                     <Heart 
-                                         size={20} 
-                                         className={`transition-colors ${favorites.includes(item) ? "fill-pink-500 text-pink-500" : "text-white"}`} 
-                                     />
-                                 </button>
+                                <button 
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleFavorite(e, material?.id ?? item);
+                                    }}
+                                    className="absolute top-4 right-4 bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white transition-colors"
+                                >
+                                    <Heart 
+                                        size={20} 
+                                        className={`transition-colors ${favorites.includes(material?.id ?? item) ? "fill-pink-500 text-pink-500" : "text-white"}`} 
+                                    />
+                                </button>
                              </div>
 
                              {/* Content Section */}
@@ -981,11 +1020,17 @@ function HomeContent() {
                                  <h3 className="text-lg font-bold text-gray-900 mb-2 leading-tight">
                                      {item}
                                  </h3>
-                                 {material?.description && (
-                                    <p className="text-gray-500 text-xs mb-4 leading-relaxed line-clamp-2">
-                                        {material.description}
-                                    </p>
-                                )}
+                                 {(() => {
+                                   if (activeCategory === "Мои обучения" || activeCategory === "Гайды и чек-листы") {
+                                       return (
+                                           <div className="text-gray-600 text-xs leading-relaxed whitespace-pre-wrap font-medium mb-3 line-clamp-4">
+                                               {material?.description?.replace(/(?:^|\s)(#[a-zA-Zа-яА-Я0-9_]+)/g, '').trim()}
+                                           </div>
+                                       );
+                                   }
+                                   /* Description hidden as requested for other categories */
+                                   return null;
+                               })()}
                                 
                                 <button 
                                     onClick={(e) => {
@@ -1030,7 +1075,7 @@ function HomeContent() {
                 {/* Hero Image Section - Only for non-text types */}
                 {selectedMaterial.type !== 'text' && (
                     <div className={`relative mx-4 rounded-[20px] overflow-hidden bg-black shadow-md shrink-0 ${
-                        selectedMaterial.hashtag?.toLowerCase().includes('#эфиры') ? 'aspect-[16/9]' : 'aspect-auto'
+                        selectedMaterial.hashtag?.toLowerCase().includes('#эфир') ? 'aspect-[16/9]' : 'aspect-auto'
                     }`}>
                         {selectedMaterial.video_link && getEmbedUrl(selectedMaterial.video_link) ? (
                             <iframe
@@ -1045,7 +1090,7 @@ function HomeContent() {
                                 <Image
                                     src={selectedMaterial.images?.[0] || selectedMaterial.image}
                                     alt={selectedMaterial.title}
-                                    {...(selectedMaterial.hashtag?.toLowerCase().includes('#эфиры')
+                                    {...(selectedMaterial.hashtag?.toLowerCase().includes('#эфир')
                                         ? { 
                                             fill: true,
                                             className: "object-cover object-center opacity-90"
@@ -1060,7 +1105,7 @@ function HomeContent() {
                                 <div className="absolute inset-0 bg-black/20" />
                                 
                                 {/* Play Button Overlay */}
-                                {selectedMaterial.hashtag?.toLowerCase().includes('#эфиры') && (
+                                {selectedMaterial.hashtag?.toLowerCase().includes('#эфир') && (
                                 <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
                                     <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center pl-1 border border-white/30 shadow-2xl">
                                         <Play size={32} fill="white" className="text-white" />
@@ -1069,7 +1114,7 @@ function HomeContent() {
                                 )}
 
                                 {/* Fake Video Controls */}
-                                {selectedMaterial.hashtag?.toLowerCase().includes('#эфиры') && (
+                                {selectedMaterial.hashtag?.toLowerCase().includes('#эфир') && (
                                 <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-10 pointer-events-none">
                                     <div className="h-1 bg-white/30 rounded-full overflow-hidden mb-2">
                                         <div className="h-full w-1/3 bg-pink-500 rounded-full relative">
@@ -1110,7 +1155,7 @@ function HomeContent() {
 
                     {selectedMaterial.description && (
                         <div className="text-gray-600 text-[15px] leading-relaxed whitespace-pre-wrap mb-8">
-                            {selectedMaterial.description}
+                            {selectedMaterial.description.replace(/(?:^|\s)(#[a-zA-Zа-яА-Я0-9_]+)/g, '').trim()}
                         </div>
                     )}
 
@@ -1130,15 +1175,15 @@ function HomeContent() {
             <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-gray-100 pb-8 z-20">
                  <div className="flex flex-col gap-3 max-w-md mx-auto">
                       <button 
-                          onClick={(e) => toggleFavorite(e, selectedMaterial.title)}
+                          onClick={(e) => toggleFavorite(e, selectedMaterial.id)}
                           className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold transition-all border ${
-                              favorites.includes(selectedMaterial.title)
+                              favorites.includes(selectedMaterial.id)
                                   ? "bg-pink-50 border-pink-200 text-pink-500"
                                   : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
                           }`}
                       >
-                          <Heart size={20} className={favorites.includes(selectedMaterial.title) ? "fill-current" : ""} />
-                          {favorites.includes(selectedMaterial.title) ? "В избранном" : "Добавить в избранное"}
+                          <Heart size={20} className={favorites.includes(selectedMaterial.id) ? "fill-current" : ""} />
+                          {favorites.includes(selectedMaterial.id) ? "В избранном" : "Добавить в избранное"}
                       </button>
 
                       {selectedMaterial.video_link && (
