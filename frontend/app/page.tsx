@@ -344,7 +344,7 @@ function HomeContent() {
           (category.name === "Разборы образов" && (m.hashtag.includes("#разборобразов") || m.hashtag.includes("#лукдня"))) ||
           (category.name === "Эфиры" && m.hashtag.includes("#эфир")) ||
           (category.name === "Бренды" && m.hashtag.includes("#обзорыбрендов")) ||
-          (category.name === "Идеи образов" && (m.hashtag.includes("#идеиобразов") || m.hashtag.includes("#образ") || m.hashtag.includes("#образы") || m.hashtag.includes("#lookднялена"))) ||
+          (category.name === "Идеи образов" && (m.hashtag.toLowerCase().includes("#идеиобразов") || m.hashtag.toLowerCase().includes("#образ") || m.hashtag.toLowerCase().includes("#образы") || m.hashtag.toLowerCase().includes("#lookднялена"))) ||
           (category.name === "Образы" && (m.hashtag.includes("#образы") || m.hashtag.includes("#образ")))
       );
       
@@ -755,7 +755,9 @@ function HomeContent() {
                     >
                         <div className="flex justify-between items-center mb-3">
                             <span className="text-[10px] font-semibold text-gray-400">
-                                {item.date ? new Date(item.date * 1000).toLocaleString('ru-RU', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' }) : 'Новое'}
+                                {item.hashtag?.toLowerCase().includes('#эфир')
+                                  ? 'ранее проходил'
+                                  : (item.date ? new Date(item.date * 1000).toLocaleString('ru-RU', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' }) : 'Новое')}
                             </span>
                             <div className="h-2 w-2 rounded-full bg-pink-500 shadow-[0_0_8px_rgba(236,72,153,0.6)]"></div>
                         </div>
