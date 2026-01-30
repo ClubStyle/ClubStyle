@@ -135,7 +135,7 @@ export default function Community() {
                   <X size={20} className="text-gray-500" />
                 </button>
               </div>
-              <div className="p-6 overflow-y-auto text-sm text-gray-600 leading-relaxed space-y-4">
+              <div className="p-6 pb-16 overflow-y-auto text-sm text-gray-600 leading-relaxed space-y-4">
                 <p className="font-medium text-gray-900">
                   Друзья,
                 </p>

@@ -141,16 +141,15 @@ async function sync() {
             addedCount++;
         }
 
-        // Filter existing to last 5 days and target channel only (by link pattern)
-        const existingFiltered = (materials || []).filter(m => {
-            if (!m.date) return false;
-            if (m.date < CUTOFF_TS) return false;
-            // link like https://t.me/c/2055411531/MSG_ID
-            return typeof m.link === 'string' && m.link.includes('/c/2055411531/');
-        });
-
-        const combined = [...newItems, ...existingFiltered]
-            .sort((a, b) => (b.date || 0) - (a.date || 0));
+        // Preserve ALL existing items (manual content, бренды, гайды, эфиры) and prepend new channel posts
+        const byId = new Map();
+        for (const item of materials) {
+            byId.set(item.id, item);
+        }
+        for (const item of newItems) {
+            byId.set(item.id, item);
+        }
+        const combined = Array.from(byId.values()).sort((a, b) => (b.date || 0) - (a.date || 0));
 
         fs.writeFileSync(DATA_FILE, JSON.stringify(combined, null, 2));
         console.log(`Prepared ${combined.length} posts from the last ${DAYS_WINDOW} days. Newly added: ${addedCount}.`);

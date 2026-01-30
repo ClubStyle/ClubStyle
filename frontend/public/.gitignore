@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# Node / Next.js
+frontend/node_modules/
+backend/node_modules/
+frontend/.next/
+frontend/.turbo/
+frontend/.vercel/
+
+# Logs
+**/*.log
+frontend/.next/dev/
+
+# Env files (if any)
+.env
+frontend/.env
+backend/.env

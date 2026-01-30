@@ -34,6 +34,11 @@ const CATEGORIES: Category[] = [
     hidden: true,
     subCategories: ["Эфиры", "Мастер-классы", "Гайды и чек-листы", "Мои обучения", "Разбор образов участниц"] 
   },
+  { name: "Эфиры" },
+  { name: "Мастер-классы" },
+  { name: "Гайды и чек-листы" },
+  { name: "Мои обучения" },
+  { name: "Бренды" },
   { 
     name: "Типы фигуры", 
     subCategories: ["Груша", "Яблоко", "Песочные часы", "Перевернутый треугольник", "Прямоугольник"] 
@@ -342,8 +347,10 @@ function HomeContent() {
           m.hashtag.toLowerCase().includes(query) || 
           m.hashtag.toLowerCase().includes("#" + query) ||
           (category.name === "Разборы образов" && (m.hashtag.includes("#разборобразов") || m.hashtag.includes("#лукдня"))) ||
+          (category.name === "Мастер-классы" && (m.hashtag.includes("#мастеркласс") || m.hashtag.includes("#мастер-класс"))) ||
           (category.name === "Эфиры" && m.hashtag.includes("#эфир")) ||
           (category.name === "Бренды" && m.hashtag.includes("#обзорыбрендов")) ||
+          (category.name === "Гайды и чек-листы" && (m.hashtag.includes("#гайд") || (typeof m.link === "string" && m.link.toLowerCase().endsWith(".pdf")))) ||
           (category.name === "Идеи образов" && (m.hashtag.toLowerCase().includes("#идеиобразов") || m.hashtag.toLowerCase().includes("#образ") || m.hashtag.toLowerCase().includes("#образы") || m.hashtag.toLowerCase().includes("#lookднялена"))) ||
           (category.name === "Образы" && (m.hashtag.includes("#образы") || m.hashtag.includes("#образ")))
       );
@@ -428,6 +435,11 @@ function HomeContent() {
             if (Array.isArray(data)) {
                 const items = data as unknown as MaterialItem[];
                 const dayKey = (ts?: number) => ts ? new Date(ts * 1000).toISOString().slice(0, 10) : '';
+                const isChannelPost = (m: MaterialItem) => {
+                    const hasTgLink = typeof m.link === 'string' && /^https?:\/\/t\.me\/c\/2055411531\/\d+/.test(m.link);
+                    const isNumeric = /^\d+$/.test(m.id);
+                    return hasTgLink && isNumeric;
+                };
                 const byDay = new Map<string, MaterialItem[]>();
                 for (const m of items) {
                     const key = dayKey(m.date);
@@ -440,10 +452,10 @@ function HomeContent() {
                 const consumed = new Set<string>();
                 for (const list of byDay.values()) {
                     const anchors = list
-                        .filter(m => (m.description && m.description.trim().length > 0))
+                        .filter(m => (m.description && m.description.trim().length > 0) && isChannelPost(m))
                         .sort((a, b) => (a.date || 0) - (b.date || 0));
                     const singles = list
-                        .filter(m => (!m.description || m.description.trim().length === 0))
+                        .filter(m => ((!m.description || m.description.trim().length === 0)) && isChannelPost(m))
                         .sort((a, b) => (a.date || 0) - (b.date || 0));
                     for (const anchor of anchors) {
                         const imgs: string[] = [];
@@ -1023,7 +1035,7 @@ function HomeContent() {
                                      {item}
                                  </h3>
                                  {(() => {
-                                   if (activeCategory === "Мои обучения" || activeCategory === "Гайды и чек-листы") {
+                                  if (activeCategory === "Мои обучения" || activeCategory === "Гайды и чек-листы" || activeCategory === "Мастер-классы") {
                                        return (
                                            <div className="text-gray-600 text-xs leading-relaxed whitespace-pre-wrap font-medium mb-3 line-clamp-4">
                                                {material?.description?.replace(/(?:^|\s)(#[a-zA-Zа-яА-Я0-9_]+)/g, '').trim()}
