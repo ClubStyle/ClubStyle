@@ -683,10 +683,10 @@
   },
   {
     "id": "brand_41",
-    "title": "Forever 21",
+    "title": "Forever 21 11.2024",
     "hashtag": "#обзорыбрендов",
     "image": "https://res.cloudinary.com/westfielddg/image/upload/westfield-media/us/retailer/logo-background-image/fxwj5hffeqzm2zdqbcro.png",
-    "link": "",
+    "link": "https://t.me/c/2055411531/3837",
     "description": "",
     "date": 1769706824
   },
@@ -762,5 +762,50 @@
     "link": "",
     "description": "Для следующего образа я предлагаю взять трикотажный комбинезон. Это удобное решение для прогулок, и вы точно будете уверены, что нигде ничего не будет задираться. Сверху дополним образ удлиненным пуховиком и меховыми шапкой и варежками.\n\nФункционально, тепло и очень стильно.",
     "date": 1769706812
+  },
+  {
+    "id": "figure_pear",
+    "title": "Груша",
+    "hashtag": "#типфигуры #груша",
+    "image": "/груша.jpg",
+    "link": "https://t.me/c/2055411531/15177",
+    "description": "",
+    "date": 1769707010
+  },
+  {
+    "id": "figure_apple",
+    "title": "Яблоко",
+    "hashtag": "#типфигуры #яблоко",
+    "image": "/яблоко.jpg",
+    "link": "https://t.me/c/2055411531/15125",
+    "description": "",
+    "date": 1769707011
+  },
+  {
+    "id": "figure_hourglass",
+    "title": "Песочные часы",
+    "hashtag": "#типфигуры #песочныечасы",
+    "image": "/часы.jpg",
+    "link": "https://t.me/c/2055411531/15097",
+    "description": "",
+    "date": 1769707012
+  },
+  {
+    "id": "figure_inverted_triangle",
+    "title": "Перевернутый треугольник",
+    "hashtag": "#типфигуры #треугольник",
+    "image": "/пертреуг.jpg",
+    "link": "https://t.me/c/2055411531/1001",
+    "description": "",
+    "date": 1769707013
+  },
+  {
+    "id": "figure_rectangle",
+    "title": "Прямоугольник",
+    "hashtag": "#типфигуры #прямоугольник",
+    "image": "/прямоугольник.jpg",
+    "link": "https://t.me/c/2055411531/15031",
+    "description": "",
+    "date": 1769707014
   }
 ]
