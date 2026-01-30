@@ -1169,7 +1169,15 @@ function HomeContent() {
 
                     {selectedMaterial.description && (
                         <div className="text-gray-600 text-[15px] leading-relaxed whitespace-pre-wrap mb-8">
-                            {selectedMaterial.description.replace(/(?:^|\s)(#[a-zA-Zа-яА-Я0-9_]+)/g, '').trim()}
+                            {(() => {
+                                const text = selectedMaterial.description.replace(/(?:^|\s)(#[a-zA-Zа-яА-Я0-9_]+)/g, '').trim();
+                                const isBrand = selectedMaterial.hashtag?.includes("#обзорыбрендов");
+                                if (isBrand) {
+                                    const firstPara = text.split(/\n\s*\n/)[0] || text;
+                                    return firstPara;
+                                }
+                                return text;
+                            })()}
                         </div>
                     )}
 
@@ -1184,13 +1192,31 @@ function HomeContent() {
                         </div>
                     )}
 
-                    {selectedMaterial.images && selectedMaterial.images.length > 1 && (
-                      <div className="grid grid-cols-2 gap-3">
-                        {selectedMaterial.images.slice(1).map((img, idx) => (
-                          <div key={idx} className="relative rounded-xl overflow-hidden bg-gray-100 border border-gray-100">
-                            <Image src={img} alt={`${selectedMaterial.title} ${idx+2}`} width={600} height={600} className="w-full h-auto object-cover" />
-                          </div>
-                        ))}
+                    {(() => {
+                      const isBrand = selectedMaterial.hashtag?.includes("#обзорыбрендов");
+                      const imgs = selectedMaterial.images || [];
+                      if (isBrand || imgs.length <= 1) return null;
+                      return (
+                        <div className="grid grid-cols-2 gap-3">
+                          {imgs.slice(1).map((img, idx) => (
+                            <div key={idx} className="relative rounded-xl overflow-hidden bg-gray-100 border border-gray-100">
+                              <Image src={img} alt={`${selectedMaterial.title} ${idx+2}`} width={600} height={600} className="w-full h-auto object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+
+                    {selectedMaterial.hashtag?.includes("#обзорыбрендов") && (
+                      <div className="mt-6">
+                        <a
+                          href="https://t.me/c/2249399970/3/41"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block w-full text-center bg-pink-50 text-pink-600 font-bold px-4 py-3 rounded-xl border border-pink-200 hover:bg-pink-100 transition-colors"
+                        >
+                          Смотреть полный пост в канале клуба
+                        </a>
                       </div>
                     )}
                 </div>
@@ -1224,7 +1250,13 @@ function HomeContent() {
                       )}
 
                       <a 
-                          href={selectedMaterial.link}
+                          href={
+                            typeof selectedMaterial.link === 'string' && selectedMaterial.link.toLowerCase().endsWith('.pdf')
+                              ? selectedMaterial.link
+                              : (selectedMaterial.hashtag?.includes("#обзорыбрендов") 
+                                  ? "https://t.me/c/2249399970/3/41" 
+                                  : selectedMaterial.link)
+                          }
                           target="_blank"
                           rel="noopener noreferrer"
                           className="w-full bg-pink-500 text-white font-bold py-3.5 rounded-xl hover:bg-pink-600 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-pink-200"
@@ -1232,7 +1264,11 @@ function HomeContent() {
                           <ExternalLink size={20} />
                           {typeof selectedMaterial.link === 'string' && selectedMaterial.link.toLowerCase().endsWith('.pdf') 
                               ? "Открыть PDF" 
-                              : (selectedMaterial.id.startsWith('edu_') ? "Смотреть" : "Перейти к оригинальному посту")}
+                              : (selectedMaterial.id.startsWith('edu_') 
+                                    ? "Смотреть" 
+                                    : (selectedMaterial.hashtag?.includes("#обзорыбрендов") 
+                                        ? "Смотреть полный пост в канале клуба" 
+                                        : "Перейти к оригинальному посту"))}
                       </a>
                  </div>
             </div>
