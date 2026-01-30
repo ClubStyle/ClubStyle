@@ -37,7 +37,16 @@ const CATEGORIES: Category[] = [
   { name: "Эфиры" },
   { name: "Мастер-классы" },
   { name: "Гайды и чек-листы" },
-  { name: "Мои обучения" },
+  { 
+    name: "Мои обучения",
+    subCategories: [
+       "Гайд Базовый гардероб",
+       "Стилист будущего",
+       "10 = 100",
+       "УКРАШЕНИЯ: как выбирать, сочетать и хранить",
+       "Чек-лист по ПОДБОРУ СУМОК"
+    ]
+  },
   { name: "Бренды" },
   { 
     name: "Типы фигуры", 
@@ -51,16 +60,16 @@ const CATEGORIES: Category[] = [
   { name: "Вещь дня" },
   { 
     name: "Обувь", 
-    subCategories: ["Сапоги", "Ботильоны", "Мюли", "Туфли", "Босоножки", "Тапки", "Зимние инвестиции: расслабленная обувь"] 
+    subCategories: ["Сапоги", "Ботильоны", "Мюли", "Туфли", "Босоножки", "Тапки"] 
   },
-  {
-    name: "Одежда",
-    subCategories: ["Брюки", "Топ", "Кардиган", "Футболки", "Жакет", "Юбка", "Дубленка", "Блуза", "Комбинезон", "Платье", "Платья. Лето 2024", "Куртка", "Леггинсы", "Гетры", "Гольфы", "Колготки", "Носки"]
-  },
+  { name: "Верха", subCategories: ["Топ", "Кардиган", "Футболки", "Жакет", "Блуза", "Платье", "Куртка", "Пальто", "Дубленка", "Шуба", "Парка", "Косуха"] },
+  { name: "Низы", subCategories: ["Брюки", "Юбка", "Джинсы", "Шорты", "Бермуды", "Леггинсы", "Комбинезон"] },
   {
     name: "Аксессуары",
-    subCategories: ["Украшения", "Сумка", "Варежки", "Перчатки"]
+    subCategories: ["Украшения", "Носки", "Гольфы", "Колготки", "Варежки", "Перчатки", "Платок", "Шапка", "Капор", "Шарф", "Очки"]
   },
+  { name: "Сумки" },
+  { name: "Верхняя одежда" },
   { name: "Plus Size" },
   { 
     name: "Сезоны", 
@@ -68,7 +77,7 @@ const CATEGORIES: Category[] = [
   },
   { 
     name: "Советы",
-    subCategories: ["Советы", "Cтильные приемы, которые помогут не замерзнуть", "Как сделать базовый гардероб нескучным", "Базовый гардероб", "Фишки стилизации"]
+    subCategories: ["Советы", "СТИЛИЗАЦИЯ"]
   },
   { name: "Покупки по миру" },
   { name: "Покупки по РФ" },
@@ -88,19 +97,7 @@ const CATEGORIES: Category[] = [
     ] 
   },
   { name: "Бренды" },
-  {
-    name: "Мои обучения",
-    hidden: true,
-    subCategories: [
-       "Гайд Базовый гардероб",
-       "Стилист будущего",
-       "10 = 100",
-       "Мастер-класс ПРОКАЧКА СТИЛЯ",
-       "Мастер-класс Тренды 2026",
-       "УКРАШЕНИЯ: как выбирать, сочетать и хранить",
-       "Чек-лист по ПОДБОРУ СУМОК"
-    ]
-  },
+  // removed duplicate hidden "Мои обучения"
 ];
 
 const QUICK_FILTERS = [
@@ -109,10 +106,10 @@ const QUICK_FILTERS = [
     { label: "#находкиврф", category: "LINK:https://t.me/c/2055411531/14980" },
     { label: "находки мир", category: "Покупки по миру" },
     { label: "обувь", category: "Обувь" },
-    { label: "сумки", category: "Аксессуары" },
-    { label: "верхняя одежда", category: "Сезоны" },
-    { label: "верха", category: "Одежда" },
-    { label: "низы", category: "Одежда" },
+    { label: "сумки", category: "Сумки" },
+    { label: "верхняя одежда", category: "LINK:https://t.me/c/2055411531/14996" },
+    { label: "верха", category: "Верха" },
+    { label: "низы", category: "Низы" },
     { label: "аксессуары", category: "Аксессуары" },
     { label: "образы участниц", category: "LINK:https://t.me/c/2249399970/230/33059" }
 ];
@@ -163,34 +160,39 @@ const CURATED_TAGS: CuratedGroup[] = [
   {
     group: "Аксессуары",
     items: [
-      { title: "Украшения", hashtag: "#украшения", link: "https://t.me/c/2055411531/14848", id: "14848" },
-      { title: "Сумка", hashtag: "#сумка", link: "https://t.me/c/2055411531/15042", id: "15042" },
-      { title: "Носки", hashtag: "#носки", link: "https://t.me/c/2055411531/11684", id: "11684" },
-      { title: "Гольфы", hashtag: "#гольфы", link: "https://t.me/c/2055411531/13408", id: "13408" },
-      { title: "Колготки", hashtag: "#колготки", link: "https://t.me/c/2055411531/14792", id: "14792" },
-      { title: "Варежки", hashtag: "#варежки", link: "https://t.me/c/2055411531/14702", id: "14702" },
-      { title: "Перчатки", hashtag: "#перчатки", link: "https://t.me/c/2055411531/15022", id: "15022" },
-      { title: "Платок", hashtag: "#платок", link: "https://t.me/c/2055411531/12826", id: "12826" },
-      { title: "Шапка", hashtag: "#шапка", link: "https://t.me/c/2055411531/14753", id: "14753" },
-      { title: "Капор", hashtag: "#капор", link: "https://t.me/c/2055411531/13906", id: "13906" },
-      { title: "Шарф", hashtag: "#шарф", link: "https://t.me/c/2055411531/14693", id: "14693" },
-      { title: "Очки", hashtag: "#очки", link: "https://t.me/c/2055411531/13215", id: "13215" }
+      { title: "Украшения", hashtag: "#украшения", link: "https://t.me/c/2055411531/14763", id: "14763" },
+      { title: "Носки", hashtag: "#носки", link: "https://t.me/c/2055411531/12483", id: "12483" },
+      { title: "Гольфы", hashtag: "#гольфы", link: "https://t.me/c/2055411531/13409", id: "13409" },
+      { title: "Колготки", hashtag: "#колготки", link: "https://t.me/c/2055411531/13990", id: "13990" },
+      { title: "Варежки", hashtag: "#варежки", link: "https://t.me/c/2055411531/5794", id: "5794" },
+      { title: "Перчатки", hashtag: "#перчатки", link: "https://t.me/c/2055411531/14754", id: "14754" },
+      { title: "Платок", hashtag: "#платок", link: "https://t.me/c/2055411531/12202", id: "12202" },
+      { title: "Шапка", hashtag: "#шапка", link: "https://t.me/c/2055411531/13459", id: "13459" },
+      { title: "Капор", hashtag: "#капор", link: "https://t.me/c/2055411531/15098", id: "15098" },
+      { title: "Шарф", hashtag: "#шарф", link: "https://t.me/c/2055411531/14636", id: "14636" },
+      { title: "Очки", hashtag: "#очки", link: "https://t.me/c/2055411531/13322", id: "13322" }
+    ]
+  },
+  {
+    group: "Сумки",
+    items: [
+      { title: "Сумки", hashtag: "#сумки", link: "https://t.me/c/2055411531/15042", id: "15042" }
     ]
   },
   {
     group: "Обувь",
     items: [
-      { title: "Босоножки", hashtag: "#босоножки", link: "https://t.me/c/2055411531/14570", id: "14570" },
-      { title: "Мюли", hashtag: "#мюли", link: "https://t.me/c/2055411531/11277", id: "11277" },
-      { title: "Сабо", hashtag: "#сабо", link: "https://t.me/c/2055411531/10207", id: "10207" },
-      { title: "Туфли", hashtag: "#туфли", link: "https://t.me/c/2055411531/14785", id: "14785" },
-      { title: "Балетки", hashtag: "#балетки", link: "https://t.me/c/2055411531/14540", id: "14540" },
-      { title: "Ботинки", hashtag: "#ботинки", link: "https://t.me/c/2055411531/13894", id: "13894" },
-      { title: "Ботильоны", hashtag: "#ботильоны", link: "https://t.me/c/2055411531/13924", id: "13924" },
-      { title: "Сапоги", hashtag: "#сапоги", link: "https://t.me/c/2055411531/14792", id: "14792" },
-      { title: "Угги", hashtag: "#угги", link: "https://t.me/c/2055411531/6016", id: "6016" },
-      { title: "Кеды", hashtag: "#кеды", link: "https://t.me/c/2055411531/11534", id: "11534" },
-      { title: "Кроссовки", hashtag: "#кроссовки", link: "https://t.me/c/2055411531/10649", id: "10649" }
+      { title: "Сапоги", hashtag: "#сапоги", link: "https://t.me/c/2055411531/14931", id: "14931" },
+      { title: "Ботильоны", hashtag: "#ботильоны", link: "https://t.me/c/2055411531/15126", id: "15126" },
+      { title: "Мюли", hashtag: "#мюли", link: "https://t.me/c/2055411531/14843", id: "14843" },
+      { title: "Туфли", hashtag: "#туфли", link: "https://t.me/c/2055411531/14571", id: "14571" },
+      { title: "Босоножки", hashtag: "#босоножки", link: "https://t.me/c/2055411531/14571", id: "14571" },
+      { title: "Тапки", hashtag: "#тапки", link: "https://t.me/c/2055411531/14849", id: "14849" },
+      { title: "Сабо", hashtag: "#сабо", link: "https://t.me/c/2055411531/14831", id: "14831" },
+      { title: "Балетки", hashtag: "#балетки", link: "https://t.me/c/2055411531/14763", id: "14763" },
+      { title: "Угги", hashtag: "#угги", link: "https://t.me/c/2055411531/14629", id: "14629" },
+      { title: "Кеды", hashtag: "#кеды", link: "https://t.me/c/2055411531/12089", id: "12089" },
+      { title: "Кроссовки", hashtag: "#кроссовки", link: "https://t.me/c/2055411531/11884", id: "11884" }
     ]
   },
   {
@@ -225,10 +227,12 @@ const TRAINING_IMAGES: Record<string, string> = {
 
 // Map categories to curated tag groups shown inside their views
 const CATEGORY_TO_GROUPS: Record<string, string[]> = {
-  "Одежда": ["Верха", "Низы"],
+  "Верха": ["Верха"],
+  "Низы": ["Низы"],
   "Аксессуары": ["Аксессуары"],
+  "Сумки": ["Сумки"],
   "Обувь": ["Обувь"],
-  "Сезоны": ["Верхняя одежда"]
+  "Верхняя одежда": ["Верхняя одежда"]
 };
 
 const getEmbedUrl = (url: string) => {
@@ -945,10 +949,12 @@ function HomeContent() {
                                 // Check if we are not already inside this folder
                                 if (subCategorySheet.title !== item) {
                                      // Find materials that match this item as a hashtag
-                                     const relatedMaterials = materials.filter(m => 
+                                     const relatedMaterials = materials
+                                       .filter(m => 
                                          m.hashtag.toLowerCase().includes(query) || 
                                          m.hashtag.toLowerCase().includes("#" + query)
-                                     );
+                                       )
+                                       .filter(m => !m.id.startsWith('edu_') && !m.hashtag.toLowerCase().includes('#обучение'));
                                      
                                      if (relatedMaterials.length > 1) {
                                           setSubCategorySheet({
