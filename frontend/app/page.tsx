@@ -351,7 +351,7 @@ function HomeContent() {
           (category.name === "Эфиры" && m.hashtag.includes("#эфир")) ||
           (category.name === "Бренды" && m.hashtag.includes("#обзорыбрендов")) ||
           (category.name === "Гайды и чек-листы" && (m.hashtag.includes("#гайд") || (typeof m.link === "string" && m.link.toLowerCase().endsWith(".pdf")))) ||
-          (category.name === "Идеи образов" && (m.hashtag.toLowerCase().includes("#идеиобразов") || m.hashtag.toLowerCase().includes("#образ") || m.hashtag.toLowerCase().includes("#образы") || m.hashtag.toLowerCase().includes("#lookднялена"))) ||
+          (category.name === "Идеи образов" && (m.hashtag.toLowerCase().includes("#идеиобразов") || m.hashtag.toLowerCase().includes("#образ") || m.hashtag.toLowerCase().includes("#образы") || m.hashtag.toLowerCase().includes("#lookднялена")) && !(typeof m.link === "string" && m.link.toLowerCase().endsWith(".pdf"))) ||
           (category.name === "Образы" && (m.hashtag.includes("#образы") || m.hashtag.includes("#образ")))
       );
       
