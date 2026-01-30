@@ -106,7 +106,7 @@ const CATEGORIES: Category[] = [
 const QUICK_FILTERS = [
     { label: "типы фигур", category: "Типы фигуры" },
     { label: "plus size", category: "Plus Size" },
-    { label: "находки в рф", category: "Покупки по РФ" },
+    { label: "#находкиврф", category: "LINK:https://t.me/c/2055411531/14980" },
     { label: "находки мир", category: "Покупки по миру" },
     { label: "обувь", category: "Обувь" },
     { label: "сумки", category: "Аксессуары" },
@@ -904,7 +904,7 @@ function HomeContent() {
                                 onClick={() => openCurated(it)}
                                 className="whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold bg-white text-gray-700 border border-gray-100 shadow-sm hover:bg-gray-50 hover:border-pink-200 transition-all"
                               >
-                                {it.title} <span className="text-pink-500">{it.hashtag}</span>
+                                {it.hashtag}
                               </button>
                             ))}
                           </div>
