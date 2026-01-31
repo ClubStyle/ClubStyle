@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Image from "next/image";
-import Script from "next/script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -26,22 +24,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
-      </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen relative`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {/* Global Background Texture */}
-        <div className="fixed inset-0 z-[-1] opacity-50 pointer-events-none">
-          <Image
-            src="/bumaga.png"
-            alt="Paper Texture"
-            fill
-            className="object-cover"
-            priority
-          />
-        </div>
         {children}
       </body>
     </html>
