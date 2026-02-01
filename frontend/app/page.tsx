@@ -62,13 +62,13 @@ const CATEGORIES: Category[] = [
     name: "Обувь", 
     subCategories: ["Сапоги", "Ботильоны", "Мюли", "Туфли", "Босоножки", "Тапки", "Сабо", "Балетки", "Угги", "Кеды", "Кроссовки"] 
   },
-  { name: "Верха", subCategories: ["Топ", "Кардиган", "Футболки", "Жакет", "Блуза", "Платье", "Куртка", "Пальто", "Дубленка", "Шуба", "Парка", "Косуха"] },
+  { name: "Верха", subCategories: ["Топ", "Футболка", "Лонгслив", "Майка", "Кардиган", "Жакет", "Жилет", "Блузка", "Рубашка", "Корсет"] },
   { name: "Низы", subCategories: ["Брюки", "Юбка", "Джинсы", "Шорты", "Бермуды", "Легинсы", "Комбинезон", "Платье"] },
   {
     name: "Аксессуары",
     subCategories: ["Украшения", "Носки", "Гольфы", "Колготки", "Варежки", "Перчатки", "Платок", "Шапка", "Капор", "Шарф", "Очки"]
   },
-  { name: "Сумки" },
+  { name: "Сумки", subCategories: ["Сумки"] },
   { name: "Верхняя одежда" },
   { name: "Plus Size" },
   { 
@@ -132,16 +132,16 @@ const CURATED_TAGS: CuratedGroup[] = [
   {
     group: "Верха",
     items: [
-      { title: "Топ", hashtag: "#топ", link: "https://t.me/c/2055411531/14821", id: "14821" },
-      { title: "Футболка", hashtag: "#футболка", link: "https://t.me/c/2055411531/14835", id: "14835" },
-      { title: "Лонгслив", hashtag: "#лонгслив", link: "https://t.me/c/2055411531/13937", id: "13937" },
-      { title: "Майка", hashtag: "#майка", link: "https://t.me/c/2055411531/11905", id: "11905" },
-      { title: "Кардиган", hashtag: "#кардиган", link: "https://t.me/c/2055411531/14842", id: "14842" },
-      { title: "Жакет", hashtag: "#жакет", link: "https://t.me/c/2055411531/14810", id: "14810" },
-      { title: "Жилет", hashtag: "#жилет", link: "https://t.me/c/2055411531/12953", id: "12953" },
-      { title: "Блуза", hashtag: "#блузка", link: "https://t.me/c/2055411531/13791", id: "13791" },
-      { title: "Рубашка", hashtag: "#рубашка", link: "https://t.me/c/2055411531/13452", id: "13452" },
-      { title: "Корсет", hashtag: "#корсет", link: "https://t.me/c/2055411531/11050", id: "11050" }
+      { title: "Топ", hashtag: "#топ", link: "https://t.me/c/2055411531/14949", id: "14949" },
+      { title: "Футболка", hashtag: "#футболка", link: "https://t.me/c/2055411531/15091", id: "15091" },
+      { title: "Лонгслив", hashtag: "#лонгслив", link: "https://t.me/c/2055411531/15091", id: "15091" },
+      { title: "Майка", hashtag: "#майка", link: "https://t.me/c/2055411531/12827", id: "12827" },
+      { title: "Кардиган", hashtag: "#кардиган", link: "https://t.me/c/2055411531/15146", id: "15146" },
+      { title: "Жакет", hashtag: "#жакет", link: "https://t.me/c/2055411531/15177", id: "15177" },
+      { title: "Жилет", hashtag: "#жилет", link: "https://t.me/c/2055411531/14161", id: "14161" },
+      { title: "Блузка", hashtag: "#блузка", link: "https://t.me/c/2055411531/15074", id: "15074" },
+      { title: "Рубашка", hashtag: "#рубашка", link: "https://t.me/c/2055411531/14599", id: "14599" },
+      { title: "Корсет", hashtag: "#корсет", link: "https://t.me/c/2055411531/14452", id: "14452" }
     ]
   },
   {
@@ -176,7 +176,7 @@ const CURATED_TAGS: CuratedGroup[] = [
   {
     group: "Сумки",
     items: [
-      { title: "Сумки", hashtag: "#сумки", link: "https://t.me/c/2055411531/15042", id: "15042" }
+      { title: "Сумки", hashtag: "#сумки", link: "https://t.me/c/2055411531/15043", id: "15043" }
     ]
   },
   {
@@ -225,6 +225,17 @@ const TRAINING_IMAGES: Record<string, string> = {
   "Чек-лист по ПОДБОРУ СУМОК": "/сумки.png"
 };
 
+const EDUCATION_LINKS: Record<string, string> = {
+  "Гайд Базовый гардероб": "https://online.elennne.ru/gaid_base?utm_source=miniapp",
+  "Базовый гардероб": "https://online.elennne.ru/gaid_base?utm_source=miniapp",
+  "Стилист будущего": "https://elennne.ru/stylist-spec?utm_source=miniapp",
+  "10 = 100": "https://elennne.ru/10clothes?utm_source=miniapp",
+  "Мастер-класс ПРОКАЧКА СТИЛЯ": "https://elennne.ru/prokachkastilya?utm_source=miniappм",
+  "Мастер-класс Тренды 2026": "https://elennne.ru/trends2026?utm_source=miniapp",
+  "УКРАШЕНИЯ: как выбирать, сочетать и хранить": "https://elennne.ru/jewellery-check-list?utm_source=miniapp",
+  "Чек-лист по ПОДБОРУ СУМОК": "https://elennne.ru/bags-check-list?utm_source=miniapp"
+};
+
 const FOOTWEAR_IMAGES: Record<string, string> = {
   "Сапоги": "/сапоги.jpg",
   "Ботильоны": "/ботильоны.jpg",
@@ -254,6 +265,23 @@ const BOTTOM_IMAGES: Record<string, string> = {
   "Легинсы": "/легинсы.png",
   "Комбинезон": "/комб.png",
   "Платье": "/платье.png"
+};
+
+const TOP_IMAGES: Record<string, string> = {
+  "Топ": "/топ.png",
+  "Футболка": "/футболка.png",
+  "Лонгслив": "/лонгслив.png",
+  "Майка": "/майка.png",
+  "Кардиган": "/кардиган.png",
+  "Жакет": "/жакет.png",
+  "Жилет": "/жилет.png",
+  "Блузка": "/блузка.png",
+  "Рубашка": "/рубашка.png",
+  "Корсет": "/корсет.png"
+};
+
+const BAG_IMAGES: Record<string, string> = {
+  "Сумки": "/сумки.png"
 };
 
 // Map categories to curated tag groups shown inside their views
@@ -545,6 +573,29 @@ function HomeContent() {
         }
     }
   }, []);
+
+  const openExternalLink = (url: string) => {
+    const u = (url || "").trim();
+    if (!u) return;
+    const w = window as unknown as {
+      Telegram?: {
+        WebApp?: {
+          openLink?: (url: string) => void;
+          openTelegramLink?: (url: string) => void;
+        };
+      };
+    };
+    const tg = w.Telegram?.WebApp;
+    if (tg?.openTelegramLink && /^https?:\/\/t\.me\//.test(u)) {
+      tg.openTelegramLink(u);
+      return;
+    }
+    if (tg?.openLink) {
+      tg.openLink(u);
+      return;
+    }
+    window.open(u, "_blank", "noopener,noreferrer");
+  };
 
   const toggleFavorite = (e: React.MouseEvent, itemKey: string) => {
     e.stopPropagation();
@@ -974,10 +1025,19 @@ function HomeContent() {
                                 ? (ACCESSORY_IMAGES[item] ?? (material ? material.image : "/ban.png"))
                                 : activeCategory === "Низы"
                                   ? (BOTTOM_IMAGES[item] ?? (material ? material.image : "/ban.png"))
+                                  : activeCategory === "Верха"
+                                    ? (TOP_IMAGES[item] ?? (material ? material.image : "/ban.png"))
+                                    : activeCategory === "Сумки"
+                                      ? (BAG_IMAGES[item] ?? (material ? material.image : "/ban.png"))
                                 : (material ? material.image : "/ban.png");
                         const displayHashtag = material ? material.hashtag : "#" + item.toLowerCase().replace(/\s/g, '');
 
                         const handleCardClick = () => {
+                            const eduLink = EDUCATION_LINKS[item];
+                            if (eduLink) {
+                                openExternalLink(eduLink);
+                                return;
+                            }
                             const curatedGroup = CURATED_TAGS.find(g => g.group === (activeCategory || ""));
                             const curatedItem = curatedGroup ? curatedGroup.items.find(it => it.title === item) : null;
                             if (curatedItem) {
@@ -1287,27 +1347,27 @@ function HomeContent() {
                       </button>
 
                       {selectedMaterial.video_link && (
-                          <a 
-                              href={selectedMaterial.video_link}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                          <button
+                              onClick={() => openExternalLink(selectedMaterial.video_link!)}
                               className="w-full bg-black text-white font-bold py-3.5 rounded-xl hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-gray-200"
                           >
                               <PlayCircle size={20} />
                               Смотреть запись
-                          </a>
+                          </button>
                       )}
 
-                      <a 
-                          href={
-                            typeof selectedMaterial.link === 'string' && selectedMaterial.link.toLowerCase().endsWith('.pdf')
-                              ? selectedMaterial.link
-                              : (selectedMaterial.hashtag?.includes("#обзорыбрендов") 
-                                  ? "https://t.me/c/2249399970/3/41" 
-                                  : selectedMaterial.link)
-                          }
-                          target="_blank"
-                          rel="noopener noreferrer"
+                      <button
+                          onClick={() => {
+                            const link = typeof selectedMaterial.link === 'string' ? selectedMaterial.link : "";
+                            const resolved =
+                              link.toLowerCase().endsWith(".pdf")
+                                ? link
+                                : (selectedMaterial.hashtag?.includes("#обзорыбрендов")
+                                    ? "https://t.me/c/2249399970/3/41"
+                                    : link);
+                            const eduLink = EDUCATION_LINKS[selectedMaterial.title];
+                            openExternalLink(eduLink || resolved);
+                          }}
                           className="w-full bg-pink-500 text-white font-bold py-3.5 rounded-xl hover:bg-pink-600 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-pink-200"
                       >
                           <ExternalLink size={20} />
@@ -1318,7 +1378,7 @@ function HomeContent() {
                                     : (selectedMaterial.hashtag?.includes("#обзорыбрендов") 
                                         ? "Смотреть полный пост в канале клуба" 
                                         : "Перейти к оригинальному посту"))}
-                      </a>
+                      </button>
                  </div>
             </div>
         </div>
