@@ -60,10 +60,10 @@ const CATEGORIES: Category[] = [
   { name: "Вещь дня" },
   { 
     name: "Обувь", 
-    subCategories: ["Сапоги", "Ботильоны", "Мюли", "Туфли", "Босоножки", "Тапки"] 
+    subCategories: ["Сапоги", "Ботильоны", "Мюли", "Туфли", "Босоножки", "Тапки", "Сабо", "Балетки", "Угги", "Кеды", "Кроссовки"] 
   },
   { name: "Верха", subCategories: ["Топ", "Кардиган", "Футболки", "Жакет", "Блуза", "Платье", "Куртка", "Пальто", "Дубленка", "Шуба", "Парка", "Косуха"] },
-  { name: "Низы", subCategories: ["Брюки", "Юбка", "Джинсы", "Шорты", "Бермуды", "Леггинсы", "Комбинезон"] },
+  { name: "Низы", subCategories: ["Брюки", "Юбка", "Джинсы", "Шорты", "Бермуды", "Легинсы", "Комбинезон", "Платье"] },
   {
     name: "Аксессуары",
     subCategories: ["Украшения", "Носки", "Гольфы", "Колготки", "Варежки", "Перчатки", "Платок", "Шапка", "Капор", "Шарф", "Очки"]
@@ -147,14 +147,14 @@ const CURATED_TAGS: CuratedGroup[] = [
   {
     group: "Низы",
     items: [
-      { title: "Брюки", hashtag: "#брюки", link: "https://t.me/c/2055411531/15042", id: "15042" },
-      { title: "Юбка", hashtag: "#юбка", link: "https://t.me/c/2055411531/14930", id: "14930" },
-      { title: "Джинсы", hashtag: "#джинсы", link: "https://t.me/c/2055411531/14732", id: "14732" },
-      { title: "Шорты", hashtag: "#шорты", link: "https://t.me/c/2055411531/11269", id: "11269" },
+      { title: "Брюки", hashtag: "#брюки", link: "https://t.me/c/2055411531/15043", id: "15043" },
+      { title: "Юбка", hashtag: "#юбка", link: "https://t.me/c/2055411531/14909", id: "14909" },
+      { title: "Джинсы", hashtag: "#джинсы", link: "https://t.me/c/2055411531/15098", id: "15098" },
+      { title: "Шорты", hashtag: "#шорты", link: "https://t.me/c/2055411531/13409", id: "13409" },
       { title: "Бермуды", hashtag: "#бермуды", link: "https://t.me/c/2055411531/12394", id: "12394" },
-      { title: "Легинсы", hashtag: "#легинсы", link: "https://t.me/c/2055411531/14753", id: "14753" },
-      { title: "Комбинезон", hashtag: "#комбинезон", link: "https://t.me/c/2055411531/14778", id: "14778" },
-      { title: "Платье", hashtag: "#платье", link: "https://t.me/c/2055411531/14802", id: "14802" }
+      { title: "Легинсы", hashtag: "#легинсы", link: "https://t.me/c/2055411531/5087", id: "5087" },
+      { title: "Комбинезон", hashtag: "#комбинезон", link: "https://t.me/c/2055411531/9372", id: "9372" },
+      { title: "Платье", hashtag: "#платье", link: "https://t.me/c/2055411531/14830", id: "14830" }
     ]
   },
   {
@@ -223,6 +223,37 @@ const TRAINING_IMAGES: Record<string, string> = {
   "Мастер-класс Тренды 2026": "/тренды.png",
   "УКРАШЕНИЯ: как выбирать, сочетать и хранить": "/украшения.png",
   "Чек-лист по ПОДБОРУ СУМОК": "/сумки.png"
+};
+
+const FOOTWEAR_IMAGES: Record<string, string> = {
+  "Сапоги": "/сапоги.jpg",
+  "Ботильоны": "/ботильоны.jpg",
+  "Босоножки": "/боссоожки.jpg"
+};
+
+const ACCESSORY_IMAGES: Record<string, string> = {
+  "Украшения": "/украшения.jpg",
+  "Носки": "/носки.jpg",
+  "Гольфы": "/гольфы.jpg",
+  "Колготки": "/колготки.jpg",
+  "Варежки": "/варежки.jpg",
+  "Перчатки": "/перчатки.jpg",
+  "Платок": "/платок.jpg",
+  "Шапка": "/шапка.jpg",
+  "Капор": "/капор.jpg",
+  "Шарф": "/шарф.png",
+  "Очки": "/очки.png"
+};
+
+const BOTTOM_IMAGES: Record<string, string> = {
+  "Брюки": "/брюки.png",
+  "Юбка": "/юбка.png",
+  "Джинсы": "/джинсы.png",
+  "Шорты": "/шорты.png",
+  "Бермуды": "/бермуды.jpg",
+  "Легинсы": "/легинсы.png",
+  "Комбинезон": "/комб.png",
+  "Платье": "/платье.png"
 };
 
 // Map categories to curated tag groups shown inside their views
@@ -937,10 +968,22 @@ function HomeContent() {
 
                         const displayImage = activeCategory === "Мои обучения"
                             ? (TRAINING_IMAGES[item] ?? (material ? material.image : "/ban.png"))
-                            : (material ? material.image : "/ban.png");
+                            : activeCategory === "Обувь"
+                              ? (FOOTWEAR_IMAGES[item] ?? (material ? material.image : "/ban.png"))
+                              : activeCategory === "Аксессуары"
+                                ? (ACCESSORY_IMAGES[item] ?? (material ? material.image : "/ban.png"))
+                                : activeCategory === "Низы"
+                                  ? (BOTTOM_IMAGES[item] ?? (material ? material.image : "/ban.png"))
+                                : (material ? material.image : "/ban.png");
                         const displayHashtag = material ? material.hashtag : "#" + item.toLowerCase().replace(/\s/g, '');
 
                         const handleCardClick = () => {
+                            const curatedGroup = CURATED_TAGS.find(g => g.group === (activeCategory || ""));
+                            const curatedItem = curatedGroup ? curatedGroup.items.find(it => it.title === item) : null;
+                            if (curatedItem) {
+                                openCurated(curatedItem);
+                                return;
+                            }
                             if (categoryItem) {
                                 handleCategoryClick(categoryItem);
                             } else {
@@ -998,7 +1041,7 @@ function HomeContent() {
                         return (
                         <div key={item} onClick={handleCardClick} className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-gray-100 relative group cursor-pointer active:scale-[0.98] transition-transform">
                              {/* Image Section */}
-                             <div className="relative h-48 w-full">
+                             <div className="relative h-48 w-full bg-white flex items-center justify-center">
                                  <Image
                                      src={displayImage}
                                      alt={item}
