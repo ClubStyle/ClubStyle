@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image, { type ImageProps } from "next/image";
 import { Search, BookOpen, Heart, PlayCircle, ChevronLeft, ExternalLink, Play } from "lucide-react";
 import BottomNav from "../components/BottomNav";
 import { useState, useEffect, Suspense, useCallback } from "react";
@@ -27,6 +27,30 @@ type MaterialItem = {
   image_position?: string;
   date?: number;
 };
+
+function SafeImage({
+  src,
+  alt,
+  onError,
+  ...props
+}: Omit<ImageProps, "src"> & { src: ImageProps["src"] }) {
+  const isUploads = typeof src === "string" && src.startsWith("/uploads/");
+  return (
+    <Image
+      {...props}
+      src={src}
+      alt={alt}
+      unoptimized={isUploads}
+      onError={(e) => {
+        onError?.(e);
+        const target = e.currentTarget as HTMLImageElement | null;
+        if (target && target.getAttribute("src") !== "/ban.png") {
+          target.setAttribute("src", "/ban.png");
+        }
+      }}
+    />
+  );
+}
 
 const CATEGORIES: Category[] = [
   { 
@@ -788,7 +812,7 @@ function HomeContent() {
                             {filteredMaterials.map(item => (
                                 <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm flex gap-4 items-center" onClick={() => handleItemClick(item.title)}>
                                     <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
-                                        <Image src={item.image} alt={item.title} fill className="object-cover" />
+                                        <SafeImage src={item.image} alt={item.title} fill className="object-cover" />
                                     </div>
                                     <div>
                                         <h3 className="text-sm font-bold text-gray-900 leading-tight mb-1">{item.title}</h3>
@@ -887,7 +911,7 @@ function HomeContent() {
                         
                         { (item.images?.length || 0) > 0 ? (
                             <div className="w-full h-80 bg-gray-100 rounded-2xl overflow-hidden relative mb-4 border border-gray-100">
-                                <Image
+                                <SafeImage
                                     src={item.images![0]} 
                                     alt={item.title}
                                     fill
@@ -908,7 +932,7 @@ function HomeContent() {
                             </div>
                         ) : item.image && item.image !== '/ban.png' && (
                             <div className="w-full h-80 bg-gray-100 rounded-2xl overflow-hidden relative mb-4 border border-gray-100">
-                                <Image
+                                <SafeImage
                                     src={item.image} 
                                     alt={item.title}
                                     fill
@@ -1186,7 +1210,7 @@ function HomeContent() {
                         <div key={item} onClick={handleCardClick} className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-gray-100 relative group cursor-pointer active:scale-[0.98] transition-transform">
                              {/* Image Section */}
                              <div className="relative h-48 w-full bg-white flex items-center justify-center">
-                                 <Image
+                                 <SafeImage
                                      src={displayImage}
                                      alt={item}
                                      fill
@@ -1294,7 +1318,7 @@ function HomeContent() {
                             />
                         ) : (
                             <>
-                                <Image
+                                <SafeImage
                                     src={selectedMaterial.images?.[0] || selectedMaterial.image}
                                     alt={selectedMaterial.title}
                                     {...(selectedMaterial.hashtag?.toLowerCase().includes('#эфир')
@@ -1393,7 +1417,7 @@ function HomeContent() {
                         <div className="grid grid-cols-2 gap-3">
                           {imgs.slice(1).map((img, idx) => (
                             <div key={idx} className="relative rounded-xl overflow-hidden bg-gray-100 border border-gray-100">
-                              <Image src={img} alt={`${selectedMaterial.title} ${idx+2}`} width={600} height={600} className="w-full h-auto object-cover" />
+                              <SafeImage src={img} alt={`${selectedMaterial.title} ${idx+2}`} width={600} height={600} className="w-full h-auto object-cover" />
                             </div>
                           ))}
                         </div>
