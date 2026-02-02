@@ -96,6 +96,19 @@ function makeImageUrl(fileId: string) {
   return `/api/telegram-file?fileId=${encodeURIComponent(fileId)}`;
 }
 
+function isAuthorized(request: Request) {
+  const secret = (process.env.SYNC_TELEGRAM_SECRET || "").trim();
+  if (!secret) return false;
+  const auth = (request.headers.get("authorization") || "").trim();
+  if (!auth) return false;
+  if (auth === secret) return true;
+  if (auth.toLowerCase().startsWith("bearer ")) {
+    const token = auth.slice("bearer ".length).trim();
+    return token === secret;
+  }
+  return false;
+}
+
 export async function GET(request: Request) {
   const isCron = request.headers.get("x-vercel-cron") === "1";
   if (!isCron) {
@@ -105,6 +118,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const isCron = request.headers.get("x-vercel-cron") === "1";
+  if (!isCron && !isAuthorized(request)) {
+    return new Response("Forbidden", { status: 403 });
+  }
   return syncTelegram(request);
 }
 

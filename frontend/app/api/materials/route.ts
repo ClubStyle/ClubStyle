@@ -32,14 +32,7 @@ function getSupabase() {
 
 export async function GET() {
   try {
-    const isVercel = Boolean(process.env.VERCEL);
     const supabase = getSupabase();
-    if (!supabase && isVercel) {
-      return NextResponse.json(
-        { error: 'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required on Vercel' },
-        { status: 500, headers: { 'cache-control': 'no-store' } }
-      );
-    }
     if (supabase) {
       const { data, error } = await supabase.client
         .from(supabase.table)
@@ -49,12 +42,6 @@ export async function GET() {
       if (!error && data?.value && Array.isArray(data.value)) {
         return NextResponse.json(data.value, { headers: { 'cache-control': 'no-store' } });
       }
-      if (isVercel) {
-        return NextResponse.json(
-          { error: 'Failed to read materials from Supabase' },
-          { status: 500, headers: { 'cache-control': 'no-store' } }
-        );
-      }
     }
 
     const fileContents = await fs.promises.readFile(dataPath, 'utf8');
@@ -62,8 +49,10 @@ export async function GET() {
     return NextResponse.json(data, { headers: { 'cache-control': 'no-store' } });
   } catch (error) {
     console.error("Error reading materials data:", error);
-    // Fallback or empty array if file missing
-    return NextResponse.json([], { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to read materials' },
+      { status: 500, headers: { 'cache-control': 'no-store' } }
+    );
   }
 }
 
@@ -78,8 +67,8 @@ export async function POST(request: Request) {
         const supabase = getSupabase();
         if (!supabase && isVercel) {
           return NextResponse.json(
-            { error: 'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required on Vercel' },
-            { status: 500, headers: { 'cache-control': 'no-store' } }
+            { error: 'Saving materials on Vercel requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY' },
+            { status: 501, headers: { 'cache-control': 'no-store' } }
           );
         }
         if (supabase) {

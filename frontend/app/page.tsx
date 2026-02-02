@@ -562,6 +562,7 @@ function HomeContent() {
                 }
                 const merged: MaterialItem[] = [];
                 const consumed = new Set<string>();
+                const mergedSingles = new Set<string>();
                 for (const list of byDay.values()) {
                     const anchors = list
                         .filter(m => (m.description && m.description.trim().length > 0) && isChannelPost(m))
@@ -577,7 +578,7 @@ function HomeContent() {
                         (anchor.hashtag || '').split(' ').forEach(t => t && tags.add(t));
                         const baseTs = anchor.date || 0;
                         const nearbySingles = singles.filter((s) => {
-                            if (consumed.has(s.id)) return false;
+                            if (mergedSingles.has(s.id)) return false;
                             if (Math.abs((s.date || 0) - baseTs) > 120) return false;
                             const sTags = (s.hashtag || "")
                               .split(" ")
@@ -588,7 +589,7 @@ function HomeContent() {
                         for (const s of nearbySingles) {
                             if (s.image && s.image !== '/ban.png') imgs.push(s.image);
                             (s.hashtag || '').split(' ').forEach(t => t && tags.add(t));
-                            consumed.add(s.id);
+                            mergedSingles.add(s.id);
                         }
                         const mergedItem: MaterialItem = {
                             id: anchor.id,
@@ -1474,29 +1475,35 @@ function HomeContent() {
                           </button>
                       )}
 
-                      <button
-                          onClick={() => {
-                            const link = typeof selectedMaterial.link === 'string' ? selectedMaterial.link : "";
-                            const resolved =
-                              link.toLowerCase().endsWith(".pdf")
-                                ? link
-                                : (selectedMaterial.hashtag?.includes("#обзорыбрендов")
-                                    ? "https://t.me/c/2249399970/3/41"
-                                    : link);
-                            const eduLink = EDUCATION_LINKS[selectedMaterial.title];
-                            openExternalLink(eduLink || resolved);
-                          }}
-                          className="w-full bg-pink-500 text-white font-bold py-3.5 rounded-xl hover:bg-pink-600 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-pink-200"
-                      >
-                          <ExternalLink size={20} />
-                          {typeof selectedMaterial.link === 'string' && selectedMaterial.link.toLowerCase().endsWith('.pdf') 
-                              ? "Открыть PDF" 
-                              : (selectedMaterial.id.startsWith('edu_') 
-                                    ? "Смотреть" 
-                                    : (selectedMaterial.hashtag?.includes("#обзорыбрендов") 
-                                        ? "Смотреть полный пост в канале клуба" 
-                                        : "Перейти к оригинальному посту"))}
-                      </button>
+                      {(() => {
+                        const rawLink = typeof selectedMaterial.link === "string" ? selectedMaterial.link : "";
+                        const link = rawLink.trim();
+                        const resolved =
+                          link.toLowerCase().endsWith(".pdf")
+                            ? link
+                            : (selectedMaterial.hashtag?.includes("#обзорыбрендов")
+                                ? "https://t.me/c/2249399970/3/41"
+                                : link);
+                        const eduLink = EDUCATION_LINKS[selectedMaterial.title];
+                        const url = (eduLink || resolved).trim();
+                        if (!url) return null;
+                        return (
+                          <button
+                            onClick={() => openExternalLink(url)}
+                            className="w-full bg-pink-500 text-white font-bold py-3.5 rounded-xl hover:bg-pink-600 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-pink-200"
+                          >
+                            <ExternalLink size={20} />
+                            {typeof selectedMaterial.link === "string" &&
+                            selectedMaterial.link.toLowerCase().endsWith(".pdf")
+                              ? "Открыть PDF"
+                              : (selectedMaterial.id.startsWith("edu_")
+                                  ? "Смотреть"
+                                  : (selectedMaterial.hashtag?.includes("#обзорыбрендов")
+                                      ? "Смотреть полный пост в канале клуба"
+                                      : "Перейти к оригинальному посту"))}
+                          </button>
+                        );
+                      })()}
                  </div>
             </div>
         </div>
