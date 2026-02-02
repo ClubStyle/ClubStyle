@@ -897,12 +897,14 @@ function HomeContent() {
           <div className="space-y-4">
             {materials.length > 0 ? (
                 materials
-                .filter(m => {
+                .filter((m) => {
                     const isChannelLink = typeof m.link === 'string' && /^https?:\/\/t\.me\/c\/2055411531\/\d+/.test(m.link);
                     const isNumericId = /^\d+$/.test(m.id);
                     return isChannelLink && isNumericId;
                 })
-                .slice(0, 20).map((item) => (
+                .sort((a, b) => Number(b.id) - Number(a.id))
+                .slice(0, 20)
+                .map((item) => (
                     <div
                         key={item.id}
                         onClick={() => setSelectedMaterial(item)}
