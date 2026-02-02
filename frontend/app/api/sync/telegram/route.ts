@@ -1,5 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
+import fs from "fs/promises";
+import path from "path";
 import TelegramBot from "node-telegram-bot-api";
+
+export const runtime = "nodejs";
 
 type MaterialItem = {
   id: string;
@@ -39,12 +43,14 @@ function getTelegramConfig() {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const rawChatId = (process.env.TELEGRAM_TARGET_CHAT_ID || "").trim();
   const chatId = rawChatId ? Number(rawChatId) : -1002055411531;
+  const defaultDaysWindow = 365;
   const rawDays = (process.env.TELEGRAM_DAYS_WINDOW || "").trim();
-  const daysWindow = rawDays ? Number(rawDays) : 10;
+  const daysWindow = rawDays ? Number(rawDays) : defaultDaysWindow;
   return {
     token,
     chatId: Number.isFinite(chatId) && chatId !== 0 ? chatId : -1002055411531,
-    daysWindow: Number.isFinite(daysWindow) && daysWindow > 0 ? daysWindow : 10
+    daysWindow:
+      Number.isFinite(daysWindow) && daysWindow > 0 ? daysWindow : defaultDaysWindow
   };
 }
 
@@ -95,106 +101,232 @@ export async function GET(request: Request) {
   if (!isCron) {
     return new Response("Forbidden", { status: 403 });
   }
-  return syncTelegram();
+  return syncTelegram(request);
 }
 
-export async function POST() {
-  return syncTelegram();
+export async function POST(request: Request) {
+  return syncTelegram(request);
 }
 
-async function syncTelegram() {
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET,POST,OPTIONS",
+      "access-control-allow-headers": "content-type,authorization"
+    }
+  });
+}
+
+function asPositiveInt(value: string | null | undefined) {
+  const n = value ? Number(value) : NaN;
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
+async function readSeedFromLocalFile(seedCount: number): Promise<MaterialItem[]> {
+  if (!seedCount) return [];
+  const filePath = path.join(process.cwd(), "data", "materials.json");
+  const raw = await fs.readFile(filePath, "utf8");
+  const parsed = JSON.parse(raw) as unknown;
+  if (!Array.isArray(parsed)) return [];
+
+  const rows = parsed as MaterialItem[];
+  const fromChannel = rows.filter((m) => {
+    const idOk = typeof m.id === "string" && /^\d+$/.test(m.id);
+    const linkOk = typeof m.link === "string" && m.link.includes("t.me/c/");
+    return idOk && linkOk;
+  });
+
+  const sorted = fromChannel.sort((a, b) => (b.date || 0) - (a.date || 0));
+  return sorted.slice(0, seedCount).map((m) => {
+    const images = Array.isArray(m.images) ? m.images : [];
+    const safeImages = images.filter((img) => typeof img === "string" && !img.startsWith("/uploads/"));
+    const image =
+      typeof m.image === "string" && !m.image.startsWith("/uploads/") ? m.image : "/ban.png";
+    return {
+      id: String(m.id),
+      title: typeof m.title === "string" ? m.title : "Пост",
+      hashtag: typeof m.hashtag === "string" ? m.hashtag : "#пост",
+      image,
+      images: safeImages,
+      link: typeof m.link === "string" ? m.link : "https://t.me/c/2055411531/1",
+      description: typeof m.description === "string" ? m.description : "",
+      video_link: typeof m.video_link === "string" ? m.video_link : undefined,
+      date: typeof m.date === "number" ? m.date : undefined
+    };
+  });
+}
+
+async function syncTelegram(request?: Request) {
+  const url = request ? new URL(request.url) : null;
+  const seedCount = asPositiveInt(url?.searchParams.get("seed"));
+  const seedOnly = url?.searchParams.get("seedOnly") === "1";
   const { token, chatId, daysWindow } = getTelegramConfig();
-  if (!token) {
-    return Response.json({ error: "TELEGRAM_BOT_TOKEN is not set" }, { status: 500 });
-  }
 
   const supabase = getSupabase();
   if (!supabase) {
+    if (seedCount) {
+      const seedItems = await readSeedFromLocalFile(seedCount);
+      return Response.json(
+        {
+          ok: true,
+          added: 0,
+          seeded: seedItems.length,
+          seedTarget: seedCount || 0,
+          total: seedItems.length,
+          updates: 0,
+          maxUpdateId: 0,
+          seedOnly: Boolean(seedOnly),
+          materials: seedItems
+        },
+        {
+          headers: {
+            "cache-control": "no-store",
+            "access-control-allow-origin": "*"
+          }
+        }
+      );
+    }
     return Response.json(
       { error: "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_ANON_KEY) are required for Vercel sync" },
-      { status: 500 }
+      { status: 500, headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
     );
   }
 
-  const bot = new TelegramBot(token, { polling: false });
-  const cutoffTs = Math.floor(Date.now() / 1000) - daysWindow * 24 * 60 * 60;
-
   const lastUpdateRaw = await readKv(supabase.client, supabase.table, "telegram_last_update_id");
   const lastUpdateId = typeof lastUpdateRaw === "number" ? lastUpdateRaw : Number(lastUpdateRaw || 0);
-  const offsetStart = Number.isFinite(lastUpdateId) && lastUpdateId > 0 ? lastUpdateId + 1 : undefined;
-
-  const updates: TelegramBot.Update[] = [];
-  let offset = offsetStart;
-  while (true) {
-    const batch = (await bot.getUpdates({
-      offset,
-      limit: 100,
-      allowed_updates: ["channel_post", "message"]
-    })) as TelegramBot.Update[];
-    if (!batch.length) break;
-    updates.push(...batch);
-    offset = batch[batch.length - 1]!.update_id + 1;
-    if (batch.length < 100) break;
-  }
-
-  const maxUpdateId = updates.reduce((m, u) => Math.max(m, Number(u.update_id) || 0), lastUpdateId || 0);
-
-  const existing = asArray(await readKv(supabase.client, supabase.table, "materials"));
   const byId = new Map<string, MaterialItem>();
-  for (const item of existing) byId.set(item.id, item);
+  for (const item of asArray(await readKv(supabase.client, supabase.table, "materials"))) {
+    byId.set(item.id, item);
+  }
 
-  const groups = new Map<string, { ids: number[]; chatId: number; date: number; text: string; photoFileIds: string[] }>();
+  let updatesCount = 0;
+  let added = 0;
+  let maxUpdateId = lastUpdateId || 0;
 
-  for (const update of updates) {
-    const msg = update.channel_post || update.message;
-    if (!msg) continue;
-    if (!msg.chat || msg.chat.id !== chatId) continue;
-    if (!msg.date || msg.date < cutoffTs) continue;
+  if (!seedOnly) {
+    if (!token) {
+      if (!seedCount) {
+        return Response.json({ error: "TELEGRAM_BOT_TOKEN is not set" }, { status: 500 });
+      }
+    } else {
+      const bot = new TelegramBot(token, { polling: false });
+      const cutoffTs = Math.floor(Date.now() / 1000) - daysWindow * 24 * 60 * 60;
+      const offsetStart =
+        Number.isFinite(lastUpdateId) && lastUpdateId > 0 ? lastUpdateId + 1 : undefined;
 
-    const key = msg.media_group_id ? `group:${msg.media_group_id}` : `single:${msg.message_id}`;
-    if (!groups.has(key)) {
-      groups.set(key, { ids: [], chatId: msg.chat.id, date: msg.date, text: "", photoFileIds: [] });
-    }
+      const updates: TelegramBot.Update[] = [];
+      let offset = offsetStart;
+      while (true) {
+        const batch = (await bot.getUpdates({
+          offset,
+          limit: 100,
+          allowed_updates: ["channel_post", "message"]
+        })) as TelegramBot.Update[];
+        if (!batch.length) break;
+        updates.push(...batch);
+        offset = batch[batch.length - 1]!.update_id + 1;
+        if (batch.length < 100) break;
+      }
 
-    const g = groups.get(key)!;
-    g.ids.push(msg.message_id);
-    g.date = Math.max(g.date, msg.date);
-    const text = msg.caption || msg.text || "";
-    if (text && text.length > (g.text?.length || 0)) g.text = text;
+      updatesCount = updates.length;
+      maxUpdateId = updates.reduce(
+        (m, u) => Math.max(m, Number(u.update_id) || 0),
+        lastUpdateId || 0
+      );
 
-    if (msg.photo?.length) {
-      const photo = msg.photo[msg.photo.length - 1];
-      if (photo?.file_id) g.photoFileIds.push(String(photo.file_id));
+      const groups = new Map<
+        string,
+        { ids: number[]; chatId: number; date: number; text: string; photoFileIds: string[] }
+      >();
+
+      for (const update of updates) {
+        const msg = update.channel_post || update.message;
+        if (!msg) continue;
+        if (!msg.chat || msg.chat.id !== chatId) continue;
+        if (!msg.date || msg.date < cutoffTs) continue;
+
+        const key = msg.media_group_id
+          ? `group:${msg.media_group_id}`
+          : `single:${msg.message_id}`;
+        if (!groups.has(key)) {
+          groups.set(key, {
+            ids: [],
+            chatId: msg.chat.id,
+            date: msg.date,
+            text: "",
+            photoFileIds: []
+          });
+        }
+
+        const g = groups.get(key)!;
+        g.ids.push(msg.message_id);
+        g.date = Math.max(g.date, msg.date);
+        const text = msg.caption || msg.text || "";
+        if (text && text.length > (g.text?.length || 0)) g.text = text;
+
+        if (msg.photo?.length) {
+          const photo = msg.photo[msg.photo.length - 1];
+          if (photo?.file_id) g.photoFileIds.push(String(photo.file_id));
+        } else if (
+          msg.document?.file_id &&
+          typeof msg.document.mime_type === "string" &&
+          msg.document.mime_type.startsWith("image/")
+        ) {
+          g.photoFileIds.push(String(msg.document.file_id));
+        }
+      }
+
+      for (const g of groups.values()) {
+        const minId = g.ids.length ? Math.min(...g.ids) : undefined;
+        if (!minId) continue;
+        const id = String(minId);
+        const existingItem = byId.get(id);
+        const hasRealImage =
+          existingItem &&
+          existingItem.image !== "/ban.png" &&
+          Array.isArray(existingItem.images) &&
+          existingItem.images.length > 0;
+        if (hasRealImage) continue;
+
+        const title = g.text.split("\n")[0].substring(0, 100) || "Новый пост";
+        const hashtags = (g.text.match(/#[a-zа-я0-9_]+/gi) || []).join(" ");
+        const publicChatId = g.chatId.toString().replace("-100", "");
+        const link = `https://t.me/c/${publicChatId}/${id}`;
+        const images = g.photoFileIds.map(makeImageUrl);
+        const image = images.length ? images[0] : "/ban.png";
+
+        const item: MaterialItem = {
+          id,
+          title,
+          hashtag: hashtags || "#новинка",
+          image,
+          images,
+          link,
+          description: g.text,
+          date: g.date
+        };
+
+        byId.set(id, item);
+        added++;
+      }
     }
   }
 
-  let added = 0;
-  for (const g of groups.values()) {
-    const minId = g.ids.length ? Math.min(...g.ids) : undefined;
-    if (!minId) continue;
-    const id = String(minId);
-    if (byId.has(id)) continue;
-
-    const title = g.text.split("\n")[0].substring(0, 100) || "Новый пост";
-    const hashtags = (g.text.match(/#[a-zа-я0-9_]+/gi) || []).join(" ");
-    const publicChatId = g.chatId.toString().replace("-100", "");
-    const link = `https://t.me/c/${publicChatId}/${id}`;
-    const images = g.photoFileIds.map(makeImageUrl);
-    const image = images.length ? images[0] : "/ban.png";
-
-    const item: MaterialItem = {
-      id,
-      title,
-      hashtag: hashtags || "#новинка",
-      image,
-      images,
-      link,
-      description: g.text,
-      date: g.date
-    };
-
-    byId.set(id, item);
-    added++;
+  let seeded = 0;
+  if (seedCount) {
+    const current = Array.from(byId.values()).sort((a, b) => (b.date || 0) - (a.date || 0));
+    if (current.length < seedCount) {
+      const seedItems = await readSeedFromLocalFile(seedCount);
+      for (const it of seedItems) {
+        if (!byId.has(it.id)) {
+          byId.set(it.id, it);
+          seeded++;
+          if (byId.size >= seedCount) break;
+        }
+      }
+    }
   }
 
   const combined = Array.from(byId.values()).sort((a, b) => (b.date || 0) - (a.date || 0));
@@ -202,7 +334,15 @@ async function syncTelegram() {
   await writeKv(supabase.client, supabase.table, "telegram_last_update_id", maxUpdateId);
 
   return Response.json(
-    { ok: true, added, total: combined.length, updates: updates.length, maxUpdateId },
-    { headers: { "cache-control": "no-store" } }
+    {
+      ok: true,
+      added,
+      seeded,
+      seedTarget: seedCount || 0,
+      total: combined.length,
+      updates: updatesCount,
+      maxUpdateId
+    },
+    { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
   );
 }

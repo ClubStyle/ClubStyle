@@ -43,6 +43,8 @@ const CATEGORIES: Category[] = [
        "Гайд Базовый гардероб",
        "Стилист будущего",
        "10 = 100",
+       "Мастер-класс ПРОКАЧКА СТИЛЯ",
+       "Мастер-класс Тренды 2026",
        "УКРАШЕНИЯ: как выбирать, сочетать и хранить",
        "Чек-лист по ПОДБОРУ СУМОК"
     ]
@@ -60,7 +62,7 @@ const CATEGORIES: Category[] = [
   { name: "Вещь дня" },
   { 
     name: "Обувь", 
-    subCategories: ["Сапоги", "Ботильоны", "Мюли", "Туфли", "Босоножки", "Тапки", "Сабо", "Балетки", "Угги", "Кеды", "Кроссовки"] 
+    subCategories: ["Сапоги", "Ботинки", "Ботильоны", "Мюли", "Туфли", "Босоножки", "Тапки", "Сабо", "Балетки", "Угги", "Кеды", "Кроссовки"] 
   },
   { name: "Верха", subCategories: ["Топ", "Футболка", "Лонгслив", "Майка", "Кардиган", "Жакет", "Жилет", "Блузка", "Рубашка", "Корсет"] },
   { name: "Низы", subCategories: ["Брюки", "Юбка", "Джинсы", "Шорты", "Бермуды", "Легинсы", "Комбинезон", "Платье"] },
@@ -69,7 +71,11 @@ const CATEGORIES: Category[] = [
     subCategories: ["Украшения", "Носки", "Гольфы", "Колготки", "Варежки", "Перчатки", "Платок", "Шапка", "Капор", "Шарф", "Очки"]
   },
   { name: "Сумки", subCategories: ["Сумки"] },
-  { name: "Верхняя одежда" },
+  { name: "Купальники", subCategories: ["Купальники"] },
+  {
+    name: "Верхняя одежда",
+    subCategories: ["Куртка", "Пальто", "Дубленка", "Шуба", "Парка", "Косуха", "Бомбер"]
+  },
   { name: "Plus Size" },
   { 
     name: "Сезоны", 
@@ -77,7 +83,7 @@ const CATEGORIES: Category[] = [
   },
   { 
     name: "Советы",
-    subCategories: ["Советы", "СТИЛИЗАЦИЯ"]
+    subCategories: ["Советы", "Стилизация"]
   },
   { name: "Покупки по миру" },
   { name: "Покупки по РФ" },
@@ -107,7 +113,7 @@ const QUICK_FILTERS = [
     { label: "находки мир", category: "Покупки по миру" },
     { label: "обувь", category: "Обувь" },
     { label: "сумки", category: "Сумки" },
-    { label: "верхняя одежда", category: "LINK:https://t.me/c/2055411531/14996" },
+    { label: "верхняя одежда", category: "Верхняя одежда" },
     { label: "верха", category: "Верха" },
     { label: "низы", category: "Низы" },
     { label: "аксессуары", category: "Аксессуары" },
@@ -132,67 +138,68 @@ const CURATED_TAGS: CuratedGroup[] = [
   {
     group: "Верха",
     items: [
-      { title: "Топ", hashtag: "#топ", link: "https://t.me/c/2055411531/14949", id: "14949" },
-      { title: "Футболка", hashtag: "#футболка", link: "https://t.me/c/2055411531/15091", id: "15091" },
-      { title: "Лонгслив", hashtag: "#лонгслив", link: "https://t.me/c/2055411531/15091", id: "15091" },
-      { title: "Майка", hashtag: "#майка", link: "https://t.me/c/2055411531/12827", id: "12827" },
-      { title: "Кардиган", hashtag: "#кардиган", link: "https://t.me/c/2055411531/15146", id: "15146" },
-      { title: "Жакет", hashtag: "#жакет", link: "https://t.me/c/2055411531/15177", id: "15177" },
-      { title: "Жилет", hashtag: "#жилет", link: "https://t.me/c/2055411531/14161", id: "14161" },
-      { title: "Блузка", hashtag: "#блузка", link: "https://t.me/c/2055411531/15074", id: "15074" },
-      { title: "Рубашка", hashtag: "#рубашка", link: "https://t.me/c/2055411531/14599", id: "14599" },
-      { title: "Корсет", hashtag: "#корсет", link: "https://t.me/c/2055411531/14452", id: "14452" }
+      { title: "Топ", hashtag: "#топ", link: "https://t.me/c/2055411531/14821", id: "14821" },
+      { title: "Футболка", hashtag: "#футболка", link: "https://t.me/c/2055411531/14835", id: "14835" },
+      { title: "Лонгслив", hashtag: "#лонгслив", link: "https://t.me/c/2055411531/13937", id: "13937" },
+      { title: "Майка", hashtag: "#майка", link: "https://t.me/c/2055411531/11905", id: "11905" },
+      { title: "Кардиган", hashtag: "#кардиган", link: "https://t.me/c/2055411531/14842", id: "14842" },
+      { title: "Жакет", hashtag: "#жакет", link: "https://t.me/c/2055411531/14810", id: "14810" },
+      { title: "Жилет", hashtag: "#жилет", link: "https://t.me/c/2055411531/12953", id: "12953" },
+      { title: "Блузка", hashtag: "#блузка", link: "https://t.me/c/2055411531/13791", id: "13791" },
+      { title: "Рубашка", hashtag: "#рубашка", link: "https://t.me/c/2055411531/13452", id: "13452" },
+      { title: "Корсет", hashtag: "#корсет", link: "https://t.me/c/2055411531/11050", id: "11050" }
     ]
   },
   {
     group: "Низы",
     items: [
-      { title: "Брюки", hashtag: "#брюки", link: "https://t.me/c/2055411531/15043", id: "15043" },
-      { title: "Юбка", hashtag: "#юбка", link: "https://t.me/c/2055411531/14909", id: "14909" },
-      { title: "Джинсы", hashtag: "#джинсы", link: "https://t.me/c/2055411531/15098", id: "15098" },
-      { title: "Шорты", hashtag: "#шорты", link: "https://t.me/c/2055411531/13409", id: "13409" },
+      { title: "Брюки", hashtag: "#брюки", link: "https://t.me/c/2055411531/15042", id: "15042" },
+      { title: "Юбка", hashtag: "#юбка", link: "https://t.me/c/2055411531/14930", id: "14930" },
+      { title: "Джинсы", hashtag: "#джинсы", link: "https://t.me/c/2055411531/14732", id: "14732" },
+      { title: "Шорты", hashtag: "#шорты", link: "https://t.me/c/2055411531/11269", id: "11269" },
       { title: "Бермуды", hashtag: "#бермуды", link: "https://t.me/c/2055411531/12394", id: "12394" },
-      { title: "Легинсы", hashtag: "#легинсы", link: "https://t.me/c/2055411531/5087", id: "5087" },
-      { title: "Комбинезон", hashtag: "#комбинезон", link: "https://t.me/c/2055411531/9372", id: "9372" },
-      { title: "Платье", hashtag: "#платье", link: "https://t.me/c/2055411531/14830", id: "14830" }
+      { title: "Легинсы", hashtag: "#легинсы", link: "https://t.me/c/2055411531/14753", id: "14753" },
+      { title: "Комбинезон", hashtag: "#комбинезон", link: "https://t.me/c/2055411531/14778", id: "14778" },
+      { title: "Платье", hashtag: "#платье", link: "https://t.me/c/2055411531/14802", id: "14802" }
     ]
   },
   {
     group: "Аксессуары",
     items: [
-      { title: "Украшения", hashtag: "#украшения", link: "https://t.me/c/2055411531/14763", id: "14763" },
-      { title: "Носки", hashtag: "#носки", link: "https://t.me/c/2055411531/12483", id: "12483" },
-      { title: "Гольфы", hashtag: "#гольфы", link: "https://t.me/c/2055411531/13409", id: "13409" },
-      { title: "Колготки", hashtag: "#колготки", link: "https://t.me/c/2055411531/13990", id: "13990" },
-      { title: "Варежки", hashtag: "#варежки", link: "https://t.me/c/2055411531/5794", id: "5794" },
-      { title: "Перчатки", hashtag: "#перчатки", link: "https://t.me/c/2055411531/14754", id: "14754" },
-      { title: "Платок", hashtag: "#платок", link: "https://t.me/c/2055411531/12202", id: "12202" },
-      { title: "Шапка", hashtag: "#шапка", link: "https://t.me/c/2055411531/13459", id: "13459" },
-      { title: "Капор", hashtag: "#капор", link: "https://t.me/c/2055411531/15098", id: "15098" },
-      { title: "Шарф", hashtag: "#шарф", link: "https://t.me/c/2055411531/14636", id: "14636" },
-      { title: "Очки", hashtag: "#очки", link: "https://t.me/c/2055411531/13322", id: "13322" }
+      { title: "Украшения", hashtag: "#украшения", link: "https://t.me/c/2055411531/14848", id: "14848" },
+      { title: "Носки", hashtag: "#носки", link: "https://t.me/c/2055411531/11684", id: "11684" },
+      { title: "Гольфы", hashtag: "#гольфы", link: "https://t.me/c/2055411531/13408", id: "13408" },
+      { title: "Колготки", hashtag: "#колготки", link: "https://t.me/c/2055411531/14792", id: "14792" },
+      { title: "Варежки", hashtag: "#варежки", link: "https://t.me/c/2055411531/14702", id: "14702" },
+      { title: "Перчатки", hashtag: "#перчатки", link: "https://t.me/c/2055411531/15022", id: "15022" },
+      { title: "Платок", hashtag: "#платок", link: "https://t.me/c/2055411531/12826", id: "12826" },
+      { title: "Шапка", hashtag: "#шапка", link: "https://t.me/c/2055411531/14753", id: "14753" },
+      { title: "Капор", hashtag: "#капор", link: "https://t.me/c/2055411531/13906", id: "13906" },
+      { title: "Шарф", hashtag: "#шарф", link: "https://t.me/c/2055411531/14693", id: "14693" },
+      { title: "Очки", hashtag: "#очки", link: "https://t.me/c/2055411531/13215", id: "13215" }
     ]
   },
   {
     group: "Сумки",
     items: [
-      { title: "Сумки", hashtag: "#сумки", link: "https://t.me/c/2055411531/15043", id: "15043" }
+      { title: "Сумки", hashtag: "#сумка", link: "https://t.me/c/2055411531/14403", id: "14403" }
     ]
   },
   {
     group: "Обувь",
     items: [
-      { title: "Сапоги", hashtag: "#сапоги", link: "https://t.me/c/2055411531/14931", id: "14931" },
-      { title: "Ботильоны", hashtag: "#ботильоны", link: "https://t.me/c/2055411531/15126", id: "15126" },
-      { title: "Мюли", hashtag: "#мюли", link: "https://t.me/c/2055411531/14843", id: "14843" },
-      { title: "Туфли", hashtag: "#туфли", link: "https://t.me/c/2055411531/14571", id: "14571" },
-      { title: "Босоножки", hashtag: "#босоножки", link: "https://t.me/c/2055411531/14571", id: "14571" },
+      { title: "Босоножки", hashtag: "#босоножки", link: "https://t.me/c/2055411531/14570", id: "14570" },
+      { title: "Мюли", hashtag: "#мюли", link: "https://t.me/c/2055411531/11277", id: "11277" },
+      { title: "Сабо", hashtag: "#сабо", link: "https://t.me/c/2055411531/10207", id: "10207" },
+      { title: "Туфли", hashtag: "#туфли", link: "https://t.me/c/2055411531/14785", id: "14785" },
+      { title: "Балетки", hashtag: "#балетки", link: "https://t.me/c/2055411531/14540", id: "14540" },
+      { title: "Ботинки", hashtag: "#ботинки", link: "https://t.me/c/2055411531/13894", id: "13894" },
+      { title: "Ботильоны", hashtag: "#ботильоны", link: "https://t.me/c/2055411531/13924", id: "13924" },
+      { title: "Сапоги", hashtag: "#сапоги", link: "https://t.me/c/2055411531/14792", id: "14792" },
       { title: "Тапки", hashtag: "#тапки", link: "https://t.me/c/2055411531/14849", id: "14849" },
-      { title: "Сабо", hashtag: "#сабо", link: "https://t.me/c/2055411531/14831", id: "14831" },
-      { title: "Балетки", hashtag: "#балетки", link: "https://t.me/c/2055411531/14763", id: "14763" },
-      { title: "Угги", hashtag: "#угги", link: "https://t.me/c/2055411531/14629", id: "14629" },
-      { title: "Кеды", hashtag: "#кеды", link: "https://t.me/c/2055411531/12089", id: "12089" },
-      { title: "Кроссовки", hashtag: "#кроссовки", link: "https://t.me/c/2055411531/11884", id: "11884" }
+      { title: "Угги", hashtag: "#угги", link: "https://t.me/c/2055411531/6016", id: "6016" },
+      { title: "Кеды", hashtag: "#кеды", link: "https://t.me/c/2055411531/11534", id: "11534" },
+      { title: "Кроссовки", hashtag: "#кроссовки", link: "https://t.me/c/2055411531/10649", id: "10649" }
     ]
   },
   {
@@ -239,7 +246,16 @@ const EDUCATION_LINKS: Record<string, string> = {
 const FOOTWEAR_IMAGES: Record<string, string> = {
   "Сапоги": "/сапоги.jpg",
   "Ботильоны": "/ботильоны.jpg",
-  "Босоножки": "/боссоожки.jpg"
+  "Ботинки": "/ботильоны.jpg",
+  "Мюли": "/боссоожки.jpg",
+  "Туфли": "/боссоожки.jpg",
+  "Босоножки": "/боссоожки.jpg",
+  "Тапки": "/боссоожки.jpg",
+  "Сабо": "/боссоожки.jpg",
+  "Балетки": "/боссоожки.jpg",
+  "Угги": "/сапоги.jpg",
+  "Кеды": "/боссоожки.jpg",
+  "Кроссовки": "/боссоожки.jpg"
 };
 
 const ACCESSORY_IMAGES: Record<string, string> = {
@@ -276,7 +292,7 @@ const TOP_IMAGES: Record<string, string> = {
   "Жакет": "/жакет.png",
   "Жилет": "/жилет.png",
   "Блузка": "/блузка.png",
-  "Рубашка": "/рубашка.png",
+  "Рубашка": "/рубашка2.png",
   "Корсет": "/корсет.png"
 };
 
@@ -291,7 +307,8 @@ const CATEGORY_TO_GROUPS: Record<string, string[]> = {
   "Аксессуары": ["Аксессуары"],
   "Сумки": ["Сумки"],
   "Обувь": ["Обувь"],
-  "Верхняя одежда": ["Верхняя одежда"]
+  "Верхняя одежда": ["Верхняя одежда"],
+  "Купальники": ["Купальники"]
 };
 
 const getEmbedUrl = (url: string) => {
@@ -367,7 +384,7 @@ function HomeContent() {
                 hashtag: "#бренды",
                 image: "/ban.png",
                 type: "text",
-                link: "https://t.me/c/2055411531/1",
+                link: "https://t.me/c/2249399970/3/41",
                 description: "ZARA (май 2024)\nLOVE REPUBLIC (июнь 2024)\nBEFREE (август 2024)\nZARINA (август 2024)\nH&M (август 2024)\nMAAG мини обзор (август 2024)\n4FORMS (август 2024)\nASOS CURVE (сентябрь 2024)\nLIME (сентябрь 2024)\nMANGO (октябрь 2024)\nEKONIKA (октябрь 2024)\nSHUBECO (октябрь 2024)\nFOREVER 21 (ноябрь 2024)\nMAAG (новогодняя коллекция 2024)\nZARINA (новогодняя коллекция 2024)\nDAISYKNIT (новогодняя коллекция 2024)\nALL WE NEED (новогодняя коллекция 2024)\nMONZA| Моностиль (новогодняя коллекция 2024)\nRESERVED (новогодняя коллекция 2024)\nLIME (январь 2025)\nLOVE REPUBLIC (февраль 2025)\nLICHI (верхняя одежда февраль 2025)\nIDOL (март 2025)\nZARINA (март 2025)\nSELA (апрель 2025)\nMANGO (сентябрь 2025)"
             };
         } else {
@@ -442,15 +459,22 @@ function HomeContent() {
   const openCurated = (item: CuratedItem) => {
     const found = materials.find(m => m.link === item.link || m.id === item.id);
     if (found) {
-      setSelectedMaterial(found);
+      const safe: MaterialItem = {
+        ...found,
+        image: typeof found.image === "string" && found.image.startsWith("/uploads/") ? "/ban.png" : found.image,
+        images: Array.isArray(found.images)
+          ? found.images.filter((img) => typeof img === "string" && !img.startsWith("/uploads/"))
+          : found.images
+      };
+      setSelectedMaterial(safe);
       return;
     }
     const fallback: MaterialItem = {
       id: item.id,
       title: item.title,
       hashtag: item.hashtag,
-      image: `/uploads/${item.id}.jpg`,
-      images: [`/uploads/${item.id}.jpg`],
+      image: "/ban.png",
+      images: [],
       link: item.link,
       description: ""
     };
@@ -462,7 +486,8 @@ function HomeContent() {
     const hashtags = Array.from(new Set(group.items.map(it => it.hashtag))).join(' ');
     for (const it of group.items) {
       const found = materials.find(m => m.link === it.link || m.id === it.id);
-      const img = found?.image || `/uploads/${it.id}.jpg`;
+      const img =
+        found?.image && !found.image.startsWith("/uploads/") ? found.image : "/ban.png";
       images.push(img);
     }
     const synthetic: MaterialItem = {
@@ -1038,37 +1063,96 @@ function HomeContent() {
                                 openExternalLink(eduLink);
                                 return;
                             }
+                            if (categoryItem) {
+                                handleCategoryClick(categoryItem);
+                                return;
+                            }
+
+                            const query = item.toLowerCase().replace(/\s/g, '');
+                            const isRootSheet = subCategorySheet.title === (activeCategory || "");
+                            const preferAuto =
+                                activeCategory === "Обувь" ||
+                                activeCategory === "Аксессуары" ||
+                                activeCategory === "Низы" ||
+                                activeCategory === "Верха" ||
+                                activeCategory === "Сумки";
+
+                            if (isRootSheet && activeCategory === "Советы" && item === "Советы") {
+                                const relatedMaterials = materials
+                                  .filter(m =>
+                                    m.hashtag.toLowerCase().includes(query) ||
+                                    m.hashtag.toLowerCase().includes("#" + query)
+                                  )
+                                  .filter(m => !m.id.startsWith('edu_') && !m.hashtag.toLowerCase().includes('#обучение'));
+
+                                if (relatedMaterials.length === 1) {
+                                    handleItemClick(relatedMaterials[0]);
+                                    return;
+                                }
+
+                                if (relatedMaterials.length > 1) {
+                                    setSubCategorySheet({
+                                        title: item,
+                                        items: relatedMaterials.map(m => m.title)
+                                    });
+                                    return;
+                                }
+                            }
+
+                            if (isRootSheet && preferAuto) {
+                                const relatedMaterials = materials
+                                  .filter(m =>
+                                    m.hashtag.toLowerCase().includes(query) ||
+                                    m.hashtag.toLowerCase().includes("#" + query)
+                                  )
+                                  .filter(m => !m.id.startsWith('edu_') && !m.hashtag.toLowerCase().includes('#обучение'));
+
+                                if (relatedMaterials.length === 1) {
+                                    handleItemClick(relatedMaterials[0]);
+                                    return;
+                                }
+
+                                if (relatedMaterials.length > 1) {
+                                    setSubCategorySheet({
+                                        title: item,
+                                        items: relatedMaterials.map(m => m.title)
+                                    });
+                                    return;
+                                }
+                            }
+
                             const curatedGroup = CURATED_TAGS.find(g => g.group === (activeCategory || ""));
                             const curatedItem = curatedGroup ? curatedGroup.items.find(it => it.title === item) : null;
                             if (curatedItem) {
                                 openCurated(curatedItem);
                                 return;
                             }
-                            if (categoryItem) {
-                                handleCategoryClick(categoryItem);
-                            } else {
-                                // Logic to handle "folders" of materials (same hashtag)
-                                const query = item.toLowerCase().replace(/\s/g, '');
-                                // Check if we are not already inside this folder
-                                if (subCategorySheet.title !== item) {
-                                     // Find materials that match this item as a hashtag
-                                     const relatedMaterials = materials
-                                       .filter(m => 
-                                         m.hashtag.toLowerCase().includes(query) || 
-                                         m.hashtag.toLowerCase().includes("#" + query)
-                                       )
-                                       .filter(m => !m.id.startsWith('edu_') && !m.hashtag.toLowerCase().includes('#обучение'));
-                                     
-                                     if (relatedMaterials.length > 1) {
-                                          setSubCategorySheet({
-                                              title: item, // Keep title same as item name to prevent re-opening on click
-                                              items: relatedMaterials.map(m => m.title)
-                                          });
-                                          return;
-                                     }
-                                }
-                                handleItemClick(item);
+
+                            // Logic to handle "folders" of materials (same hashtag)
+                            // Check if we are not already inside this folder
+                            if (subCategorySheet.title !== item) {
+                                 // Find materials that match this item as a hashtag
+                                 const relatedMaterials = materials
+                                   .filter(m => 
+                                     m.hashtag.toLowerCase().includes(query) || 
+                                     m.hashtag.toLowerCase().includes("#" + query)
+                                   )
+                                   .filter(m => !m.id.startsWith('edu_') && !m.hashtag.toLowerCase().includes('#обучение'));
+                                 
+                                 if (relatedMaterials.length === 1) {
+                                      handleItemClick(relatedMaterials[0]);
+                                      return;
+                                 }
+
+                                 if (relatedMaterials.length > 1) {
+                                      setSubCategorySheet({
+                                          title: item, // Keep title same as item name to prevent re-opening on click
+                                          items: relatedMaterials.map(m => m.title)
+                                      });
+                                      return;
+                                 }
                             }
+                            handleItemClick(item);
                          };
 
                         if (material?.type === 'text') {

@@ -29,7 +29,7 @@ const TARGET_CHAT_ID = (() => {
 const DAYS_WINDOW = (() => {
     const raw = (process.env.TELEGRAM_DAYS_WINDOW || '').trim();
     const n = raw ? Number(raw) : NaN;
-    return Number.isFinite(n) && n > 0 ? n : 10;
+    return Number.isFinite(n) && n > 0 ? n : 365;
 })();
 const CUTOFF_TS = Math.floor(Date.now() / 1000) - (DAYS_WINDOW * 24 * 60 * 60);
 const MODE = (process.env.TELEGRAM_SYNC_MODE || 'once').toLowerCase();

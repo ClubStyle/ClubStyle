@@ -24,14 +24,22 @@ type Database = {
 
 function getSupabase() {
   const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
   if (!url || !key) return null;
   return { client: createClient<Database, 'public'>(url, key), table: 'app_kv' as const };
 }
 
 export async function GET() {
   try {
+    const isVercel = Boolean(process.env.VERCEL);
     const supabase = getSupabase();
+    if (!supabase && isVercel) {
+      return NextResponse.json(
+        { error: 'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required on Vercel' },
+        { status: 500, headers: { 'cache-control': 'no-store' } }
+      );
+    }
     if (supabase) {
       const { data, error } = await supabase.client
         .from(supabase.table)
@@ -40,6 +48,12 @@ export async function GET() {
         .maybeSingle();
       if (!error && data?.value && Array.isArray(data.value)) {
         return NextResponse.json(data.value, { headers: { 'cache-control': 'no-store' } });
+      }
+      if (isVercel) {
+        return NextResponse.json(
+          { error: 'Failed to read materials from Supabase' },
+          { status: 500, headers: { 'cache-control': 'no-store' } }
+        );
       }
     }
 
@@ -60,7 +74,14 @@ export async function POST(request: Request) {
         if (!Array.isArray(body)) {
              return NextResponse.json({ error: 'Data must be an array' }, { status: 400 });
         }
+        const isVercel = Boolean(process.env.VERCEL);
         const supabase = getSupabase();
+        if (!supabase && isVercel) {
+          return NextResponse.json(
+            { error: 'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required on Vercel' },
+            { status: 500, headers: { 'cache-control': 'no-store' } }
+          );
+        }
         if (supabase) {
           const { error } = await supabase.client
             .from(supabase.table)
