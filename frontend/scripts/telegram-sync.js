@@ -3,7 +3,6 @@ import fs from 'fs';
 import path from 'path';
 import https from 'https';
 import dotenv from 'dotenv';
-import cron from 'node-cron';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -14,8 +13,7 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 const token = process.env.TELEGRAM_BOT_TOKEN;
 
 if (!token) {
-    console.error('Error: TELEGRAM_BOT_TOKEN is not set in .env file.');
-    console.log('Please create a .env file in the frontend directory with TELEGRAM_BOT_TOKEN=your_token');
+    console.error('Error: TELEGRAM_BOT_TOKEN is not set.');
     process.exit(1);
 }
 
@@ -23,9 +21,18 @@ const bot = new TelegramBot(token, { polling: false });
 
 const DATA_FILE = path.join(__dirname, '../data/materials.json');
 const UPLOADS_DIR = path.join(__dirname, '../public/uploads');
-const TARGET_CHAT_ID = -1002055411531; // КЛУБ СТИЛЬНЫХ (из используемых ссылок в проекте)
-const DAYS_WINDOW = 10; // расширяем окно, чтобы захватить больше постов
+const TARGET_CHAT_ID = (() => {
+    const raw = (process.env.TELEGRAM_TARGET_CHAT_ID || '').trim();
+    const n = raw ? Number(raw) : NaN;
+    return Number.isFinite(n) && n !== 0 ? n : -1002055411531;
+})();
+const DAYS_WINDOW = (() => {
+    const raw = (process.env.TELEGRAM_DAYS_WINDOW || '').trim();
+    const n = raw ? Number(raw) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : 10;
+})();
 const CUTOFF_TS = Math.floor(Date.now() / 1000) - (DAYS_WINDOW * 24 * 60 * 60);
+const MODE = (process.env.TELEGRAM_SYNC_MODE || 'once').toLowerCase();
 
 // Ensure directories exist
 if (!fs.existsSync(UPLOADS_DIR)) {
@@ -54,13 +61,21 @@ async function downloadImage(url, filepath) {
 async function sync() {
     console.log('Connecting to Telegram...');
     try {
-        // Get updates (offset can be stored to avoid re-fetching, but for now we fetch recent)
-        // We use allowed_updates to ensure we get channel posts
-        const updates = await bot.getUpdates({
-            allowed_updates: ['channel_post', 'message']
-        });
+        const updates = [];
+        let offset;
+        while (true) {
+            const batch = await bot.getUpdates({
+                offset,
+                limit: 100,
+                allowed_updates: ['channel_post', 'message']
+            });
+            if (!batch.length) break;
+            updates.push(...batch);
+            offset = batch[batch.length - 1].update_id + 1;
+            if (batch.length < 100) break;
+        }
 
-        console.log(`Found ${updates.length} updates.`);
+        console.log(`Found ${updates.length} updates in queue.`);
 
         let materials = [];
         if (fs.existsSync(DATA_FILE)) {
@@ -77,7 +92,6 @@ async function sync() {
 
             // Only channel posts from target channel
             if (!msg.chat || msg.chat.id !== TARGET_CHAT_ID) continue;
-            // Only posts within last 5 days
             if (!msg.date || msg.date < CUTOFF_TS) continue;
 
             const key = msg.media_group_id ? `group:${msg.media_group_id}` : `single:${msg.message_id}`;
@@ -105,7 +119,9 @@ async function sync() {
                     const fileLink = await bot.getFileLink(photo.file_id);
                     const fileName = `${msg.message_id}.jpg`;
                     const localFilePath = path.join(UPLOADS_DIR, fileName);
-                    await downloadImage(fileLink, localFilePath);
+                    if (!fs.existsSync(localFilePath)) {
+                        await downloadImage(fileLink, localFilePath);
+                    }
                     g.photos.push(`/uploads/${fileName}`);
                 } catch (err) {
                     console.error(`Failed to download image for msg ${msg.message_id}:`, err.message);
@@ -162,7 +178,17 @@ async function sync() {
     }
 }
 
-await sync();
-cron.schedule('0 0 * * *', () => {
-    sync();
+async function main() {
+    await sync();
+    if (MODE === 'daemon' || MODE === 'cron') {
+        const { default: cron } = await import('node-cron');
+        cron.schedule('*/30 * * * *', () => {
+            sync();
+        });
+    }
+}
+
+await main().catch((err) => {
+    console.error('Fatal error:', err?.message || err);
+    process.exitCode = 1;
 });
