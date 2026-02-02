@@ -576,7 +576,15 @@ function HomeContent() {
                         const tags = new Set<string>();
                         (anchor.hashtag || '').split(' ').forEach(t => t && tags.add(t));
                         const baseTs = anchor.date || 0;
-                        const nearbySingles = singles.filter(s => !consumed.has(s.id) && Math.abs((s.date || 0) - baseTs) <= 120);
+                        const nearbySingles = singles.filter((s) => {
+                            if (consumed.has(s.id)) return false;
+                            if (Math.abs((s.date || 0) - baseTs) > 120) return false;
+                            const sTags = (s.hashtag || "")
+                              .split(" ")
+                              .map((t) => t.trim())
+                              .filter(Boolean);
+                            return sTags.some((t) => t !== "#новинка" && tags.has(t));
+                        });
                         for (const s of nearbySingles) {
                             if (s.image && s.image !== '/ban.png') imgs.push(s.image);
                             (s.hashtag || '').split(' ').forEach(t => t && tags.add(t));
