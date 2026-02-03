@@ -235,25 +235,25 @@ const CURATED_TAGS: CuratedGroup[] = [
 ];
 
 const MENU_ITEMS = [
-  { title: "ОБЗОРЫ БРЕНДОВ", image: "/обзорыбрендов.png", category: "Бренды", count: 26 },
-  { title: "ИДЕИ ОБРАЗОВ", image: "/идеиобразов.png", category: "Идеи образов", count: 11 },
-  { title: "МАСТЕР-КЛАССЫ", image: "/мастерклассы.png", category: "Мастер-классы", count: 99 },
-  { title: "ГАЙДЫ", image: "/гайды2.png", category: "Гайды и чек-листы", count: 2 },
-  { title: "ЭФИРЫ", image: "/эфиры2.png", category: "Эфиры", count: 3 },
-  { title: "ОБУЧЕНИЯ", image: "/обучения.png", category: "Мои обучения", count: 53 },
-  { title: "СОВЕТЫ И ЛАЙФХАКИ", image: "/советылайф.png", category: "Советы", count: 37 },
-  { title: "ОБРАЗЫ", image: "/образы.png", category: "Образы", count: 7 },
+  { title: "ОБЗОРЫ БРЕНДОВ", image: "/obzorybrendov.png", category: "Бренды", count: 26 },
+  { title: "ИДЕИ ОБРАЗОВ", image: "/ideiobrazov.png", category: "Идеи образов", count: 11 },
+  { title: "МАСТЕР-КЛАССЫ", image: "/masterklassy.png", category: "Мастер-классы", count: 99 },
+  { title: "ГАЙДЫ", image: "/gaydy2.png", category: "Гайды и чек-листы", count: 2 },
+  { title: "ЭФИРЫ", image: "/efiry2.png", category: "Эфиры", count: 3 },
+  { title: "ОБУЧЕНИЯ", image: "/obucheniya.png", category: "Мои обучения", count: 53 },
+  { title: "СОВЕТЫ И ЛАЙФХАКИ", image: "/sovetylayf.png", category: "Советы", count: 37 },
+  { title: "ОБРАЗЫ", image: "/obrazy.png", category: "Образы", count: 7 },
 ];
 
 // Specific images for "Мои обучения"
 const TRAINING_IMAGES: Record<string, string> = {
   "Гайд Базовый гардероб": "/baza.png",
-  "Стилист будущего": "/стилист.png",
+  "Стилист будущего": "/stilist.png",
   "10 = 100": "/10-100.png",
-  "Мастер-класс ПРОКАЧКА СТИЛЯ": "/прокачка.png",
-  "Мастер-класс Тренды 2026": "/тренды.png",
-  "УКРАШЕНИЯ: как выбирать, сочетать и хранить": "/украшения.png",
-  "Чек-лист по ПОДБОРУ СУМОК": "/сумки.png"
+  "Мастер-класс ПРОКАЧКА СТИЛЯ": "/prokachka.png",
+  "Мастер-класс Тренды 2026": "/trendy.png",
+  "УКРАШЕНИЯ: как выбирать, сочетать и хранить": "/ukrasheniya.png",
+  "Чек-лист по ПОДБОРУ СУМОК": "/sumki.png"
 };
 
 const EDUCATION_LINKS: Record<string, string> = {
@@ -268,60 +268,60 @@ const EDUCATION_LINKS: Record<string, string> = {
 };
 
 const FOOTWEAR_IMAGES: Record<string, string> = {
-  "Сапоги": "/сапоги.jpg",
-  "Ботильоны": "/ботильоны.jpg",
-  "Ботинки": "/ботильоны.jpg",
-  "Мюли": "/боссоожки.jpg",
-  "Туфли": "/боссоожки.jpg",
-  "Босоножки": "/боссоожки.jpg",
-  "Тапки": "/боссоожки.jpg",
-  "Сабо": "/боссоожки.jpg",
-  "Балетки": "/боссоожки.jpg",
-  "Угги": "/сапоги.jpg",
-  "Кеды": "/боссоожки.jpg",
-  "Кроссовки": "/боссоожки.jpg"
+  "Сапоги": "/sapogi.jpg",
+  "Ботильоны": "/botilony.jpg",
+  "Ботинки": "/botilony.jpg",
+  "Мюли": "/bossoozhki.jpg",
+  "Туфли": "/bossoozhki.jpg",
+  "Босоножки": "/bossoozhki.jpg",
+  "Тапки": "/bossoozhki.jpg",
+  "Сабо": "/bossoozhki.jpg",
+  "Балетки": "/bossoozhki.jpg",
+  "Угги": "/sapogi.jpg",
+  "Кеды": "/bossoozhki.jpg",
+  "Кроссовки": "/bossoozhki.jpg"
 };
 
 const ACCESSORY_IMAGES: Record<string, string> = {
-  "Украшения": "/украшения.jpg",
-  "Носки": "/носки.jpg",
-  "Гольфы": "/гольфы.jpg",
-  "Колготки": "/колготки.jpg",
-  "Варежки": "/варежки.jpg",
-  "Перчатки": "/перчатки.jpg",
-  "Платок": "/платок.jpg",
-  "Шапка": "/шапка.jpg",
-  "Капор": "/капор.jpg",
-  "Шарф": "/шарф.png",
-  "Очки": "/очки.png"
+  "Украшения": "/ukrasheniya.jpg",
+  "Носки": "/noski.jpg",
+  "Гольфы": "/golfy.jpg",
+  "Колготки": "/kolgotki.jpg",
+  "Варежки": "/varezhki.jpg",
+  "Перчатки": "/perchatki.jpg",
+  "Платок": "/platok.jpg",
+  "Шапка": "/shapka.jpg",
+  "Капор": "/kapor.jpg",
+  "Шарф": "/sharf.png",
+  "Очки": "/ochki.png"
 };
 
 const BOTTOM_IMAGES: Record<string, string> = {
-  "Брюки": "/брюки.png",
-  "Юбка": "/юбка.png",
-  "Джинсы": "/джинсы.png",
-  "Шорты": "/шорты.png",
-  "Бермуды": "/бермуды.jpg",
-  "Легинсы": "/легинсы.png",
-  "Комбинезон": "/комб.png",
-  "Платье": "/платье.png"
+  "Брюки": "/bryuki.png",
+  "Юбка": "/yubka.png",
+  "Джинсы": "/dzhinsy.png",
+  "Шорты": "/shorty.png",
+  "Бермуды": "/bermudy.jpg",
+  "Легинсы": "/leginsy.png",
+  "Комбинезон": "/komb.png",
+  "Платье": "/plate.png"
 };
 
 const TOP_IMAGES: Record<string, string> = {
-  "Топ": "/топ.png",
-  "Футболка": "/футболка.png",
-  "Лонгслив": "/лонгслив.png",
-  "Майка": "/майка.png",
-  "Кардиган": "/кардиган.png",
-  "Жакет": "/жакет.png",
-  "Жилет": "/жилет.png",
-  "Блузка": "/блузка.png",
-  "Рубашка": "/рубашка2.png",
-  "Корсет": "/корсет.png"
+  "Топ": "/top.png",
+  "Футболка": "/futbolka.png",
+  "Лонгслив": "/longsliv.png",
+  "Майка": "/mayka.png",
+  "Кардиган": "/kardigan.png",
+  "Жакет": "/zhaket.png",
+  "Жилет": "/zhilet.png",
+  "Блузка": "/bluzka.png",
+  "Рубашка": "/rubashka2.png",
+  "Корсет": "/korset.png"
 };
 
 const BAG_IMAGES: Record<string, string> = {
-  "Сумки": "/сумки.png"
+  "Сумки": "/sumki.png"
 };
 
 // Map categories to curated tag groups shown inside their views

@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Search, X } from "lucide-react";
+import BottomNav from "../../components/BottomNav";
 
 type MaterialItem = {
   id: string;
@@ -111,6 +112,20 @@ export default function AdminPage() {
     });
   }, [draft]);
 
+  const applyDraftToList = useCallback(
+    (list: MaterialItem[]) => {
+      if (!draft) return list;
+      const idx = list.findIndex((m) => m.id === draft.id);
+      if (idx >= 0) {
+        const copy = [...list];
+        copy[idx] = draft;
+        return copy;
+      }
+      return [draft, ...list];
+    },
+    [draft]
+  );
+
   const removeItem = useCallback(() => {
     const current = ensureDraft();
     setMaterials((prev) => prev.filter((m) => m.id !== current.id));
@@ -140,10 +155,12 @@ export default function AdminPage() {
     setBusy(true);
     setStatus(null);
     try {
+      const toSave = applyDraftToList(materials);
+      setMaterials(toSave);
       const res = await fetch("/api/materials", {
         method: "POST",
         headers: { "content-type": "application/json", ...headers },
-        body: JSON.stringify(materials)
+        body: JSON.stringify(toSave)
       });
       const data = await readJson<unknown>(res);
       if (!res.ok) {
@@ -156,7 +173,7 @@ export default function AdminPage() {
     } finally {
       setBusy(false);
     }
-  }, [headers, loadMaterials, materials]);
+  }, [applyDraftToList, headers, loadMaterials, materials]);
 
   const uploadFile = useCallback(
     async (file: File) => {
@@ -180,66 +197,11 @@ export default function AdminPage() {
     [headers]
   );
 
-  if (!authed) {
-    return (
-      <main className="min-h-screen w-full px-4 lg:px-10 2xl:px-16 pt-8 pb-28">
-        <div className="flex items-center gap-2 mb-8 pt-4">
-          <Link
-            href="/community"
-            className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors text-gray-500"
-          >
-            <ChevronLeft size={24} />
-          </Link>
-          <h1 className="text-3xl font-black uppercase tracking-wide text-gray-900">
-            Админ
-          </h1>
-        </div>
-        <div className="mt-6 bg-white/90 backdrop-blur rounded-3xl p-5 border border-pink-100/50 ring-1 ring-pink-50 shadow-[0_8px_32px_rgba(236,72,153,0.08)]">
-          <div className="grid gap-3">
-            <label className="grid gap-1">
-              <span className="text-xs font-medium text-gray-600">Логин</span>
-              <input
-                value={adminUser}
-                onChange={(e) => setAdminUser(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-200"
-                placeholder="h1"
-              />
-            </label>
-            <label className="grid gap-1">
-              <span className="text-xs font-medium text-gray-600">Пароль</span>
-              <input
-                value={adminPass}
-                onChange={(e) => setAdminPass(e.target.value)}
-                type="password"
-                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-200"
-                placeholder="6789"
-              />
-            </label>
-            <button
-              onClick={() => {
-                if (adminUser.trim() === "h1" && adminPass === "6789") {
-                  setAuthed(true);
-                  setStatus(null);
-                } else {
-                  setStatus("Неверный логин или пароль");
-                }
-              }}
-              className="mt-2 rounded-2xl bg-pink-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-pink-200 disabled:opacity-60"
-            >
-              Войти
-            </button>
-            {status ? <div className="text-sm text-gray-700">{status}</div> : null}
-          </div>
-        </div>
-      </main>
-    );
-  }
-
   return (
-    <main className="min-h-screen w-full px-4 lg:px-10 2xl:px-16 pt-8 pb-28">
-      <div className="flex flex-col gap-2">
-        <div className="flex items-end justify-between gap-4">
-          <div className="flex items-end gap-2">
+    <div className="min-h-screen pb-24 font-sans bg-gray-50/50 relative">
+      <div className="relative z-10 w-full min-h-screen">
+        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md pt-12 pb-4 px-4 lg:px-10 2xl:px-16 shadow-sm">
+          <div className="flex items-center gap-2">
             <Link
               href="/community"
               className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors text-gray-500"
@@ -247,267 +209,395 @@ export default function AdminPage() {
               <ChevronLeft size={24} />
             </Link>
             <h1 className="text-3xl font-black uppercase tracking-wide text-gray-900">
-              Админ‑панель
+              Админ
             </h1>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={addNew}
-              className="rounded-2xl bg-white/90 backdrop-blur px-4 py-2 text-sm font-semibold text-gray-900 border border-pink-100/50 ring-1 ring-pink-50"
-            >
-              + Добавить
-            </button>
-            <button
-              onClick={() => saveAll().catch((e: unknown) => setStatus(e instanceof Error ? e.message : "Ошибка"))}
-              disabled={busy}
-              className="rounded-2xl bg-pink-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-pink-200 disabled:opacity-60"
-            >
-              Сохранить
-            </button>
-          </div>
-        </div>
-        {status ? <div className="text-sm text-gray-700">{status}</div> : null}
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-5">
-        <section className="bg-white/90 backdrop-blur rounded-3xl p-4 border border-pink-100/50 ring-1 ring-pink-50 shadow-[0_8px_32px_rgba(236,72,153,0.08)]">
-          <div className="grid gap-3">
-            <input
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-200"
-              placeholder="Поиск по id/названию/хэштегу/ссылке"
-            />
-            <div className="max-h-[calc(100vh-260px)] overflow-auto rounded-2xl border border-gray-100">
-              {filtered.map((m) => (
+            {authed ? (
+              <div className="ml-auto flex gap-2">
                 <button
-                  key={m.id}
-                  onClick={() => selectItem(m.id)}
-                  className={`w-full text-left px-3 py-2 border-b border-gray-100 hover:bg-pink-50 ${
-                    selectedId === m.id ? "bg-pink-100/60" : "bg-white"
-                  }`}
+                  onClick={addNew}
+                  className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs"
                 >
-                  <div className="text-xs text-gray-500">{m.id}</div>
-                  <div className="text-sm font-semibold text-gray-900 line-clamp-1">
-                    {m.title}
-                  </div>
-                  <div className="text-xs text-gray-600 line-clamp-1">{m.hashtag}</div>
+                  + Добавить
                 </button>
-              ))}
-              {!filtered.length ? (
-                <div className="p-4 text-sm text-gray-600">Ничего не найдено</div>
+                <button
+                  onClick={() =>
+                    saveAll().catch((e: unknown) =>
+                      setStatus(e instanceof Error ? e.message : "Ошибка")
+                    )
+                  }
+                  disabled={busy}
+                  className="bg-pink-500 text-white font-bold px-4 py-2 rounded-2xl shadow-lg shadow-pink-200 hover:bg-pink-600 transition-colors disabled:opacity-60 text-xs"
+                >
+                  Сохранить
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          {!authed ? (
+            <div className="mt-6 bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100">
+              <div className="grid gap-3">
+                <label className="grid gap-1">
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    Логин
+                  </span>
+                  <input
+                    value={adminUser}
+                    onChange={(e) => setAdminUser(e.target.value)}
+                    className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                    placeholder="h1"
+                  />
+                </label>
+                <label className="grid gap-1">
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    Пароль
+                  </span>
+                  <input
+                    value={adminPass}
+                    onChange={(e) => setAdminPass(e.target.value)}
+                    type="password"
+                    inputMode="numeric"
+                    autoComplete="new-password"
+                    className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                    placeholder="6789"
+                  />
+                </label>
+                <button
+                  onClick={() => {
+                    if (adminUser.trim() === "h1" && adminPass === "6789") {
+                      setAuthed(true);
+                      setStatus(null);
+                    } else {
+                      setStatus("Неверный логин или пароль");
+                    }
+                  }}
+                  className="mt-2 w-full bg-pink-500 text-white font-bold py-3 rounded-xl hover:bg-pink-600 transition-colors text-sm"
+                >
+                  Войти
+                </button>
+                {status ? (
+                  <div className="text-sm text-gray-600">{status}</div>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4">
+              <div className="relative">
+                <Search
+                  size={16}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+                <input
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  className="w-full rounded-2xl border border-gray-100 bg-white px-10 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200 shadow-sm"
+                  placeholder="Поиск по id/названию/хэштегу/ссылке"
+                />
+              </div>
+              {status ? (
+                <div className="mt-3 text-sm text-gray-600">{status}</div>
               ) : null}
             </div>
-          </div>
-        </section>
+          )}
+        </div>
 
-        <section className="bg-white/90 backdrop-blur rounded-3xl p-5 border border-pink-100/50 ring-1 ring-pink-50 shadow-[0_8px_32px_rgba(236,72,153,0.08)]">
-          {!draft ? (
-            <div className="text-sm text-gray-700">Выбери материал слева или нажми «Добавить».</div>
-          ) : (
-            <div className="grid gap-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <label className="grid gap-1">
-                  <span className="text-xs font-medium text-gray-600">ID</span>
-                  <input
-                    value={draft.id}
-                    onChange={(e) => setDraft({ ...draft, id: e.target.value })}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-200"
-                  />
-                </label>
-                <label className="grid gap-1">
-                  <span className="text-xs font-medium text-gray-600">Дата (unix)</span>
-                  <input
-                    value={String(draft.date ?? "")}
-                    onChange={(e) => {
-                      const raw = e.target.value.trim();
-                      const n = raw ? Number(raw) : NaN;
-                      setDraft({ ...draft, date: Number.isFinite(n) ? n : undefined });
-                    }}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-200"
-                    placeholder="1770051601"
-                  />
-                </label>
+        {authed ? (
+          <div className="px-4 lg:px-10 2xl:px-16 mt-6 grid gap-3 md:grid-cols-2">
+            {filtered.map((m) => {
+              const badge =
+                m.hashtag?.split(" ").map((t) => t.trim()).filter(Boolean)[0] ||
+                "#материал";
+              const isUploads =
+                typeof m.image === "string" && m.image.startsWith("/uploads/");
+              const isSelected = selectedId === m.id;
+              return (
+                <div
+                  key={m.id}
+                  className={`bg-white rounded-[2rem] p-4 shadow-sm border flex gap-4 items-center group relative overflow-hidden cursor-pointer transition-colors ${
+                    isSelected
+                      ? "border-pink-300 ring-2 ring-pink-100"
+                      : "border-gray-100 hover:border-pink-200"
+                  }`}
+                  onClick={() => selectItem(m.id)}
+                >
+                  <div className="w-20 h-20 rounded-2xl bg-gray-200 shrink-0 overflow-hidden relative">
+                    <Image
+                      src={m.image || "/ban.png"}
+                      alt="Preview"
+                      fill
+                      className="object-cover"
+                      unoptimized={isUploads}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-bold text-pink-500 bg-pink-50 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        {badge}
+                      </span>
+                    </div>
+                    <h3 className="font-bold text-gray-900 text-sm leading-tight mb-1 line-clamp-2">
+                      {m.title}
+                    </h3>
+                    <div className="text-xs text-gray-400 font-medium">
+                      id: {m.id}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {!filtered.length ? (
+              <div className="text-center text-gray-400 py-8 md:col-span-2">
+                Ничего не найдено
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      <BottomNav />
+
+      {draft ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
+            onClick={() => {
+              setDraft(null);
+              setSelectedId(null);
+            }}
+          />
+          <div className="relative w-full max-w-sm bg-white rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+            <button
+              onClick={() => {
+                setDraft(null);
+                setSelectedId(null);
+              }}
+              className="absolute top-4 right-4 z-20 bg-black/20 hover:bg-black/40 text-white p-2 rounded-full backdrop-blur-md transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="relative h-64 w-full bg-black">
+              <Image
+                src={draft.image || "/ban.png"}
+                alt={draft.title}
+                fill
+                className="object-cover"
+                unoptimized={typeof draft.image === "string" && draft.image.startsWith("/uploads/")}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+              <label className="absolute bottom-4 left-4 inline-flex cursor-pointer items-center gap-2 rounded-full bg-white/20 text-white px-4 py-2 text-xs font-bold backdrop-blur-md border border-white/20 hover:bg-white/30 transition-colors">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setBusy(true);
+                    uploadFile(file)
+                      .then((url) => setDraft((d) => (d ? { ...d, image: url } : d)))
+                      .catch((err: unknown) =>
+                        setStatus(err instanceof Error ? err.message : "Ошибка загрузки")
+                      )
+                      .finally(() => setBusy(false));
+                  }}
+                />
+                Загрузить обложку
+              </label>
+            </div>
+
+            <div className="p-6 pt-6">
+              <div className="flex gap-2 mb-3">
+                <span className="bg-pink-50 text-pink-500 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                  {draft.hashtag || "#материал"}
+                </span>
               </div>
 
-              <label className="grid gap-1">
-                <span className="text-xs font-medium text-gray-600">Название</span>
-                <input
-                  value={draft.title}
-                  onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-200"
-                />
-              </label>
-
-              <label className="grid gap-1">
-                <span className="text-xs font-medium text-gray-600">Хэштеги</span>
-                <input
-                  value={draft.hashtag}
-                  onChange={(e) => setDraft({ ...draft, hashtag: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-200"
-                  placeholder="#новинка #советы"
-                />
-              </label>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid gap-3">
                 <label className="grid gap-1">
-                  <span className="text-xs font-medium text-gray-600">Ссылка</span>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    Название
+                  </span>
+                  <input
+                    value={draft.title}
+                    onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+                    className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                  />
+                </label>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="grid gap-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      ID
+                    </span>
+                    <input
+                      value={draft.id}
+                      onChange={(e) => setDraft({ ...draft, id: e.target.value })}
+                      className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                    />
+                  </label>
+                  <label className="grid gap-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      Дата
+                    </span>
+                    <input
+                      value={String(draft.date ?? "")}
+                      onChange={(e) => {
+                        const raw = e.target.value.trim();
+                        const n = raw ? Number(raw) : NaN;
+                        setDraft({ ...draft, date: Number.isFinite(n) ? n : undefined });
+                      }}
+                      className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                      placeholder="1770051601"
+                    />
+                  </label>
+                </div>
+
+                <label className="grid gap-1">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    Хэштеги
+                  </span>
+                  <input
+                    value={draft.hashtag}
+                    onChange={(e) => setDraft({ ...draft, hashtag: e.target.value })}
+                    className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                    placeholder="#новинка #советы"
+                  />
+                </label>
+
+                <label className="grid gap-1">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    Ссылка
+                  </span>
                   <input
                     value={draft.link}
                     onChange={(e) => setDraft({ ...draft, link: e.target.value })}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                    className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
                   />
                 </label>
+
                 <label className="grid gap-1">
-                  <span className="text-xs font-medium text-gray-600">Видео (опц.)</span>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    Видео
+                  </span>
                   <input
                     value={draft.video_link ?? ""}
                     onChange={(e) => setDraft({ ...draft, video_link: e.target.value })}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                    className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
                   />
                 </label>
-              </div>
 
-              <label className="grid gap-1">
-                <span className="text-xs font-medium text-gray-600">Описание</span>
-                <textarea
-                  value={draft.description ?? ""}
-                  onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                  rows={5}
-                  className="w-full rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-200"
-                />
-              </label>
+                <label className="grid gap-1">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    Описание
+                  </span>
+                  <textarea
+                    value={draft.description ?? ""}
+                    onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                    rows={4}
+                    className="w-full rounded-[1.5rem] border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                  />
+                </label>
 
-              <div className="grid gap-3">
-                <div className="text-xs font-medium text-gray-600">Главная картинка</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-                  <div className="grid gap-2">
-                    <input
-                      value={draft.image}
-                      onChange={(e) => setDraft({ ...draft, image: e.target.value })}
-                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-200"
-                      placeholder="https://... или /uploads/..."
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-gray-900 border border-pink-100/50 ring-1 ring-pink-50">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            setBusy(true);
-                            uploadFile(file)
-                              .then((url) => setDraft((d) => (d ? { ...d, image: url } : d)))
-                              .catch((err: unknown) =>
-                                setStatus(err instanceof Error ? err.message : "Ошибка загрузки")
-                              )
-                              .finally(() => setBusy(false));
-                          }}
-                        />
-                        Загрузить файл
-                      </label>
-                      <button
-                        onClick={() => setDraft({ ...draft, image: "/ban.png" })}
-                        className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-gray-900 border border-gray-200"
-                      >
-                        Сбросить
-                      </button>
-                    </div>
-                  </div>
-                  <div className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden bg-gray-50 border border-gray-100">
-                    <Image
-                      src={draft.image || "/ban.png"}
-                      alt="preview"
-                      fill
-                      className="object-cover"
-                      unoptimized={typeof draft.image === "string" && draft.image.startsWith("/uploads/")}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-xs font-medium text-gray-600">Доп. картинки</div>
-                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-gray-900 border border-pink-100/50 ring-1 ring-pink-50">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        setBusy(true);
-                        uploadFile(file)
-                          .then((url) =>
-                            setDraft((d) => {
-                              if (!d) return d;
-                              const images = Array.isArray(d.images) ? d.images : [];
-                              return { ...d, images: [...images, url] };
-                            })
-                          )
-                          .catch((err: unknown) =>
-                            setStatus(err instanceof Error ? err.message : "Ошибка загрузки")
-                          )
-                          .finally(() => setBusy(false));
-                      }}
-                    />
-                    + Файл
-                  </label>
-                </div>
                 <div className="grid gap-2">
-                  {(draft.images || []).map((url, idx) => (
-                    <div key={`${url}-${idx}`} className="flex items-center gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      Доп. картинки
+                    </span>
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-pink-50 text-pink-500 px-4 py-2 text-[10px] font-bold uppercase tracking-wider hover:bg-pink-100 transition-colors">
                       <input
-                        value={url}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
                         onChange={(e) => {
-                          const next = [...(draft.images || [])];
-                          next[idx] = e.target.value;
-                          setDraft({ ...draft, images: next });
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setBusy(true);
+                          uploadFile(file)
+                            .then((url) =>
+                              setDraft((d) => {
+                                if (!d) return d;
+                                const images = Array.isArray(d.images) ? d.images : [];
+                                return { ...d, images: [...images, url] };
+                              })
+                            )
+                            .catch((err: unknown) =>
+                              setStatus(err instanceof Error ? err.message : "Ошибка загрузки")
+                            )
+                            .finally(() => setBusy(false));
                         }}
-                        className="flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-200"
                       />
-                      <button
-                        onClick={() => {
-                          const next = [...(draft.images || [])];
-                          next.splice(idx, 1);
-                          setDraft({ ...draft, images: next });
-                        }}
-                        className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-900"
-                      >
-                        Удалить
-                      </button>
+                      + Файл
+                    </label>
+                  </div>
+                  {(draft.images || []).length ? (
+                    <div className="grid gap-2">
+                      {(draft.images || []).map((url, idx) => (
+                        <div key={`${url}-${idx}`} className="flex items-center gap-2">
+                          <input
+                            value={url}
+                            onChange={(e) => {
+                              const next = [...(draft.images || [])];
+                              next[idx] = e.target.value;
+                              setDraft({ ...draft, images: next });
+                            }}
+                            className="flex-1 rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                          />
+                          <button
+                            onClick={() => {
+                              const next = [...(draft.images || [])];
+                              next.splice(idx, 1);
+                              setDraft({ ...draft, images: next });
+                            }}
+                            className="rounded-2xl bg-white px-4 py-3 text-xs font-bold text-gray-700 border border-gray-100 hover:bg-gray-50"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                  {!draft.images?.length ? (
-                    <div className="text-sm text-gray-600">Пусто</div>
+                  ) : (
+                    <div className="text-sm text-gray-500">Пусто</div>
+                  )}
+                </div>
+
+                <div className="grid gap-2 mt-2">
+                  <button
+                    onClick={() => {
+                      upsertDraft();
+                      setStatus("Изменения применены. Нажми «Сохранить», чтобы записать в Supabase.");
+                    }}
+                    className="w-full bg-pink-500 text-white font-bold py-3 rounded-xl hover:bg-pink-600 transition-colors text-sm disabled:opacity-60"
+                    disabled={busy}
+                  >
+                    Применить
+                  </button>
+                  <button
+                    onClick={() => {
+                      removeItem();
+                      setStatus("Удалено. Нажми «Сохранить», чтобы записать в Supabase.");
+                    }}
+                    className="w-full bg-white text-red-600 font-bold py-3 rounded-xl border border-red-200 hover:bg-red-50 transition-colors text-sm"
+                    disabled={busy}
+                  >
+                    Удалить
+                  </button>
+                  {draft.link ? (
+                    <a
+                      href={draft.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full bg-gray-900/90 text-white font-bold py-3 rounded-xl hover:bg-gray-900 transition-colors flex items-center justify-center gap-2 text-sm"
+                    >
+                      Открыть ссылку
+                    </a>
                   ) : null}
                 </div>
               </div>
-
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => {
-                    upsertDraft();
-                    setStatus("Изменения применены локально. Нажми «Сохранить» для Supabase.");
-                  }}
-                  className="rounded-2xl bg-white/90 backdrop-blur px-4 py-2 text-sm font-semibold text-gray-900 border border-pink-100/50 ring-1 ring-pink-50"
-                >
-                  Применить
-                </button>
-                <button
-                  onClick={removeItem}
-                  className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-red-600 border border-red-200"
-                >
-                  Удалить
-                </button>
-              </div>
             </div>
-          )}
-        </section>
-      </div>
-    </main>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
