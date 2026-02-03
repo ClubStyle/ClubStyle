@@ -19,7 +19,8 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "cdn1-media.rabota.ru" },
       { protocol: "https", hostname: "tambov.mega-hand.ru" },
       { protocol: "https", hostname: "cdn.bolshoy.me" },
-      { protocol: "https", hostname: "i.taplink.st" }
+      { protocol: "https", hostname: "i.taplink.st" },
+      { protocol: "https", hostname: "taesieuwalagnplgalhj.supabase.co" }
     ]
   }
 };

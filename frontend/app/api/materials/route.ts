@@ -30,6 +30,24 @@ function getSupabase() {
   return { client: createClient<Database, 'public'>(url, key), table: 'app_kv' as const };
 }
 
+function isAdminAuthorized(request: Request) {
+  const secret = (process.env.ADMIN_SECRET || '').trim();
+  const auth = (request.headers.get('authorization') || '').trim();
+  if (secret) {
+    if (auth === secret) return true;
+    if (auth.toLowerCase().startsWith('bearer ')) {
+      const token = auth.slice('bearer '.length).trim();
+      if (token === secret) return true;
+    }
+  }
+
+  const user = (process.env.ADMIN_USER || 'h1').trim();
+  const pass = (process.env.ADMIN_PASSWORD || '6789').trim();
+  const reqUser = (request.headers.get('x-admin-user') || '').trim();
+  const reqPass = (request.headers.get('x-admin-pass') || '').trim();
+  return reqUser === user && reqPass === pass;
+}
+
 export async function GET() {
   try {
     const supabase = getSupabase();
@@ -58,6 +76,12 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
+        if (!isAdminAuthorized(request)) {
+          return NextResponse.json(
+            { error: 'Forbidden' },
+            { status: 403, headers: { 'cache-control': 'no-store' } }
+          );
+        }
         const body = await request.json();
         // Validate basic structure if needed
         if (!Array.isArray(body)) {
