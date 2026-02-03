@@ -79,6 +79,7 @@ const CATEGORIES: Category[] = [
     subCategories: ["Груша", "Яблоко", "Песочные часы", "Перевернутый треугольник", "Прямоугольник"] 
   },
   { name: "#lookдняЛена" },
+  { name: "Идеи образов" },
   { name: "Ссылки на вещи" },
   { name: "Вещь дня" },
   { 
@@ -232,6 +233,14 @@ const CURATED_TAGS: CuratedGroup[] = [
 
 const LENA_LOOKS: MaterialItem[] = [
   {
+    id: "15199",
+    title:
+      "У нас в Клубе стильных много новеньких, и рада приветствовать вас с нашем стильном пространстве ❤️",
+    hashtag: "#lookдняЛена",
+    image: "/ban.png",
+    link: "https://t.me/c/2055411531/15199"
+  },
+  {
     id: "15108",
     title: "Образ 1",
     hashtag: "#lookдняЛена",
@@ -270,7 +279,8 @@ const LENA_LOOKS: MaterialItem[] = [
 
 const MENU_ITEMS = [
   { title: "ОБЗОРЫ БРЕНДОВ", image: "/obzorybrendov.png", category: "Бренды", count: 26 },
-  { title: "#LOOKДНЯЛЕНА", image: "/obrazy.png", category: "#lookдняЛена", count: 5 },
+  { title: "ИДЕИ ОБРАЗОВ", image: "/ideiobrazov.png", category: "Идеи образов", count: 11 },
+  { title: "#LOOKДНЯЛЕНА", image: "/obrazy.png", category: "#lookдняЛена", count: 6 },
   { title: "МАСТЕР-КЛАССЫ", image: "/masterklassy.png", category: "Мастер-классы", count: 99 },
   { title: "ГАЙДЫ", image: "/gaydy2.png", category: "Гайды и чек-листы", count: 2 },
   { title: "ЭФИРЫ", image: "/efiry2.png", category: "Эфиры", count: 3 },
@@ -481,7 +491,8 @@ function HomeContent() {
           (category.name === "Мастер-классы" && (m.hashtag.includes("#мастеркласс") || m.hashtag.includes("#мастер-класс"))) ||
           (category.name === "Эфиры" && m.hashtag.includes("#эфир")) ||
           (category.name === "Бренды" && m.hashtag.includes("#обзорыбрендов")) ||
-          (category.name === "Гайды и чек-листы" && (m.hashtag.includes("#гайд") || (typeof m.link === "string" && m.link.toLowerCase().endsWith(".pdf"))))
+          (category.name === "Гайды и чек-листы" && (m.hashtag.includes("#гайд") || (typeof m.link === "string" && m.link.toLowerCase().endsWith(".pdf")))) ||
+          (category.name === "Идеи образов" && (m.hashtag.toLowerCase().includes("#идеиобразов") || m.hashtag.toLowerCase().includes("#образ") || m.hashtag.toLowerCase().includes("#образы") || m.hashtag.toLowerCase().includes("#lookднялена")) && !(typeof m.link === "string" && m.link.toLowerCase().endsWith(".pdf")))
       );
       
       console.log(`Found ${relatedMaterials.length} items for ${category.name}`);
@@ -1134,7 +1145,11 @@ function HomeContent() {
                                 return;
                             }
                             if (activeCategory === "#lookдняЛена" && material) {
-                                handleItemClick(material);
+                                const found =
+                                  materials.find(
+                                    (m) => m.id === material.id || m.link === material.link
+                                  ) || material;
+                                handleItemClick(found);
                                 return;
                             }
 
