@@ -58,7 +58,8 @@ function isAdminAuthorized(request: Request) {
   }
 
   const user = (process.env.ADMIN_USER || 'h1').trim();
-  const pass = (process.env.ADMIN_PASSWORD || '6789').trim();
+  const pass = (process.env.ADMIN_PASSWORD || '').trim();
+  if (!pass) return false;
   const reqUser = (request.headers.get('x-admin-user') || '').trim();
   const reqPass = (request.headers.get('x-admin-pass') || '').trim();
   return reqUser === user && reqPass === pass;

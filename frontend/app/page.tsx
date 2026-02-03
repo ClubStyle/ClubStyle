@@ -35,12 +35,13 @@ function SafeImage({
   ...props
 }: Omit<ImageProps, "src"> & { src: ImageProps["src"] }) {
   const isUploads = typeof src === "string" && src.startsWith("/uploads/");
+  const isWikimedia = typeof src === "string" && src.startsWith("https://upload.wikimedia.org/");
   return (
     <Image
       {...props}
       src={src}
       alt={alt}
-      unoptimized={isUploads}
+      unoptimized={isUploads || isWikimedia}
       onError={(e) => {
         onError?.(e);
         const target = e.currentTarget as HTMLImageElement | null;
@@ -84,6 +85,20 @@ const CATEGORIES: Category[] = [
   { name: "Вещь дня" },
   { 
     name: "Обувь", 
+    subCategories: [
+      "Босоножки",
+      "Мюли",
+      "Сабо",
+      "Туфли",
+      "Балетки",
+      "Ботинки",
+      "Ботильоны",
+      "Сапоги",
+      "Тапки",
+      "Угги",
+      "Кеды",
+      "Кроссовки"
+    ]
   },
   { name: "Верха", subCategories: ["Топ", "Футболка", "Лонгслив", "Майка", "Кардиган", "Жакет", "Жилет", "Блузка", "Рубашка", "Корсет"] },
   { name: "Низы", subCategories: ["Брюки", "Юбка", "Джинсы", "Шорты", "Бермуды", "Легинсы", "Комбинезон", "Платье"] },
@@ -311,6 +326,7 @@ const EDUCATION_LINKS: Record<string, string> = {
 };
 
 const FOOTWEAR_IMAGES: Record<string, string> = {
+  "Обувь": "/shu.jpg",
   "Сапоги": "/sapogi.jpg",
   "Ботильоны": "/botilony.jpg",
   "Ботинки": "/botilony.jpg",
@@ -468,7 +484,10 @@ function HomeContent() {
       setActiveCategory(category.name);
       setSubCategorySheet({
         title: category.name,
-        items: category.subCategories
+        items:
+          category.name === "Обувь"
+            ? ["Обувь", ...category.subCategories]
+            : category.subCategories
       });
     } else {
       // Try to find items by hashtag if no subcategories (e.g. "Разборы образов")

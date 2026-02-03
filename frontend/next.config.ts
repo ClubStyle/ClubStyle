@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "tambov.mega-hand.ru" },
       { protocol: "https", hostname: "cdn.bolshoy.me" },
       { protocol: "https", hostname: "i.taplink.st" },
+      { protocol: "https", hostname: "upload.wikimedia.org" },
       { protocol: "https", hostname: "taesieuwalagnplgalhj.supabase.co" }
     ]
   }

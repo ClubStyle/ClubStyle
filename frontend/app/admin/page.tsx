@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image, { type ImageProps } from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, Search, X } from "lucide-react";
@@ -31,9 +31,37 @@ type BottomNavConfig = {
   innerClassName: string;
 };
 
+type QuickFilter = { label: string; category: string };
+
 async function readJson<T>(res: Response): Promise<T> {
   const text = await res.text();
   return (text ? JSON.parse(text) : null) as T;
+}
+
+function SafeImage({
+  src,
+  alt,
+  onError,
+  ...props
+}: Omit<ImageProps, "src"> & { src: ImageProps["src"] }) {
+  const isUploads = typeof src === "string" && src.startsWith("/uploads/");
+  const isWikimedia =
+    typeof src === "string" && src.startsWith("https://upload.wikimedia.org/");
+  return (
+    <Image
+      {...props}
+      src={src}
+      alt={alt}
+      unoptimized={isUploads || isWikimedia}
+      onError={(e) => {
+        onError?.(e);
+        const target = e.currentTarget as HTMLImageElement | null;
+        if (target && target.getAttribute("src") !== "/ban.png") {
+          target.setAttribute("src", "/ban.png");
+        }
+      }}
+    />
+  );
 }
 
 function pickStringField(value: unknown, key: string) {
@@ -43,11 +71,38 @@ function pickStringField(value: unknown, key: string) {
   return typeof v === "string" ? v : null;
 }
 
+const DEFAULT_MENU_ITEMS = [
+  { title: "ОБЗОРЫ БРЕНДОВ", image: "/obzorybrendov.png", category: "Бренды" },
+  { title: "ИДЕИ ОБРАЗОВ", image: "/ideiobrazov.png", category: "Идеи образов" },
+  { title: "#LOOKДНЯЛЕНА", image: "/obrazy.png", category: "#lookдняЛена" },
+  { title: "МАСТЕР-КЛАССЫ", image: "/masterklassy.png", category: "Мастер-классы" },
+  { title: "ГАЙДЫ", image: "/gaydy2.png", category: "Гайды и чек-листы" },
+  { title: "ЭФИРЫ", image: "/efiry2.png", category: "Эфиры" },
+  { title: "ОБУЧЕНИЯ", image: "/obucheniya.png", category: "Мои обучения" },
+  { title: "СОВЕТЫ И ЛАЙФХАКИ", image: "/sovetylayf.png", category: "Советы" }
+];
+
+const DEFAULT_QUICK_FILTERS: QuickFilter[] = [
+  { label: "типы фигур", category: "Типы фигуры" },
+  { label: "plus size", category: "Plus Size" },
+  { label: "#находкиврф", category: "LINK:https://t.me/c/2055411531/14980" },
+  { label: "находки мир", category: "Покупки по миру" },
+  { label: "обувь", category: "Обувь" },
+  { label: "сумки", category: "Сумки" },
+  { label: "верхняя одежда", category: "Верхняя одежда" },
+  { label: "верха", category: "Верха" },
+  { label: "низы", category: "Низы" },
+  { label: "аксессуары", category: "Аксессуары" },
+  { label: "образы участниц", category: "LINK:https://t.me/c/2249399970/230/33059" }
+];
+
 export default function AdminPage() {
   const [adminUser, setAdminUser] = useState("h1");
   const [adminPass, setAdminPass] = useState("");
   const [authed, setAuthed] = useState(false);
   const [section, setSection] = useState<"materials" | "bottomNav">("materials");
+  const [materialsView, setMaterialsView] = useState<"hub" | "list">("hub");
+  const [activeHubCategory, setActiveHubCategory] = useState<string | null>(null);
 
   const [materials, setMaterials] = useState<MaterialItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -56,6 +111,10 @@ export default function AdminPage() {
   const [filter, setFilter] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const [quickFilters, setQuickFilters] = useState<QuickFilter[]>(DEFAULT_QUICK_FILTERS);
+  const [quickFiltersOpen, setQuickFiltersOpen] = useState(false);
+  const [quickFiltersDraft, setQuickFiltersDraft] = useState<QuickFilter[]>(DEFAULT_QUICK_FILTERS);
 
   const defaultBottomNav = useMemo<BottomNavConfig>(() => {
     return {
@@ -120,22 +179,76 @@ export default function AdminPage() {
     setBottomNavDraft({ items: cleaned, innerClassName: inner });
   }, [defaultBottomNav.innerClassName]);
 
+  const loadQuickFilters = useCallback(async () => {
+    const res = await fetch("/api/materials?key=quickFilters", { cache: "no-store" });
+    const data = await readJson<unknown>(res);
+    if (!res.ok) return;
+    if (!Array.isArray(data)) return;
+    const cleaned = data
+      .map((it) => it as Partial<QuickFilter>)
+      .filter(
+        (it): it is QuickFilter =>
+          Boolean(it) &&
+          typeof it.label === "string" &&
+          typeof it.category === "string" &&
+          it.label.trim().length > 0 &&
+          it.category.trim().length > 0
+      );
+    if (!cleaned.length) return;
+    setQuickFilters(cleaned);
+  }, []);
+
   useEffect(() => {
     if (!authed) return;
     loadMaterials().catch((e: unknown) => {
       setStatus(e instanceof Error ? e.message : "Ошибка загрузки");
     });
     loadBottomNav().catch(() => {});
-  }, [authed, loadBottomNav, loadMaterials]);
+    loadQuickFilters().catch(() => {});
+  }, [authed, loadBottomNav, loadMaterials, loadQuickFilters]);
+
+  const baseList = useMemo(() => {
+    if (section !== "materials") return materials;
+    if (materialsView !== "list") return materials;
+    if (!activeHubCategory) return materials;
+    const query = activeHubCategory.toLowerCase().replace(/\s/g, "");
+    return materials.filter((m) => {
+      const h = (m.hashtag || "").toLowerCase();
+      const link = typeof m.link === "string" ? m.link.toLowerCase() : "";
+      if (activeHubCategory === "Лента новостей") return h.includes("#вленту");
+      if (activeHubCategory === "Бренды") return h.includes("#обзорыбрендов");
+      if (activeHubCategory === "Мастер-классы")
+        return h.includes("#мастеркласс") || h.includes("#мастер-класс");
+      if (activeHubCategory === "Эфиры") return h.includes("#эфир");
+      if (activeHubCategory === "Советы")
+        return h.includes("#советы") || h.includes("#стилизация");
+      if (activeHubCategory === "Мои обучения")
+        return m.id.startsWith("edu_") || h.includes("#обучение");
+      if (activeHubCategory === "Гайды и чек-листы")
+        return h.includes("#гайд") || link.endsWith(".pdf");
+      if (activeHubCategory === "Идеи образов") {
+        const ok =
+          h.includes("#идеиобразов") ||
+          h.includes("#образ") ||
+          h.includes("#образы") ||
+          h.includes("#lookднялена");
+        if (!ok) return false;
+        if (m.id === "15199" || m.link === "https://t.me/c/2055411531/15199") return false;
+        if (link.endsWith(".pdf")) return false;
+        return true;
+      }
+      return h.includes(query) || h.includes("#" + query);
+    });
+  }, [activeHubCategory, materials, materialsView, section]);
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    if (!q) return materials;
-    return materials.filter((m) => {
+    if (!q) return baseList;
+    return baseList.filter((m) => {
       const hay = `${m.id} ${m.title} ${m.hashtag} ${m.link}`.toLowerCase();
       return hay.includes(q);
     });
-  }, [materials, filter]);
+  }, [baseList, filter]);
 
   const selectItem = useCallback(
     (id: string) => {
@@ -204,6 +317,45 @@ export default function AdminPage() {
     setStatus(null);
   }, []);
 
+  const addToNews = useCallback(() => {
+    const id = `custom_${Date.now()}`;
+    const next: MaterialItem = {
+      id,
+      title: "Новость",
+      hashtag: "#вленту",
+      image: "/ban.png",
+      images: [],
+      link: "",
+      description: "",
+      video_link: "",
+      date: Math.floor(Date.now() / 1000)
+    };
+    setDraft(next);
+    setSelectedId(id);
+    setStatus(null);
+    setSection("materials");
+    setMaterialsView("list");
+    setActiveHubCategory("Лента новостей");
+    setFilter("");
+  }, []);
+
+  const openHubCategory = useCallback((category: string) => {
+    setSection("materials");
+    setMaterialsView("list");
+    setActiveHubCategory(category);
+    setFilter("");
+    setDraft(null);
+    setSelectedId(null);
+  }, []);
+
+  const backToHub = useCallback(() => {
+    setMaterialsView("hub");
+    setActiveHubCategory(null);
+    setFilter("");
+    setDraft(null);
+    setSelectedId(null);
+  }, []);
+
   const saveAll = useCallback(async () => {
     setBusy(true);
     setStatus(null);
@@ -249,6 +401,54 @@ export default function AdminPage() {
       setBusy(false);
     }
   }, [bottomNavDraft, headers, loadBottomNav]);
+
+  const saveQuickFilters = useCallback(async () => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const res = await fetch("/api/materials?key=quickFilters", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...headers },
+        body: JSON.stringify(quickFiltersDraft)
+      });
+      const data = await readJson<unknown>(res);
+      if (!res.ok) {
+        const message =
+          pickStringField(data, "error") || `Не удалось сохранить (${res.status})`;
+        throw new Error(message);
+      }
+      setQuickFilters(quickFiltersDraft);
+      setQuickFiltersOpen(false);
+      setStatus("Сохранено");
+    } finally {
+      setBusy(false);
+    }
+  }, [headers, quickFiltersDraft]);
+
+  const login = useCallback(async () => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const res = await fetch("/api/admin/ping", { headers, cache: "no-store" });
+      const data = await readJson<unknown>(res);
+      if (!res.ok) {
+        setAuthed(false);
+        const message =
+          pickStringField(data, "error") || "Неверный логин или пароль";
+        setStatus(message);
+        return;
+      }
+      setAuthed(true);
+      setMaterialsView("hub");
+      setActiveHubCategory(null);
+      setFilter("");
+    } catch (e: unknown) {
+      setAuthed(false);
+      setStatus(e instanceof Error ? e.message : "Ошибка входа");
+    } finally {
+      setBusy(false);
+    }
+  }, [headers]);
 
   const uploadFile = useCallback(
     async (file: File) => {
@@ -328,18 +528,12 @@ export default function AdminPage() {
                     inputMode="numeric"
                     autoComplete="new-password"
                     className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
-                    placeholder="6789"
+                    placeholder="Пароль"
                   />
                 </label>
                 <button
-                  onClick={() => {
-                    if (adminUser.trim() === "h1" && adminPass === "6789") {
-                      setAuthed(true);
-                      setStatus(null);
-                    } else {
-                      setStatus("Неверный логин или пароль");
-                    }
-                  }}
+                  onClick={() => login()}
+                  disabled={busy}
                   className="mt-2 w-full bg-pink-500 text-white font-bold py-3 rounded-xl hover:bg-pink-600 transition-colors text-sm"
                 >
                   Войти
@@ -384,7 +578,7 @@ export default function AdminPage() {
                   onChange={(e) => setFilter(e.target.value)}
                   className="w-full rounded-2xl border border-gray-100 bg-white px-10 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200 shadow-sm"
                   placeholder="Поиск по id/названию/хэштегу/ссылке"
-                  disabled={section !== "materials"}
+                  disabled={section !== "materials" || materialsView !== "list"}
                 />
               </div>
               {status ? (
@@ -395,62 +589,135 @@ export default function AdminPage() {
         </div>
 
         {authed && section === "materials" ? (
-          <div className="px-4 lg:px-10 2xl:px-16 mt-6 grid gap-3 md:grid-cols-2">
-            <div className="md:col-span-2 flex justify-end">
-              <button
-                onClick={addNew}
-                className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs"
-              >
-                + Добавить
-              </button>
-            </div>
-            {filtered.map((m) => {
-              const badge =
-                m.hashtag?.split(" ").map((t) => t.trim()).filter(Boolean)[0] ||
-                "#материал";
-              const isUploads =
-                typeof m.image === "string" && m.image.startsWith("/uploads/");
-              const isSelected = selectedId === m.id;
-              return (
-                <div
-                  key={m.id}
-                  className={`bg-white rounded-[2rem] p-4 shadow-sm border flex gap-4 items-center group relative overflow-hidden cursor-pointer transition-colors ${
-                    isSelected
-                      ? "border-pink-300 ring-2 ring-pink-100"
-                      : "border-gray-100 hover:border-pink-200"
-                  }`}
-                  onClick={() => selectItem(m.id)}
-                >
-                  <div className="w-20 h-20 rounded-2xl bg-gray-200 shrink-0 overflow-hidden relative">
-                    <Image
-                      src={m.image || "/ban.png"}
-                      alt="Preview"
-                      fill
-                      className="object-cover"
-                      unoptimized={isUploads}
-                    />
+          <div className="px-4 lg:px-10 2xl:px-16 mt-6">
+            {materialsView === "hub" ? (
+              <div className="grid gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[...DEFAULT_MENU_ITEMS, { title: "ЛЕНТА НОВОСТЕЙ", image: "/новое.jpg", category: "Лента новостей" }].map(
+                    (item) => (
+                      <button
+                        key={item.category}
+                        onClick={() => openHubCategory(item.category)}
+                        className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden shadow-md group active:scale-[0.98] transition-transform bg-gray-200"
+                      >
+                        <SafeImage src={item.image} alt={item.title} fill className="object-cover" />
+                      </button>
+                    )
+                  )}
+                </div>
+
+                <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <h2 className="text-lg font-black text-gray-900">Быстрые категории</h2>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setQuickFiltersDraft(quickFilters);
+                          setQuickFiltersOpen(true);
+                        }}
+                        className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs"
+                      >
+                        Изменить
+                      </button>
+                      <button
+                        onClick={addToNews}
+                        className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs"
+                      >
+                        В ленту
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-bold text-pink-500 bg-pink-50 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                        {badge}
-                      </span>
-                    </div>
-                    <h3 className="font-bold text-gray-900 text-sm leading-tight mb-1 line-clamp-2">
-                      {m.title}
-                    </h3>
-                    <div className="text-xs text-gray-400 font-medium">
-                      id: {m.id}
-                    </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {quickFilters.map((qf, idx) => (
+                      <button
+                        key={`${qf.label}-${idx}`}
+                        onClick={() => {
+                          const raw = qf.category.trim();
+                          if (raw.toUpperCase().startsWith("LINK:")) {
+                            const url = raw.slice("LINK:".length).trim();
+                            if (url) window.open(url, "_blank", "noopener,noreferrer");
+                            return;
+                          }
+                          openHubCategory(raw);
+                        }}
+                        className="rounded-full bg-pink-50 text-pink-600 px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-pink-100 transition-colors"
+                      >
+                        {qf.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              );
-            })}
-            {!filtered.length ? (
-              <div className="text-center text-gray-400 py-8 md:col-span-2">
-                Ничего не найдено
               </div>
-            ) : null}
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="md:col-span-2 flex items-center justify-between gap-3">
+                  <button
+                    onClick={backToHub}
+                    className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs"
+                  >
+                    ← К плиткам
+                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={addToNews}
+                      className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs"
+                    >
+                      В ленту
+                    </button>
+                    <button
+                      onClick={addNew}
+                      className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs"
+                    >
+                      + Добавить
+                    </button>
+                  </div>
+                </div>
+
+                {filtered.map((m) => {
+                  const badge =
+                    m.hashtag?.split(" ").map((t) => t.trim()).filter(Boolean)[0] ||
+                    "#материал";
+                  const isSelected = selectedId === m.id;
+                  return (
+                    <div
+                      key={m.id}
+                      className={`bg-white rounded-[2rem] p-4 shadow-sm border flex gap-4 items-center group relative overflow-hidden cursor-pointer transition-colors ${
+                        isSelected
+                          ? "border-pink-300 ring-2 ring-pink-100"
+                          : "border-gray-100 hover:border-pink-200"
+                      }`}
+                      onClick={() => selectItem(m.id)}
+                    >
+                      <div className="w-20 h-20 rounded-2xl bg-gray-200 shrink-0 overflow-hidden relative">
+                        <SafeImage
+                          src={m.image || "/ban.png"}
+                          alt="Preview"
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] font-bold text-pink-500 bg-pink-50 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                            {badge}
+                          </span>
+                        </div>
+                        <h3 className="font-bold text-gray-900 text-sm leading-tight mb-1 line-clamp-2">
+                          {m.title}
+                        </h3>
+                        <div className="text-xs text-gray-400 font-medium">id: {m.id}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {!filtered.length ? (
+                  <div className="text-center text-gray-400 py-8 md:col-span-2">
+                    Ничего не найдено
+                  </div>
+                ) : null}
+              </div>
+            )}
           </div>
         ) : null}
 
@@ -573,6 +840,101 @@ export default function AdminPage() {
 
       <BottomNav />
 
+      {quickFiltersOpen ? (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
+            onClick={() => setQuickFiltersOpen(false)}
+          />
+          <div className="relative w-full max-w-md bg-white rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+            <button
+              onClick={() => setQuickFiltersOpen(false)}
+              className="absolute top-4 right-4 z-20 bg-black/20 hover:bg-black/40 text-white p-2 rounded-full backdrop-blur-md transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-black text-gray-900">Быстрые категории</h2>
+                <button
+                  onClick={() =>
+                    setQuickFiltersDraft((prev) => [...prev, { label: "новая", category: "Категория" }])
+                  }
+                  className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs"
+                >
+                  + Категория
+                </button>
+              </div>
+
+              <div className="grid gap-3">
+                {quickFiltersDraft.map((qf, idx) => (
+                  <div key={`${qf.label}-${qf.category}-${idx}`} className="grid grid-cols-1 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        value={qf.label}
+                        onChange={(e) =>
+                          setQuickFiltersDraft((prev) => {
+                            const next = [...prev];
+                            next[idx] = { ...next[idx], label: e.target.value };
+                            return next;
+                          })
+                        }
+                        className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                        placeholder="Текст кнопки"
+                      />
+                      <input
+                        value={qf.category}
+                        onChange={(e) =>
+                          setQuickFiltersDraft((prev) => {
+                            const next = [...prev];
+                            next[idx] = { ...next[idx], category: e.target.value };
+                            return next;
+                          })
+                        }
+                        className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                        placeholder="Категория или LINK:https://..."
+                      />
+                    </div>
+                    <button
+                      onClick={() =>
+                        setQuickFiltersDraft((prev) => {
+                          const next = [...prev];
+                          next.splice(idx, 1);
+                          return next;
+                        })
+                      }
+                      className="w-full rounded-2xl bg-white px-4 py-3 text-xs font-bold text-gray-700 border border-gray-100 hover:bg-gray-50"
+                    >
+                      Удалить
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid gap-2 mt-6">
+                <button
+                  onClick={() => saveQuickFilters().catch((e: unknown) =>
+                    setStatus(e instanceof Error ? e.message : "Ошибка")
+                  )}
+                  className="w-full bg-pink-500 text-white font-bold py-3 rounded-xl hover:bg-pink-600 transition-colors text-sm disabled:opacity-60"
+                  disabled={busy}
+                >
+                  Сохранить
+                </button>
+                <button
+                  onClick={() => setQuickFiltersOpen(false)}
+                  className="w-full bg-white text-gray-700 font-bold py-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors text-sm"
+                  disabled={busy}
+                >
+                  Отмена
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {draft && section === "materials" ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div
@@ -594,13 +956,7 @@ export default function AdminPage() {
             </button>
 
             <div className="relative h-64 w-full bg-black">
-              <Image
-                src={draft.image || "/ban.png"}
-                alt={draft.title}
-                fill
-                className="object-cover"
-                unoptimized={typeof draft.image === "string" && draft.image.startsWith("/uploads/")}
-              />
+              <SafeImage src={draft.image || "/ban.png"} alt={draft.title} fill className="object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
               <label className="absolute bottom-4 left-4 inline-flex cursor-pointer items-center gap-2 rounded-full bg-white/20 text-white px-4 py-2 text-xs font-bold backdrop-blur-md border border-white/20 hover:bg-white/30 transition-colors">
                 <input
