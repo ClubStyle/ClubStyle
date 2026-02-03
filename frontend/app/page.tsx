@@ -78,15 +78,11 @@ const CATEGORIES: Category[] = [
     name: "Типы фигуры", 
     subCategories: ["Груша", "Яблоко", "Песочные часы", "Перевернутый треугольник", "Прямоугольник"] 
   },
-  { name: "Капсула" },
-  { name: "Идеи образов" }, // New
-  { name: "Разборы образов" }, // New (alias for subcategory or separate)
-  { name: "Образы" },
+  { name: "#lookдняЛена" },
   { name: "Ссылки на вещи" },
   { name: "Вещь дня" },
   { 
     name: "Обувь", 
-    subCategories: ["Сапоги", "Ботинки", "Ботильоны", "Мюли", "Туфли", "Босоножки", "Тапки", "Сабо", "Балетки", "Угги", "Кеды", "Кроссовки"] 
   },
   { name: "Верха", subCategories: ["Топ", "Футболка", "Лонгслив", "Майка", "Кардиган", "Жакет", "Жилет", "Блузка", "Рубашка", "Корсет"] },
   { name: "Низы", subCategories: ["Брюки", "Юбка", "Джинсы", "Шорты", "Бермуды", "Легинсы", "Комбинезон", "Платье"] },
@@ -234,15 +230,52 @@ const CURATED_TAGS: CuratedGroup[] = [
   }
 ];
 
+const LENA_LOOKS: MaterialItem[] = [
+  {
+    id: "15108",
+    title: "Образ 1",
+    hashtag: "#lookдняЛена",
+    image: "/образ1.png",
+    link: "https://t.me/c/2055411531/15108"
+  },
+  {
+    id: "15073",
+    title: "Образ 2",
+    hashtag: "#lookдняЛена",
+    image: "/образ2.png",
+    link: "https://t.me/c/2055411531/15073"
+  },
+  {
+    id: "14859",
+    title: "Образ 3",
+    hashtag: "#lookдняЛена",
+    image: "/образ3.png",
+    link: "https://t.me/c/2055411531/14859"
+  },
+  {
+    id: "12245",
+    title: "Образ 4",
+    hashtag: "#lookдняЛена",
+    image: "/образ4.png",
+    link: "https://t.me/c/2055411531/12245"
+  },
+  {
+    id: "12230",
+    title: "Образ 5",
+    hashtag: "#lookдняЛена",
+    image: "/образ5.png",
+    link: "https://t.me/c/2055411531/12230"
+  }
+];
+
 const MENU_ITEMS = [
   { title: "ОБЗОРЫ БРЕНДОВ", image: "/obzorybrendov.png", category: "Бренды", count: 26 },
-  { title: "ИДЕИ ОБРАЗОВ", image: "/ideiobrazov.png", category: "Идеи образов", count: 11 },
+  { title: "#LOOKДНЯЛЕНА", image: "/obrazy.png", category: "#lookдняЛена", count: 5 },
   { title: "МАСТЕР-КЛАССЫ", image: "/masterklassy.png", category: "Мастер-классы", count: 99 },
   { title: "ГАЙДЫ", image: "/gaydy2.png", category: "Гайды и чек-листы", count: 2 },
   { title: "ЭФИРЫ", image: "/efiry2.png", category: "Эфиры", count: 3 },
   { title: "ОБУЧЕНИЯ", image: "/obucheniya.png", category: "Мои обучения", count: 53 },
   { title: "СОВЕТЫ И ЛАЙФХАКИ", image: "/sovetylayf.png", category: "Советы", count: 37 },
-  { title: "ОБРАЗЫ", image: "/obrazy.png", category: "Образы", count: 7 },
 ];
 
 // Specific images for "Мои обучения"
@@ -401,29 +434,14 @@ function HomeContent() {
     }
 
     if (!material) {
-        if (typeof item === 'string' && item === "Бренды") {
-            material = {
-                id: "brands_review_fallback",
-                title: "Бренды",
-                hashtag: "#бренды",
-                image: "/ban.png",
-                type: "text",
-                link: "https://t.me/c/2249399970/3/41",
-                description: "ZARA (май 2024)\nLOVE REPUBLIC (июнь 2024)\nBEFREE (август 2024)\nZARINA (август 2024)\nH&M (август 2024)\nMAAG мини обзор (август 2024)\n4FORMS (август 2024)\nASOS CURVE (сентябрь 2024)\nLIME (сентябрь 2024)\nMANGO (октябрь 2024)\nEKONIKA (октябрь 2024)\nSHUBECO (октябрь 2024)\nFOREVER 21 (ноябрь 2024)\nMAAG (новогодняя коллекция 2024)\nZARINA (новогодняя коллекция 2024)\nDAISYKNIT (новогодняя коллекция 2024)\nALL WE NEED (новогодняя коллекция 2024)\nMONZA| Моностиль (новогодняя коллекция 2024)\nRESERVED (новогодняя коллекция 2024)\nLIME (январь 2025)\nLOVE REPUBLIC (февраль 2025)\nLICHI (верхняя одежда февраль 2025)\nIDOL (март 2025)\nZARINA (март 2025)\nSELA (апрель 2025)\nMANGO (сентябрь 2025)"
-            };
-        } else {
-             // If we can't find the material, we shouldn't show a broken "fallback"
-             // unless it's a specific known case.
-             // But for now, let's keep the fallback but make it less intrusive or try harder to find it.
-             const title = typeof item === 'string' ? item : item.title;
-             material = {
-                id: `fallback_${title.toLowerCase().replace(/\s/g, '_')}`,
-                title: title,
-                hashtag: "#" + title.toLowerCase().replace(/\s/g, ''),
-                image: "/ban.png",
-                link: "https://t.me/c/2055411531/1"
-            };
-        }
+      const title = typeof item === "string" ? item : item.title;
+      material = {
+        id: `fallback_${title.toLowerCase().replace(/\s/g, "_")}`,
+        title: title,
+        hashtag: "#" + title.toLowerCase().replace(/\s/g, ""),
+        image: "/ban.png",
+        link: "https://t.me/c/2055411531/1"
+      };
     }
     setSelectedMaterial(material);
     
@@ -447,6 +465,15 @@ function HomeContent() {
       const query = category.name.toLowerCase().replace(/\s/g, '');
       console.log(`Filtering for category: ${category.name} (query: ${query})`);
       
+      if (category.name === "#lookдняЛена") {
+        setActiveCategory(category.name);
+        setSubCategorySheet({
+          title: category.name,
+          items: LENA_LOOKS.map((m) => m.title)
+        });
+        return;
+      }
+
       const relatedMaterials = materials.filter(m => 
           m.hashtag.toLowerCase().includes(query) || 
           m.hashtag.toLowerCase().includes("#" + query) ||
@@ -454,9 +481,7 @@ function HomeContent() {
           (category.name === "Мастер-классы" && (m.hashtag.includes("#мастеркласс") || m.hashtag.includes("#мастер-класс"))) ||
           (category.name === "Эфиры" && m.hashtag.includes("#эфир")) ||
           (category.name === "Бренды" && m.hashtag.includes("#обзорыбрендов")) ||
-          (category.name === "Гайды и чек-листы" && (m.hashtag.includes("#гайд") || (typeof m.link === "string" && m.link.toLowerCase().endsWith(".pdf")))) ||
-          (category.name === "Идеи образов" && (m.hashtag.toLowerCase().includes("#идеиобразов") || m.hashtag.toLowerCase().includes("#образ") || m.hashtag.toLowerCase().includes("#образы") || m.hashtag.toLowerCase().includes("#lookднялена")) && !(typeof m.link === "string" && m.link.toLowerCase().endsWith(".pdf"))) ||
-          (category.name === "Образы" && (m.hashtag.includes("#образы") || m.hashtag.includes("#образ")))
+          (category.name === "Гайды и чек-листы" && (m.hashtag.includes("#гайд") || (typeof m.link === "string" && m.link.toLowerCase().endsWith(".pdf"))))
       );
       
       console.log(`Found ${relatedMaterials.length} items for ${category.name}`);
@@ -1065,7 +1090,10 @@ function HomeContent() {
                         const query = subCategorySearchQuery.toLowerCase();
                         if (!query) return true;
                         
-                        const material = materials.find(m => m.title === item);
+                        const material =
+                          activeCategory === "#lookдняЛена"
+                            ? LENA_LOOKS.find((m) => m.title === item)
+                            : materials.find((m) => m.title === item);
                         const titleMatch = item.toLowerCase().includes(query);
                         const hashtagMatch = material 
                             ? material.hashtag.toLowerCase().includes(query)
@@ -1074,7 +1102,10 @@ function HomeContent() {
                         return titleMatch || hashtagMatch;
                     })
                     .map((item) => {
-                         const material = materials.find(m => m.title === item);
+                         const material =
+                          activeCategory === "#lookдняЛена"
+                            ? LENA_LOOKS.find((m) => m.title === item)
+                            : materials.find((m) => m.title === item);
                          const categoryItem = CATEGORIES.find(c => c.name === item && c.subCategories);
 
                         const displayImage = activeCategory === "Мои обучения"
@@ -1100,6 +1131,10 @@ function HomeContent() {
                             }
                             if (categoryItem) {
                                 handleCategoryClick(categoryItem);
+                                return;
+                            }
+                            if (activeCategory === "#lookдняЛена" && material) {
+                                handleItemClick(material);
                                 return;
                             }
 
@@ -1435,18 +1470,20 @@ function HomeContent() {
                       );
                     })()}
 
-                    {selectedMaterial.hashtag?.includes("#обзорыбрендов") && (
-                      <div className="mt-6">
-                        <a
-                          href="https://t.me/c/2249399970/3/41"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block w-full text-center bg-pink-50 text-pink-600 font-bold px-4 py-3 rounded-xl border border-pink-200 hover:bg-pink-100 transition-colors"
-                        >
-                          Смотреть полный пост в канале клуба
-                        </a>
-                      </div>
-                    )}
+                    {selectedMaterial.hashtag?.includes("#обзорыбрендов") &&
+                      typeof selectedMaterial.link === "string" &&
+                      selectedMaterial.link.trim() && (
+                        <div className="mt-6">
+                          <a
+                            href={selectedMaterial.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block w-full text-center bg-pink-50 text-pink-600 font-bold px-4 py-3 rounded-xl border border-pink-200 hover:bg-pink-100 transition-colors"
+                          >
+                            Смотреть полный пост в канале клуба
+                          </a>
+                        </div>
+                      )}
                 </div>
             </div>
 
@@ -1478,12 +1515,7 @@ function HomeContent() {
                       {(() => {
                         const rawLink = typeof selectedMaterial.link === "string" ? selectedMaterial.link : "";
                         const link = rawLink.trim();
-                        const resolved =
-                          link.toLowerCase().endsWith(".pdf")
-                            ? link
-                            : (selectedMaterial.hashtag?.includes("#обзорыбрендов")
-                                ? "https://t.me/c/2249399970/3/41"
-                                : link);
+                        const resolved = link.toLowerCase().endsWith(".pdf") ? link : link;
                         const eduLink = EDUCATION_LINKS[selectedMaterial.title];
                         const url = (eduLink || resolved).trim();
                         if (!url) return null;
