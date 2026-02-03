@@ -20,9 +20,11 @@ export default function Community() {
           <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors text-gray-500">
              <ChevronLeft size={24} />
           </Link>
-          <h1 className="text-3xl font-black uppercase tracking-wide text-gray-900">
-            О КЛУБЕ
-          </h1>
+          <Link href="/admin" className="block">
+            <h1 className="text-3xl font-black uppercase tracking-wide text-gray-900">
+              О КЛУБЕ
+            </h1>
+          </Link>
         </div>
 
         {/* Themes Section */}

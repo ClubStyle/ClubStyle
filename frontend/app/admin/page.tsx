@@ -1,7 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronLeft } from "lucide-react";
 
 type MaterialItem = {
   id: string;
@@ -180,10 +182,18 @@ export default function AdminPage() {
 
   if (!authed) {
     return (
-      <main className="min-h-screen px-4 pt-8 pb-28 max-w-xl mx-auto">
-        <h1 className="text-3xl font-black uppercase tracking-wide text-gray-900">
-          Админ
-        </h1>
+      <main className="min-h-screen w-full px-4 lg:px-10 2xl:px-16 pt-8 pb-28">
+        <div className="flex items-center gap-2 mb-8 pt-4">
+          <Link
+            href="/community"
+            className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors text-gray-500"
+          >
+            <ChevronLeft size={24} />
+          </Link>
+          <h1 className="text-3xl font-black uppercase tracking-wide text-gray-900">
+            Админ
+          </h1>
+        </div>
         <div className="mt-6 bg-white/90 backdrop-blur rounded-3xl p-5 border border-pink-100/50 ring-1 ring-pink-50 shadow-[0_8px_32px_rgba(236,72,153,0.08)]">
           <div className="grid gap-3">
             <label className="grid gap-1">
@@ -226,12 +236,20 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="min-h-screen px-4 pt-8 pb-28 max-w-5xl mx-auto">
+    <main className="min-h-screen w-full px-4 lg:px-10 2xl:px-16 pt-8 pb-28">
       <div className="flex flex-col gap-2">
         <div className="flex items-end justify-between gap-4">
-          <h1 className="text-3xl font-black uppercase tracking-wide text-gray-900">
-            Админ‑панель
-          </h1>
+          <div className="flex items-end gap-2">
+            <Link
+              href="/community"
+              className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors text-gray-500"
+            >
+              <ChevronLeft size={24} />
+            </Link>
+            <h1 className="text-3xl font-black uppercase tracking-wide text-gray-900">
+              Админ‑панель
+            </h1>
+          </div>
           <div className="flex gap-2">
             <button
               onClick={addNew}
@@ -251,7 +269,7 @@ export default function AdminPage() {
         {status ? <div className="text-sm text-gray-700">{status}</div> : null}
       </div>
 
-      <div className="mt-6 grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-5">
+      <div className="mt-6 grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-5">
         <section className="bg-white/90 backdrop-blur rounded-3xl p-4 border border-pink-100/50 ring-1 ring-pink-50 shadow-[0_8px_32px_rgba(236,72,153,0.08)]">
           <div className="grid gap-3">
             <input
@@ -260,7 +278,7 @@ export default function AdminPage() {
               className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-200"
               placeholder="Поиск по id/названию/хэштегу/ссылке"
             />
-            <div className="max-h-[60vh] overflow-auto rounded-2xl border border-gray-100">
+            <div className="max-h-[calc(100vh-260px)] overflow-auto rounded-2xl border border-gray-100">
               {filtered.map((m) => (
                 <button
                   key={m.id}
