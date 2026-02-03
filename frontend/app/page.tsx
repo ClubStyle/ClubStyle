@@ -492,7 +492,14 @@ function HomeContent() {
           (category.name === "Эфиры" && m.hashtag.includes("#эфир")) ||
           (category.name === "Бренды" && m.hashtag.includes("#обзорыбрендов")) ||
           (category.name === "Гайды и чек-листы" && (m.hashtag.includes("#гайд") || (typeof m.link === "string" && m.link.toLowerCase().endsWith(".pdf")))) ||
-          (category.name === "Идеи образов" && (m.hashtag.toLowerCase().includes("#идеиобразов") || m.hashtag.toLowerCase().includes("#образ") || m.hashtag.toLowerCase().includes("#образы") || m.hashtag.toLowerCase().includes("#lookднялена")) && !(typeof m.link === "string" && m.link.toLowerCase().endsWith(".pdf")))
+          (category.name === "Идеи образов" &&
+            (m.hashtag.toLowerCase().includes("#идеиобразов") ||
+              m.hashtag.toLowerCase().includes("#образ") ||
+              m.hashtag.toLowerCase().includes("#образы") ||
+              m.hashtag.toLowerCase().includes("#lookднялена")) &&
+            m.link !== "https://t.me/c/2055411531/15199" &&
+            m.id !== "15199" &&
+            !(typeof m.link === "string" && m.link.toLowerCase().endsWith(".pdf")))
       );
       
       console.log(`Found ${relatedMaterials.length} items for ${category.name}`);
@@ -1138,6 +1145,14 @@ function HomeContent() {
                             const eduLink = EDUCATION_LINKS[item];
                             if (eduLink) {
                                 openExternalLink(eduLink);
+                                return;
+                            }
+                            if (activeCategory === "Советы" && item === "Советы") {
+                                openExternalLink("https://t.me/c/2055411531/14959");
+                                return;
+                            }
+                            if (activeCategory === "Советы" && item === "Стилизация") {
+                                openExternalLink("https://t.me/c/2055411531/13835");
                                 return;
                             }
                             if (categoryItem) {

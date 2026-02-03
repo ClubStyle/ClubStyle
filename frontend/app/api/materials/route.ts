@@ -4,6 +4,7 @@ import path from 'path';
 import { createClient } from '@supabase/supabase-js';
 
 const dataPath = path.join(process.cwd(), 'data', 'materials.json');
+const uiPath = path.join(process.cwd(), 'data', 'ui.json');
 
 type Database = {
   public: {
@@ -30,6 +31,21 @@ function getSupabase() {
   return { client: createClient<Database, 'public'>(url, key), table: 'app_kv' as const };
 }
 
+async function readUiFile(): Promise<Record<string, unknown>> {
+  try {
+    const fileContents = await fs.promises.readFile(uiPath, 'utf8');
+    const data = JSON.parse(fileContents);
+    if (data && typeof data === 'object') return data as Record<string, unknown>;
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+async function writeUiFile(next: Record<string, unknown>) {
+  await fs.promises.writeFile(uiPath, JSON.stringify(next, null, 2));
+}
+
 function isAdminAuthorized(request: Request) {
   const secret = (process.env.ADMIN_SECRET || '').trim();
   const auth = (request.headers.get('authorization') || '').trim();
@@ -48,18 +64,34 @@ function isAdminAuthorized(request: Request) {
   return reqUser === user && reqPass === pass;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const key = new URL(request.url).searchParams.get('key')?.trim() || 'materials';
     const supabase = getSupabase();
     if (supabase) {
       const { data, error } = await supabase.client
         .from(supabase.table)
         .select('key,value')
-        .eq('key', 'materials')
+        .eq('key', key)
         .maybeSingle();
-      if (!error && data?.value && Array.isArray(data.value)) {
-        return NextResponse.json(data.value, { headers: { 'cache-control': 'no-store' } });
+      if (!error && data?.value != null) {
+        if (key === 'materials') {
+          if (Array.isArray(data.value)) {
+            return NextResponse.json(data.value, { headers: { 'cache-control': 'no-store' } });
+          }
+        } else {
+          return NextResponse.json(data.value, { headers: { 'cache-control': 'no-store' } });
+        }
       }
+    }
+
+    if (key !== 'materials') {
+      const ui = await readUiFile();
+      const value = ui[key];
+      if (value == null) {
+        return NextResponse.json(null, { headers: { 'cache-control': 'no-store' } });
+      }
+      return NextResponse.json(value, { headers: { 'cache-control': 'no-store' } });
     }
 
     const fileContents = await fs.promises.readFile(dataPath, 'utf8');
@@ -82,10 +114,12 @@ export async function POST(request: Request) {
             { status: 403, headers: { 'cache-control': 'no-store' } }
           );
         }
+        const key = new URL(request.url).searchParams.get('key')?.trim() || 'materials';
         const body = await request.json();
-        // Validate basic structure if needed
-        if (!Array.isArray(body)) {
-             return NextResponse.json({ error: 'Data must be an array' }, { status: 400 });
+        if (key === 'materials') {
+          if (!Array.isArray(body)) {
+            return NextResponse.json({ error: 'Data must be an array' }, { status: 400 });
+          }
         }
         const isVercel = Boolean(process.env.VERCEL);
         const supabase = getSupabase();
@@ -98,12 +132,17 @@ export async function POST(request: Request) {
         if (supabase) {
           const { error } = await supabase.client
             .from(supabase.table)
-            .upsert({ key: 'materials', value: body }, { onConflict: 'key' });
+            .upsert({ key, value: body }, { onConflict: 'key' });
           if (error) {
             return NextResponse.json({ error: 'Failed to save data' }, { status: 500 });
           }
         } else {
-          await fs.promises.writeFile(dataPath, JSON.stringify(body, null, 2));
+          if (key === 'materials') {
+            await fs.promises.writeFile(dataPath, JSON.stringify(body, null, 2));
+          } else {
+            const ui = await readUiFile();
+            await writeUiFile({ ...ui, [key]: body });
+          }
         }
         return NextResponse.json({ success: true });
     } catch (error) {

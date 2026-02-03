@@ -20,6 +20,17 @@ type MaterialItem = {
   image_position?: string;
 };
 
+type BottomNavItem = {
+  href: string;
+  label: string;
+  icon: "home" | "users" | "heart";
+};
+
+type BottomNavConfig = {
+  items: BottomNavItem[];
+  innerClassName: string;
+};
+
 async function readJson<T>(res: Response): Promise<T> {
   const text = await res.text();
   return (text ? JSON.parse(text) : null) as T;
@@ -36,6 +47,7 @@ export default function AdminPage() {
   const [adminUser, setAdminUser] = useState("h1");
   const [adminPass, setAdminPass] = useState("");
   const [authed, setAuthed] = useState(false);
+  const [section, setSection] = useState<"materials" | "bottomNav">("materials");
 
   const [materials, setMaterials] = useState<MaterialItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -44,6 +56,20 @@ export default function AdminPage() {
   const [filter, setFilter] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const defaultBottomNav = useMemo<BottomNavConfig>(() => {
+    return {
+      items: [
+        { href: "/", label: "Главная", icon: "home" },
+        { href: "/community", label: "О клубе", icon: "users" },
+        { href: "/library", label: "Избранное", icon: "heart" }
+      ],
+      innerClassName:
+        "bg-white/95 backdrop-blur-md rounded-full shadow-[0_8px_32px_rgba(236,72,153,0.15)] px-6 py-3 flex justify-between items-center border border-pink-100/50 relative overflow-hidden ring-1 ring-pink-50"
+    };
+  }, []);
+
+  const [bottomNavDraft, setBottomNavDraft] = useState<BottomNavConfig>(defaultBottomNav);
 
   const headers = useMemo(() => {
     return {
@@ -68,12 +94,39 @@ export default function AdminPage() {
     setMaterials(data as MaterialItem[]);
   }, []);
 
+  const loadBottomNav = useCallback(async () => {
+    const res = await fetch("/api/materials?key=bottomNav", { cache: "no-store" });
+    const data = await readJson<unknown>(res);
+    if (!res.ok) return;
+    if (!data || typeof data !== "object") return;
+    const record = data as Record<string, unknown>;
+    const items = record.items;
+    const innerClassName = record.innerClassName;
+    if (!Array.isArray(items)) return;
+    const cleaned: BottomNavItem[] = items
+      .map((it) => it as Partial<BottomNavItem>)
+      .filter(
+        (it): it is BottomNavItem =>
+          Boolean(it) &&
+          typeof it.href === "string" &&
+          typeof it.label === "string" &&
+          (it.icon === "home" || it.icon === "users" || it.icon === "heart")
+      );
+    const inner =
+      typeof innerClassName === "string" && innerClassName.trim()
+        ? innerClassName
+        : defaultBottomNav.innerClassName;
+    if (cleaned.length === 0) return;
+    setBottomNavDraft({ items: cleaned, innerClassName: inner });
+  }, [defaultBottomNav.innerClassName]);
+
   useEffect(() => {
     if (!authed) return;
     loadMaterials().catch((e: unknown) => {
       setStatus(e instanceof Error ? e.message : "Ошибка загрузки");
     });
-  }, [authed, loadMaterials]);
+    loadBottomNav().catch(() => {});
+  }, [authed, loadBottomNav, loadMaterials]);
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -175,6 +228,28 @@ export default function AdminPage() {
     }
   }, [applyDraftToList, headers, loadMaterials, materials]);
 
+  const saveBottomNav = useCallback(async () => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const res = await fetch("/api/materials?key=bottomNav", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...headers },
+        body: JSON.stringify(bottomNavDraft)
+      });
+      const data = await readJson<unknown>(res);
+      if (!res.ok) {
+        const message =
+          pickStringField(data, "error") || `Не удалось сохранить (${res.status})`;
+        throw new Error(message);
+      }
+      setStatus("Сохранено");
+      await loadBottomNav();
+    } finally {
+      setBusy(false);
+    }
+  }, [bottomNavDraft, headers, loadBottomNav]);
+
   const uploadFile = useCallback(
     async (file: File) => {
       const formData = new FormData();
@@ -214,14 +289,8 @@ export default function AdminPage() {
             {authed ? (
               <div className="ml-auto flex gap-2">
                 <button
-                  onClick={addNew}
-                  className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs"
-                >
-                  + Добавить
-                </button>
-                <button
                   onClick={() =>
-                    saveAll().catch((e: unknown) =>
+                    (section === "bottomNav" ? saveBottomNav() : saveAll()).catch((e: unknown) =>
                       setStatus(e instanceof Error ? e.message : "Ошибка")
                     )
                   }
@@ -282,6 +351,29 @@ export default function AdminPage() {
             </div>
           ) : (
             <div className="mt-4">
+              <div className="flex bg-gray-100 rounded-2xl p-1">
+                <button
+                  onClick={() => setSection("materials")}
+                  className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all duration-300 ${
+                    section === "materials"
+                      ? "bg-white text-pink-500 shadow-sm"
+                      : "text-gray-400 hover:text-gray-600"
+                  }`}
+                >
+                  Материалы
+                </button>
+                <button
+                  onClick={() => setSection("bottomNav")}
+                  className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all duration-300 ${
+                    section === "bottomNav"
+                      ? "bg-white text-pink-500 shadow-sm"
+                      : "text-gray-400 hover:text-gray-600"
+                  }`}
+                >
+                  Навбар
+                </button>
+              </div>
+
               <div className="relative">
                 <Search
                   size={16}
@@ -292,6 +384,7 @@ export default function AdminPage() {
                   onChange={(e) => setFilter(e.target.value)}
                   className="w-full rounded-2xl border border-gray-100 bg-white px-10 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200 shadow-sm"
                   placeholder="Поиск по id/названию/хэштегу/ссылке"
+                  disabled={section !== "materials"}
                 />
               </div>
               {status ? (
@@ -301,8 +394,16 @@ export default function AdminPage() {
           )}
         </div>
 
-        {authed ? (
+        {authed && section === "materials" ? (
           <div className="px-4 lg:px-10 2xl:px-16 mt-6 grid gap-3 md:grid-cols-2">
+            <div className="md:col-span-2 flex justify-end">
+              <button
+                onClick={addNew}
+                className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs"
+              >
+                + Добавить
+              </button>
+            </div>
             {filtered.map((m) => {
               const badge =
                 m.hashtag?.split(" ").map((t) => t.trim()).filter(Boolean)[0] ||
@@ -352,11 +453,127 @@ export default function AdminPage() {
             ) : null}
           </div>
         ) : null}
+
+        {authed && section === "bottomNav" ? (
+          <div className="px-4 lg:px-10 2xl:px-16 mt-6 grid gap-4">
+            <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-black text-gray-900">Нижняя навигация</h2>
+                <button
+                  onClick={() =>
+                    setBottomNavDraft((prev) => ({
+                      ...prev,
+                      items: [...prev.items, { href: "/", label: "Новый", icon: "home" }]
+                    }))
+                  }
+                  className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs"
+                >
+                  + Пункт
+                </button>
+              </div>
+
+              <div className="grid gap-3">
+                {bottomNavDraft.items.map((it, idx) => (
+                  <div
+                    key={`${it.href}-${idx}`}
+                    className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end"
+                  >
+                    <label className="grid gap-1 md:col-span-2">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        Текст
+                      </span>
+                      <input
+                        value={it.label}
+                        onChange={(e) =>
+                          setBottomNavDraft((prev) => {
+                            const items = [...prev.items];
+                            items[idx] = { ...items[idx], label: e.target.value };
+                            return { ...prev, items };
+                          })
+                        }
+                        className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                      />
+                    </label>
+
+                    <label className="grid gap-1 md:col-span-2">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        Ссылка
+                      </span>
+                      <input
+                        value={it.href}
+                        onChange={(e) =>
+                          setBottomNavDraft((prev) => {
+                            const items = [...prev.items];
+                            items[idx] = { ...items[idx], href: e.target.value };
+                            return { ...prev, items };
+                          })
+                        }
+                        className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                      />
+                    </label>
+
+                    <div className="flex gap-2">
+                      <label className="grid gap-1 flex-1">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                          Иконка
+                        </span>
+                        <select
+                          value={it.icon}
+                          onChange={(e) =>
+                            setBottomNavDraft((prev) => {
+                              const items = [...prev.items];
+                              items[idx] = {
+                                ...items[idx],
+                                icon: e.target.value as BottomNavItem["icon"]
+                              };
+                              return { ...prev, items };
+                            })
+                          }
+                          className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                        >
+                          <option value="home">Главная</option>
+                          <option value="users">О клубе</option>
+                          <option value="heart">Избранное</option>
+                        </select>
+                      </label>
+                      <button
+                        onClick={() =>
+                          setBottomNavDraft((prev) => {
+                            const items = [...prev.items];
+                            items.splice(idx, 1);
+                            return { ...prev, items };
+                          })
+                        }
+                        className="rounded-2xl bg-white px-4 py-3 text-xs font-bold text-gray-700 border border-gray-100 hover:bg-gray-50"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                <label className="grid gap-1 mt-2">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    ClassName для div (контейнер кнопок)
+                  </span>
+                  <textarea
+                    value={bottomNavDraft.innerClassName}
+                    onChange={(e) =>
+                      setBottomNavDraft((prev) => ({ ...prev, innerClassName: e.target.value }))
+                    }
+                    rows={4}
+                    className="w-full rounded-[1.5rem] border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <BottomNav />
 
-      {draft ? (
+      {draft && section === "materials" ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
