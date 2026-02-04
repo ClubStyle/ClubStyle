@@ -326,7 +326,7 @@ const EDUCATION_LINKS: Record<string, string> = {
 };
 
 const FOOTWEAR_IMAGES: Record<string, string> = {
-  "Обувь": "/shu.jpg",
+  "Обувь": "/bossoozhki.jpg",
   "Сапоги": "/sapogi.jpg",
   "Ботильоны": "/botilony.jpg",
   "Ботинки": "/botilony.jpg",
@@ -484,10 +484,7 @@ function HomeContent() {
       setActiveCategory(category.name);
       setSubCategorySheet({
         title: category.name,
-        items:
-          category.name === "Обувь"
-            ? ["Обувь", ...category.subCategories]
-            : category.subCategories
+        items: category.subCategories
       });
     } else {
       // Try to find items by hashtag if no subcategories (e.g. "Разборы образов")
