@@ -755,12 +755,22 @@ function HomeContent() {
 
 
   const handleHashtagClick = (hashtag: string) => {
-    const items = materials.filter(m => m.hashtag.includes(hashtag)).map(m => m.title);
+    const normalized = (hashtag || "").trim();
+    const tag = normalized.startsWith("#") ? normalized : `#${normalized}`;
+    const tagLower = tag.toLowerCase();
+    const items = materials
+      .filter((m) => {
+        const h = (m.hashtag || "").toLowerCase();
+        const d = (m.description || "").toLowerCase();
+        return h.includes(tagLower) || d.includes(tagLower);
+      })
+      .sort((a, b) => (b.date || 0) - (a.date || 0))
+      .map((m) => m.title);
     setSubCategorySheet({
-        title: hashtag,
+        title: tag,
         items: items
     });
-    setActiveCategory(hashtag);
+    setActiveCategory(tag);
   };
 
   const filteredMaterials = searchQuery 
