@@ -742,6 +742,27 @@ function HomeContent() {
     window.open(u, "_blank", "noopener,noreferrer");
   };
 
+  const buildTelegramChannelSearchUrl = (rawQuery: string) => {
+    const q = (rawQuery || "").trim();
+    if (!q) return "";
+    const sampleLink =
+      materials.find((m) => typeof m.link === "string" && m.link.includes("https://t.me/"))
+        ?.link || "https://t.me/c/2055411531";
+    try {
+      const url = new URL(sampleLink);
+      const parts = url.pathname.split("/").filter(Boolean);
+      let basePath = "";
+      if (parts[0] === "c" && parts[1]) basePath = `/c/${parts[1]}`;
+      else if (parts[0]) basePath = `/${parts[0]}`;
+      else return "";
+      const out = new URL(url.origin + basePath);
+      out.searchParams.set("q", q);
+      return out.toString();
+    } catch {
+      return "";
+    }
+  };
+
   const toggleFavorite = (e: React.MouseEvent, itemKey: string) => {
     e.stopPropagation();
     let key = itemKey;
@@ -1102,7 +1123,19 @@ function HomeContent() {
                     <button onClick={closeSheet} className="p-2 -ml-2 text-gray-800 hover:bg-gray-100 rounded-full transition-colors">
                         <ChevronLeft size={24} />
                     </button>
-                    <h3 className="text-xl font-black uppercase tracking-wide">{subCategorySheet.title}</h3>
+                    <h3 className="text-xl font-black uppercase tracking-wide flex-1">{subCategorySheet.title}</h3>
+                    {subCategorySheet.title?.trim().startsWith("#") && (
+                      <button
+                        onClick={() => {
+                          const u = buildTelegramChannelSearchUrl(subCategorySheet.title);
+                          if (u) openExternalLink(u);
+                        }}
+                        className="text-[10px] font-bold text-pink-500 bg-pink-50 px-3 py-1 rounded-lg hover:bg-pink-100 transition-colors flex items-center gap-1"
+                      >
+                        <Search size={14} />
+                        TG поиск
+                      </button>
+                    )}
                  </div>
                  
                 <div className="p-6 space-y-6 pb-24">
