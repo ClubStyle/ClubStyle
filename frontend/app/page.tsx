@@ -145,10 +145,10 @@ const CATEGORIES: Category[] = [
 const QUICK_FILTERS = [
     { label: "типы фигур", category: "Типы фигуры" },
     { label: "plus size", category: "Plus Size" },
-    { label: "находки рф", category: "LINK:https://t.me/c/2055411531/14810" },
+    { label: "находки рф", category: "Покупки по РФ" },
     { label: "находки мир", category: "Покупки по миру" },
     { label: "обувь", category: "Обувь" },
-    { label: "сумки", category: "Сумки" },
+    { label: "сумки", category: "TGSEARCH:#сумка" },
     { label: "верхняя одежда", category: "Верхняя одежда" },
     { label: "верха", category: "Верха" },
     { label: "низы", category: "Низы" },
@@ -500,6 +500,8 @@ function HomeContent() {
           (category.name === "Эфиры" && m.hashtag.includes("#эфир")) ||
           (category.name === "Бренды" && m.hashtag.includes("#обзорыбрендов")) ||
           (category.name === "Гайды и чек-листы" && (m.hashtag.includes("#гайд") || (typeof m.link === "string" && m.link.toLowerCase().endsWith(".pdf")))) ||
+          (category.name === "Покупки по миру" && m.hashtag.toLowerCase().includes("#покупкипомиру")) ||
+          (category.name === "Покупки по РФ" && m.hashtag.toLowerCase().includes("#покупкивроссии")) ||
           (category.name === "Идеи образов" &&
             (m.hashtag.toLowerCase().includes("#идеиобразов") ||
               m.hashtag.toLowerCase().includes("#образ") ||
@@ -906,7 +908,13 @@ function HomeContent() {
                         key={index}
                         onClick={() => {
                             if (item.category.startsWith("LINK:")) {
-                                window.open(item.category.replace("LINK:", ""), "_blank");
+                                openExternalLink(item.category.replace("LINK:", ""));
+                                return;
+                            }
+                            if (item.category.startsWith("TGSEARCH:")) {
+                                const q = item.category.replace("TGSEARCH:", "");
+                                const u = buildTelegramChannelSearchUrl(q);
+                                if (u) openExternalLink(u);
                                 return;
                             }
                             const cat = CATEGORIES.find(c => c.name === item.category);
@@ -1232,6 +1240,11 @@ function HomeContent() {
                             const eduLink = EDUCATION_LINKS[item];
                             if (eduLink) {
                                 openExternalLink(eduLink);
+                                return;
+                            }
+                            if (activeCategory === "Сумки") {
+                                const u = buildTelegramChannelSearchUrl("#сумка");
+                                if (u) openExternalLink(u);
                                 return;
                             }
                             if (activeCategory === "Советы" && item === "Советы") {
