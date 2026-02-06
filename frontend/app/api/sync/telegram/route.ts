@@ -96,6 +96,71 @@ function makeImageUrl(fileId: string) {
   return `/api/telegram-file?fileId=${encodeURIComponent(fileId)}`;
 }
 
+type TextEntity = { type?: string; offset?: number; length?: number; url?: string };
+
+function uniqStrings(items: string[]) {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const it of items) {
+    const v = (it || "").trim();
+    if (!v) continue;
+    if (seen.has(v)) continue;
+    seen.add(v);
+    out.push(v);
+  }
+  return out;
+}
+
+function normalizeUrl(raw: string) {
+  const v = (raw || "").trim();
+  if (!v) return "";
+  if (/^https?:\/\//i.test(v)) return v;
+  if (/^(t\.me|telegram\.me)\//i.test(v)) return `https://${v}`;
+  if (/^www\./i.test(v)) return `https://${v}`;
+  return v;
+}
+
+function extractUrls(text: string, entities: TextEntity[] | undefined) {
+  const urls: string[] = [];
+  if (Array.isArray(entities)) {
+    for (const ent of entities) {
+      if (!ent || typeof ent !== "object") continue;
+      const type = typeof ent.type === "string" ? ent.type : "";
+      if (type === "text_link" && typeof ent.url === "string") {
+        urls.push(normalizeUrl(ent.url));
+        continue;
+      }
+      if (type === "url") {
+        const offset = typeof ent.offset === "number" ? ent.offset : -1;
+        const length = typeof ent.length === "number" ? ent.length : -1;
+        if (offset >= 0 && length > 0) {
+          const raw = text.slice(offset, offset + length);
+          urls.push(normalizeUrl(raw));
+        }
+      }
+    }
+  }
+
+  const rxHttp = /https?:\/\/[^\s<>"'()]+/gi;
+  for (const m of text.match(rxHttp) || []) urls.push(normalizeUrl(m));
+
+  const rxWww = /www\.[^\s<>"'()]+/gi;
+  for (const m of text.match(rxWww) || []) urls.push(normalizeUrl(m));
+
+  const rxTme = /\bt\.me\/[^\s<>"'()]+/gi;
+  for (const m of text.match(rxTme) || []) urls.push(normalizeUrl(m));
+
+  return uniqStrings(urls).filter((u) => u.length <= 2048);
+}
+
+function appendMissingLinks(description: string, links: string[]) {
+  const base = (description || "").trimEnd();
+  const missing = links.filter((u) => u && !base.includes(u));
+  if (!missing.length) return base;
+  const suffix = `\n\nСсылки:\n${missing.join("\n")}`;
+  return `${base}${suffix}`;
+}
+
 function isAuthorized(request: Request) {
   const secret = (process.env.SYNC_TELEGRAM_SECRET || "").trim();
   if (!secret) return false;
@@ -255,7 +320,14 @@ async function syncTelegram(request?: Request) {
 
       const groups = new Map<
         string,
-        { ids: number[]; chatId: number; date: number; text: string; photoFileIds: string[] }
+        {
+          ids: number[];
+          chatId: number;
+          date: number;
+          text: string;
+          entities?: TextEntity[];
+          photoFileIds: string[];
+        }
       >();
 
       for (const update of updates) {
@@ -273,6 +345,7 @@ async function syncTelegram(request?: Request) {
             chatId: msg.chat.id,
             date: msg.date,
             text: "",
+            entities: [],
             photoFileIds: []
           });
         }
@@ -281,7 +354,11 @@ async function syncTelegram(request?: Request) {
         g.ids.push(msg.message_id);
         g.date = Math.max(g.date, msg.date);
         const text = msg.caption || msg.text || "";
-        if (text && text.length > (g.text?.length || 0)) g.text = text;
+        if (text && text.length > (g.text?.length || 0)) {
+          g.text = text;
+          const ents = (msg.caption_entities || msg.entities || []) as unknown;
+          g.entities = Array.isArray(ents) ? (ents as TextEntity[]) : [];
+        }
 
         if (msg.photo?.length) {
           const photo = msg.photo[msg.photo.length - 1];
@@ -300,12 +377,6 @@ async function syncTelegram(request?: Request) {
         if (!minId) continue;
         const id = String(minId);
         const existingItem = byId.get(id);
-        const hasRealImage =
-          existingItem &&
-          existingItem.image !== "/ban.png" &&
-          Array.isArray(existingItem.images) &&
-          existingItem.images.length > 0;
-        if (hasRealImage) continue;
 
         const title = g.text.split("\n")[0].substring(0, 100) || "Новый пост";
         const hashtags = (g.text.match(/#[a-zа-я0-9_]+/gi) || []).join(" ");
@@ -313,20 +384,43 @@ async function syncTelegram(request?: Request) {
         const link = `https://t.me/c/${publicChatId}/${id}`;
         const images = g.photoFileIds.map(makeImageUrl);
         const image = images.length ? images[0] : "/ban.png";
+        const extractedLinks = extractUrls(g.text, g.entities);
+        const descriptionFromTg = appendMissingLinks(g.text, extractedLinks);
 
-        const item: MaterialItem = {
+        const shouldUpdateImages =
+          !existingItem ||
+          existingItem.image === "/ban.png" ||
+          !Array.isArray(existingItem.images) ||
+          existingItem.images.length === 0;
+
+        const currentTitle =
+          existingItem && typeof existingItem.title === "string" ? existingItem.title.trim() : "";
+        const currentHashtag =
+          existingItem && typeof existingItem.hashtag === "string" ? existingItem.hashtag.trim() : "";
+        const currentDescription =
+          existingItem && typeof existingItem.description === "string"
+            ? existingItem.description
+            : "";
+
+        const next: MaterialItem = {
+          ...(existingItem || { id }),
           id,
-          title,
-          hashtag: hashtags || "#новинка",
-          image,
-          images,
+          title: currentTitle && currentTitle !== "Новый пост" ? currentTitle : title,
+          hashtag: currentHashtag && currentHashtag !== "#новинка" ? currentHashtag : hashtags || "#новинка",
+          image: existingItem?.image || image,
+          images: Array.isArray(existingItem?.images) ? existingItem?.images : images,
           link,
-          description: g.text,
-          date: g.date
+          description: appendMissingLinks(currentDescription.trim().length ? currentDescription : descriptionFromTg, extractedLinks),
+          date: Math.max(existingItem?.date || 0, g.date || 0) || g.date
         };
 
-        byId.set(id, item);
-        added++;
+        if (shouldUpdateImages) {
+          next.image = image;
+          next.images = images;
+        }
+
+        byId.set(id, next);
+        if (!existingItem) added++;
       }
     }
   }

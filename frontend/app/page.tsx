@@ -145,7 +145,7 @@ const CATEGORIES: Category[] = [
 const QUICK_FILTERS = [
     { label: "типы фигур", category: "Типы фигуры" },
     { label: "plus size", category: "Plus Size" },
-    { label: "#находкиврф", category: "LINK:https://t.me/c/2055411531/14980" },
+    { label: "находки рф", category: "LINK:https://t.me/c/2055411531/14810" },
     { label: "находки мир", category: "Покупки по миру" },
     { label: "обувь", category: "Обувь" },
     { label: "сумки", category: "Сумки" },
@@ -248,14 +248,6 @@ const CURATED_TAGS: CuratedGroup[] = [
 
 const LENA_LOOKS: MaterialItem[] = [
   {
-    id: "15199",
-    title:
-      "У нас в Клубе стильных много новеньких, и рада приветствовать вас с нашем стильном пространстве ❤️",
-    hashtag: "#lookдняЛена",
-    image: "/ban.png",
-    link: "https://t.me/c/2055411531/15199"
-  },
-  {
     id: "15108",
     title: "Образ 1",
     hashtag: "#lookдняЛена",
@@ -295,7 +287,7 @@ const LENA_LOOKS: MaterialItem[] = [
 const MENU_ITEMS = [
   { title: "ОБЗОРЫ БРЕНДОВ", image: "/obzorybrendov.png", category: "Бренды", count: 26 },
   { title: "ИДЕИ ОБРАЗОВ", image: "/ideiobrazov.png", category: "Идеи образов", count: 11 },
-  { title: "#LOOKДНЯЛЕНА", image: "/obrazy.png", category: "#lookдняЛена", count: 6 },
+  { title: "#LOOKДНЯЛЕНА", image: "/obrazy.png", category: "#lookдняЛена", count: 5 },
   { title: "МАСТЕР-КЛАССЫ", image: "/masterklassy.png", category: "Мастер-классы", count: 99 },
   { title: "ГАЙДЫ", image: "/gaydy2.png", category: "Гайды и чек-листы", count: 2 },
   { title: "ЭФИРЫ", image: "/efiry2.png", category: "Эфиры", count: 3 },
@@ -521,10 +513,46 @@ function HomeContent() {
       console.log(`Found ${relatedMaterials.length} items for ${category.name}`);
 
       if (relatedMaterials.length > 0) {
+           const monthIndex = (text: string) => {
+               const t = text.toLowerCase();
+               if (t.includes("январ")) return 1;
+               if (t.includes("феврал")) return 2;
+               if (t.includes("март")) return 3;
+               if (t.includes("апрел")) return 4;
+               if (t.includes("мая") || t.includes("май")) return 5;
+               if (t.includes("июн")) return 6;
+               if (t.includes("июл")) return 7;
+               if (t.includes("август")) return 8;
+               if (t.includes("сентябр")) return 9;
+               if (t.includes("октябр")) return 10;
+               if (t.includes("ноябр")) return 11;
+               if (t.includes("декабр")) return 12;
+               if (t.includes("новогод")) return 12;
+               return 0;
+           };
+           const extractYear = (text: string) => {
+               const m = text.match(/(20\d{2})/g);
+               if (!m || m.length === 0) return 0;
+               const last = m[m.length - 1] || "";
+               const y = Number(last);
+               return Number.isFinite(y) ? y : 0;
+           };
+           const sorted =
+               category.name === "Бренды"
+                   ? [...relatedMaterials].sort((a, b) => {
+                         const ay = extractYear(a.title);
+                         const by = extractYear(b.title);
+                         if (ay !== by) return by - ay;
+                         const am = monthIndex(a.title);
+                         const bm = monthIndex(b.title);
+                         if (am !== bm) return bm - am;
+                         return (b.date || 0) - (a.date || 0);
+                     })
+                   : relatedMaterials;
            setActiveCategory(category.name);
            setSubCategorySheet({
                title: category.name,
-               items: relatedMaterials.map(m => m.title)
+               items: sorted.map(m => m.title)
            });
            return;
       }
@@ -861,7 +889,7 @@ function HomeContent() {
                             }
                         `}
                     >
-                        {item.label}
+                        {item.label.startsWith("#") ? item.label.slice(1) : item.label}
                     </button>
                 ))}
             </div>
