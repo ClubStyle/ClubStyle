@@ -148,7 +148,7 @@ const QUICK_FILTERS = [
     { label: "находки рф", category: "Покупки по РФ" },
     { label: "находки мир", category: "Покупки по миру" },
     { label: "обувь", category: "Обувь" },
-    { label: "сумки", category: "TGSEARCH:#сумка" },
+    { label: "сумки", category: "TGSEARCH:сумки" },
     { label: "верхняя одежда", category: "Верхняя одежда" },
     { label: "верха", category: "Верха" },
     { label: "низы", category: "Низы" },
@@ -1243,7 +1243,7 @@ function HomeContent() {
                                 return;
                             }
                             if (activeCategory === "Сумки") {
-                                const u = buildTelegramChannelSearchUrl("#сумка");
+                                const u = buildTelegramChannelSearchUrl("сумки");
                                 if (u) openExternalLink(u);
                                 return;
                             }
