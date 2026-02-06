@@ -765,6 +765,31 @@ function HomeContent() {
     }
   };
 
+  const openTelegramChannelSearch = (rawQuery: string, fallbackPostId?: string) => {
+    const searchUrl = buildTelegramChannelSearchUrl(rawQuery);
+    const w = window as unknown as {
+      Telegram?: {
+        WebApp?: {
+          openLink?: (url: string) => void;
+          openTelegramLink?: (url: string) => void;
+        };
+      };
+    };
+    const tg = w.Telegram?.WebApp;
+    if (tg?.openTelegramLink && searchUrl) {
+      tg.openTelegramLink(searchUrl);
+      return;
+    }
+    const postId = (fallbackPostId || "").trim();
+    if (postId && /^\d+$/.test(postId)) {
+      const deep = `tg://privatepost?channel=2055411531&post=${postId}&single`;
+      if (tg?.openLink) tg.openLink(deep);
+      else window.location.assign(deep);
+      return;
+    }
+    if (searchUrl) openExternalLink(searchUrl);
+  };
+
   const toggleFavorite = (e: React.MouseEvent, itemKey: string) => {
     e.stopPropagation();
     let key = itemKey;
@@ -913,8 +938,11 @@ function HomeContent() {
                             }
                             if (item.category.startsWith("TGSEARCH:")) {
                                 const q = item.category.replace("TGSEARCH:", "");
-                                const u = buildTelegramChannelSearchUrl(q);
-                                if (u) openExternalLink(u);
+                                const fallbackPostId =
+                                  q.toLowerCase() === "сумки"
+                                    ? CURATED_TAGS.find((g) => g.group === "Сумки")?.items?.[0]?.id
+                                    : undefined;
+                                openTelegramChannelSearch(q, fallbackPostId);
                                 return;
                             }
                             const cat = CATEGORIES.find(c => c.name === item.category);
@@ -1135,8 +1163,7 @@ function HomeContent() {
                     {subCategorySheet.title?.trim().startsWith("#") && (
                       <button
                         onClick={() => {
-                          const u = buildTelegramChannelSearchUrl(subCategorySheet.title);
-                          if (u) openExternalLink(u);
+                          openTelegramChannelSearch(subCategorySheet.title);
                         }}
                         className="text-[10px] font-bold text-pink-500 bg-pink-50 px-3 py-1 rounded-lg hover:bg-pink-100 transition-colors flex items-center gap-1"
                       >
@@ -1243,8 +1270,8 @@ function HomeContent() {
                                 return;
                             }
                             if (activeCategory === "Сумки") {
-                                const u = buildTelegramChannelSearchUrl("сумки");
-                                if (u) openExternalLink(u);
+                                const fallbackPostId = CURATED_TAGS.find((g) => g.group === "Сумки")?.items?.[0]?.id;
+                                openTelegramChannelSearch("сумки", fallbackPostId);
                                 return;
                             }
                             if (activeCategory === "Советы" && item === "Советы") {
