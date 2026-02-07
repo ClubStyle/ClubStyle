@@ -936,7 +936,7 @@ export default function AdminPage() {
       ) : null}
 
       {draft && section === "materials" ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60]">
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
             onClick={() => {
@@ -944,13 +944,13 @@ export default function AdminPage() {
               setSelectedId(null);
             }}
           />
-          <div className="relative w-full max-w-sm bg-white rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+          <div className="relative w-full h-full bg-white overflow-y-auto animate-in fade-in duration-200">
             <button
               onClick={() => {
                 setDraft(null);
                 setSelectedId(null);
               }}
-              className="absolute top-4 right-4 z-20 bg-black/20 hover:bg-black/40 text-white p-2 rounded-full backdrop-blur-md transition-colors"
+              className="fixed top-4 right-4 z-[70] bg-black/20 hover:bg-black/40 text-white p-2 rounded-full backdrop-blur-md transition-colors"
             >
               <X size={20} />
             </button>
