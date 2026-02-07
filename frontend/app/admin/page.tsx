@@ -139,7 +139,7 @@ export default function AdminPage() {
 
   const loadMaterials = useCallback(async () => {
     setStatus(null);
-    const res = await fetch("/api/materials", { cache: "no-store" });
+    const res = await fetch(`/api/materials?t=${Date.now()}`, { cache: "no-store" });
     const data = await readJson<unknown>(res);
     if (!res.ok) {
       const message =
@@ -154,7 +154,7 @@ export default function AdminPage() {
   }, []);
 
   const loadBottomNav = useCallback(async () => {
-    const res = await fetch("/api/materials?key=bottomNav", { cache: "no-store" });
+    const res = await fetch(`/api/materials?key=bottomNav&t=${Date.now()}`, { cache: "no-store" });
     const data = await readJson<unknown>(res);
     if (!res.ok) return;
     if (!data || typeof data !== "object") return;
@@ -180,7 +180,7 @@ export default function AdminPage() {
   }, [defaultBottomNav.innerClassName]);
 
   const loadQuickFilters = useCallback(async () => {
-    const res = await fetch("/api/materials?key=quickFilters", { cache: "no-store" });
+    const res = await fetch(`/api/materials?key=quickFilters&t=${Date.now()}`, { cache: "no-store" });
     const data = await readJson<unknown>(res);
     if (!res.ok) return;
     if (!Array.isArray(data)) return;

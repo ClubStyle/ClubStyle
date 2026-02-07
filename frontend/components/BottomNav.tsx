@@ -32,7 +32,7 @@ export default function BottomNav() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/materials?key=bottomNav", { cache: "no-store" })
+    fetch(`/api/materials?key=bottomNav&t=${Date.now()}`, { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         if (cancelled) return;

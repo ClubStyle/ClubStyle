@@ -628,7 +628,7 @@ function HomeContent() {
   useEffect(() => {
     // Fetch materials from API
     console.log("Fetching materials...");
-    fetch('/api/materials', { cache: 'no-store' })
+    fetch(`/api/materials?t=${Date.now()}`, { cache: 'no-store' })
         .then(res => res.json())
         .then(data => {
             console.log("Received materials count:", Array.isArray(data) ? data.length : 0);

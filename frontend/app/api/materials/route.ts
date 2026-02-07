@@ -3,6 +3,9 @@ import fs from 'fs';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const dataPath = path.join(process.cwd(), 'data', 'materials.json');
 const uiPath = path.join(process.cwd(), 'data', 'ui.json');
 
@@ -68,6 +71,11 @@ function isAdminAuthorized(request: Request) {
 export async function GET(request: Request) {
   try {
     const key = new URL(request.url).searchParams.get('key')?.trim() || 'materials';
+    const noStoreHeaders = {
+      'cache-control': 'no-store, no-cache, must-revalidate, max-age=0',
+      pragma: 'no-cache',
+      expires: '0'
+    } as const;
     const supabase = getSupabase();
     if (supabase) {
       const { data, error } = await supabase.client
@@ -78,10 +86,10 @@ export async function GET(request: Request) {
       if (!error && data?.value != null) {
         if (key === 'materials') {
           if (Array.isArray(data.value)) {
-            return NextResponse.json(data.value, { headers: { 'cache-control': 'no-store' } });
+            return NextResponse.json(data.value, { headers: noStoreHeaders });
           }
         } else {
-          return NextResponse.json(data.value, { headers: { 'cache-control': 'no-store' } });
+          return NextResponse.json(data.value, { headers: noStoreHeaders });
         }
       }
     }
@@ -90,14 +98,14 @@ export async function GET(request: Request) {
       const ui = await readUiFile();
       const value = ui[key];
       if (value == null) {
-        return NextResponse.json(null, { headers: { 'cache-control': 'no-store' } });
+        return NextResponse.json(null, { headers: noStoreHeaders });
       }
-      return NextResponse.json(value, { headers: { 'cache-control': 'no-store' } });
+      return NextResponse.json(value, { headers: noStoreHeaders });
     }
 
     const fileContents = await fs.promises.readFile(dataPath, 'utf8');
     const data = JSON.parse(fileContents);
-    return NextResponse.json(data, { headers: { 'cache-control': 'no-store' } });
+    return NextResponse.json(data, { headers: noStoreHeaders });
   } catch (error) {
     console.error("Error reading materials data:", error);
     return NextResponse.json(
