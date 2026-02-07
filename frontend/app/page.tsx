@@ -218,6 +218,8 @@ const CURATED_TAGS: CuratedGroup[] = [
   {
     group: "Сумки",
     items: [
+      { title: "Сумки", hashtag: "пост 15178", link: "https://t.me/c/2055411531/15178", id: "15178" },
+      { title: "Сумки", hashtag: "пост 15153", link: "https://t.me/c/2055411531/15153", id: "15153" },
       { title: "Сумки", hashtag: "#сумка", link: "https://t.me/c/2055411531/14403", id: "14403" }
     ]
   },
@@ -574,10 +576,8 @@ function HomeContent() {
     if (found) {
       const safe: MaterialItem = {
         ...found,
-        image: typeof found.image === "string" && found.image.startsWith("/uploads/") ? "/ban.png" : found.image,
-        images: Array.isArray(found.images)
-          ? found.images.filter((img) => typeof img === "string" && !img.startsWith("/uploads/"))
-          : found.images
+        image: found.image,
+        images: found.images
       };
       setSelectedMaterial(safe);
       return;
@@ -599,8 +599,7 @@ function HomeContent() {
     const hashtags = Array.from(new Set(group.items.map(it => it.hashtag))).join(' ');
     for (const it of group.items) {
       const found = materials.find(m => m.link === it.link || m.id === it.id);
-      const img =
-        found?.image && !found.image.startsWith("/uploads/") ? found.image : "/ban.png";
+      const img = found?.image || "/ban.png";
       images.push(img);
     }
     const synthetic: MaterialItem = {
