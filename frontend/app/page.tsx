@@ -772,19 +772,26 @@ function HomeContent() {
         WebApp?: {
           openLink?: (url: string) => void;
           openTelegramLink?: (url: string) => void;
+          platform?: string;
         };
       };
     };
     const tg = w.Telegram?.WebApp;
-    if (tg?.openTelegramLink && searchUrl) {
+    const postId = (fallbackPostId || "").trim();
+    const platform = (tg?.platform || "").toLowerCase();
+    const canOpenSearchInApp = platform === "android" || platform === "ios";
+    if (canOpenSearchInApp && tg?.openTelegramLink && searchUrl) {
       tg.openTelegramLink(searchUrl);
       return;
     }
-    const postId = (fallbackPostId || "").trim();
     if (postId && /^\d+$/.test(postId)) {
       const deep = `tg://privatepost?channel=2055411531&post=${postId}&single`;
       if (tg?.openLink) tg.openLink(deep);
       else window.location.assign(deep);
+      return;
+    }
+    if (tg?.openTelegramLink && searchUrl) {
+      tg.openTelegramLink(searchUrl);
       return;
     }
     if (searchUrl) openExternalLink(searchUrl);
