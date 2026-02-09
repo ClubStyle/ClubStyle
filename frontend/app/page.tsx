@@ -53,7 +53,7 @@ function SafeImage({
   );
 }
 
-const CATEGORIES: Category[] = [
+const DEFAULT_CATEGORIES: Category[] = [
   { 
     name: "Сообщество", 
     hidden: true,
@@ -418,6 +418,7 @@ export default function Home() {
 
 function HomeContent() {
   const [materials, setMaterials] = useState<MaterialItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [subCategorySheet, setSubCategorySheet] = useState<{title: string, items: string[]} | null>(null);
   const [subCategorySearchQuery, setSubCategorySearchQuery] = useState("");
@@ -617,12 +618,12 @@ function HomeContent() {
     // Handle URL params for direct category access
     const categoryParam = searchParams.get('category');
     if (categoryParam) {
-        const category = CATEGORIES.find(c => c.name === categoryParam);
+        const category = categories.find(c => c.name === categoryParam);
         if (category) {
             setTimeout(() => handleCategoryClick(category), 0);
         }
     }
-  }, [searchParams, handleCategoryClick]);
+  }, [categories, searchParams, handleCategoryClick]);
 
 
   useEffect(() => {
@@ -701,6 +702,32 @@ function HomeContent() {
         })
         .catch(err => console.error("Failed to fetch materials:", err));
 
+    fetch(`/api/materials?key=categories&t=${Date.now()}`, { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!Array.isArray(data)) return;
+        const cleaned = (data as unknown[])
+          .map((it) => (it && typeof it === "object" ? (it as Record<string, unknown>) : null))
+          .map((it) => {
+            const name = typeof it?.name === "string" ? it.name.trim() : "";
+            const hidden = Boolean(it?.hidden);
+            const subCategories = Array.isArray(it?.subCategories)
+              ? it.subCategories
+                  .map((s) => (typeof s === "string" ? s.trim() : ""))
+                  .filter((s) => s.length > 0)
+              : undefined;
+            return {
+              name,
+              hidden,
+              subCategories: subCategories && subCategories.length ? subCategories : undefined
+            } satisfies Category;
+          })
+          .filter((it) => it.name.length > 0);
+        if (!cleaned.length) return;
+        setCategories(cleaned);
+      })
+      .catch(() => {});
+    
     
 
     type TgWindow = {
@@ -835,7 +862,7 @@ function HomeContent() {
       : [];
 
   const foundSubCategories = searchQuery
-      ? CATEGORIES.flatMap(cat => 
+      ? categories.flatMap(cat => 
           (cat.subCategories || [])
             .filter(sub => sub.toLowerCase().includes(searchQuery.toLowerCase()))
             .map(sub => ({ sub, parent: cat }))
@@ -883,7 +910,7 @@ function HomeContent() {
                 <button 
                     key={index}
                     onClick={() => {
-                        const cat = CATEGORIES.find(c => c.name === item.category);
+                        const cat = categories.find(c => c.name === item.category);
                         if (cat) handleCategoryClick(cat);
                     }}
                     className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden shadow-md group active:scale-[0.98] transition-transform"
@@ -951,7 +978,7 @@ function HomeContent() {
                                 openTelegramChannelSearch(q, fallbackPostId);
                                 return;
                             }
-                            const cat = CATEGORIES.find(c => c.name === item.category);
+                            const cat = categories.find(c => c.name === item.category);
                             if (cat) handleCategoryClick(cat);
                         }}
                         className={`
@@ -1252,7 +1279,7 @@ function HomeContent() {
                           activeCategory === "#lookдняЛена"
                             ? LENA_LOOKS.find((m) => m.title === item)
                             : materials.find((m) => m.title === item);
-                         const categoryItem = CATEGORIES.find(c => c.name === item && c.subCategories);
+                         const categoryItem = categories.find(c => c.name === item && c.subCategories);
 
                         const displayImage = activeCategory === "Мои обучения"
                             ? (TRAINING_IMAGES[item] ?? (material ? material.image : "/ban.png"))

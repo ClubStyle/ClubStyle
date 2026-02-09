@@ -33,6 +33,12 @@ type BottomNavConfig = {
 
 type QuickFilter = { label: string; category: string };
 
+type CategoryConfig = {
+  name: string;
+  subCategories?: string[];
+  hidden?: boolean;
+};
+
 async function readJson<T>(res: Response): Promise<T> {
   const text = await res.text();
   return (text ? JSON.parse(text) : null) as T;
@@ -96,6 +102,160 @@ const DEFAULT_QUICK_FILTERS: QuickFilter[] = [
   { label: "образы участниц", category: "LINK:https://t.me/c/2249399970/230/33059" }
 ];
 
+const DEFAULT_CATEGORIES: CategoryConfig[] = [
+  {
+    name: "Сообщество",
+    hidden: true,
+    subCategories: ["Эфиры", "Мастер-классы", "Гайды и чек-листы", "Мои обучения", "Разбор образов участниц"]
+  },
+  { name: "Эфиры" },
+  { name: "Мастер-классы" },
+  { name: "Гайды и чек-листы" },
+  {
+    name: "Мои обучения",
+    subCategories: [
+      "Гайд Базовый гардероб",
+      "Стилист будущего",
+      "10 = 100",
+      "Мастер-класс ПРОКАЧКА СТИЛЯ",
+      "Мастер-класс Тренды 2026",
+      "УКРАШЕНИЯ: как выбирать, сочетать и хранить",
+      "Чек-лист по ПОДБОРУ СУМОК"
+    ]
+  },
+  { name: "Бренды" },
+  {
+    name: "Типы фигуры",
+    subCategories: ["Груша", "Яблоко", "Песочные часы", "Перевернутый треугольник", "Прямоугольник"]
+  },
+  { name: "#lookдняЛена" },
+  { name: "Идеи образов" },
+  { name: "Ссылки на вещи" },
+  { name: "Вещь дня" },
+  {
+    name: "Обувь",
+    subCategories: [
+      "Босоножки",
+      "Мюли",
+      "Сабо",
+      "Туфли",
+      "Балетки",
+      "Ботинки",
+      "Ботильоны",
+      "Сапоги",
+      "Тапки",
+      "Угги",
+      "Кеды",
+      "Кроссовки"
+    ]
+  },
+  {
+    name: "Верха",
+    subCategories: ["Топ", "Футболка", "Лонгслив", "Майка", "Кардиган", "Жакет", "Жилет", "Блузка", "Рубашка", "Корсет"]
+  },
+  { name: "Низы", subCategories: ["Брюки", "Юбка", "Джинсы", "Шорты", "Бермуды", "Легинсы", "Комбинезон", "Платье"] },
+  {
+    name: "Аксессуары",
+    subCategories: ["Украшения", "Носки", "Гольфы", "Колготки", "Варежки", "Перчатки", "Платок", "Шапка", "Капор", "Шарф", "Очки"]
+  },
+  { name: "Сумки", subCategories: ["Сумки"] },
+  { name: "Купальники", subCategories: ["Купальники"] },
+  {
+    name: "Верхняя одежда",
+    subCategories: ["Куртка", "Пальто", "Дубленка", "Шуба", "Парка", "Косуха", "Бомбер"]
+  },
+  { name: "Plus Size" },
+  {
+    name: "Сезоны",
+    subCategories: ["Лето", "Зима", "Демисезон", "Осенние образы для работы", "Повседневные осенние образы", "Верхняя одежда на осень", "Осенние образы с трикотажем", "Обувь и аксессуары на осень", "Осенние капсулы"]
+  },
+  { name: "Советы", subCategories: ["Советы", "Стилизация"] },
+  { name: "Покупки по миру" },
+  { name: "Покупки по РФ" },
+  { name: "Конкурс" },
+  { name: "Гайды и чек-листы", hidden: true, subCategories: ["Новогодние образы"] },
+  { name: "Эфиры", hidden: true },
+  {
+    name: "Мастер-классы",
+    hidden: true,
+    subCategories: [
+      "Какие головные уборы можно добавлять в свои образы",
+      "Как продолжать носить вещи, которые вы купили для праздников",
+      "«Я верю себе:внутренние опоры как источник женской силы»"
+    ]
+  },
+  { name: "Бренды" }
+];
+
+function normalizeList(raw: string) {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const part of raw.split(/\r?\n|,/g)) {
+    const v = part.trim();
+    if (!v) continue;
+    const key = v.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(v);
+  }
+  return out;
+}
+
+function ensureHashtag(raw: string, tag: string) {
+  const t = tag.startsWith("#") ? tag : `#${tag}`;
+  const parts = (raw || "")
+    .split(" ")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (parts.some((p) => p.toLowerCase() === t.toLowerCase())) return parts.join(" ");
+  return [...parts, t].join(" ").trim();
+}
+
+function removeHashtag(raw: string, tag: string) {
+  const t = tag.startsWith("#") ? tag : `#${tag}`;
+  const parts = (raw || "")
+    .split(" ")
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .filter((p) => p.toLowerCase() !== t.toLowerCase());
+  return parts.join(" ").trim();
+}
+
+function hasHashtag(raw: string, tag: string) {
+  const t = tag.startsWith("#") ? tag : `#${tag}`;
+  const parts = (raw || "")
+    .split(" ")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return parts.some((p) => p.toLowerCase() === t.toLowerCase());
+}
+
+function parseTelegramPostInput(raw: string) {
+  const input = (raw || "").trim();
+  if (!input) return null;
+  if (/^\d+$/.test(input)) {
+    const id = input;
+    return { id, link: `https://t.me/c/2055411531/${id}` };
+  }
+  if (/^https?:\/\//i.test(input)) {
+    try {
+      const url = new URL(input);
+      const parts = url.pathname.split("/").filter(Boolean);
+      const last = parts[parts.length - 1] || "";
+      const id = /^\d+$/.test(last) ? last : "";
+      return { id: id || null, link: input };
+    } catch {
+      return null;
+    }
+  }
+  const m = input.match(/(?:^|\/)(\d+)(?:$|[?#])/);
+  if (m?.[1]) {
+    const id = m[1];
+    return { id, link: `https://t.me/c/2055411531/${id}` };
+  }
+  return null;
+}
+
 export default function AdminPage() {
   const [adminUser, setAdminUser] = useState("h1");
   const [adminPass, setAdminPass] = useState("");
@@ -115,6 +275,13 @@ export default function AdminPage() {
   const [quickFilters, setQuickFilters] = useState<QuickFilter[]>(DEFAULT_QUICK_FILTERS);
   const [quickFiltersOpen, setQuickFiltersOpen] = useState(false);
   const [quickFiltersDraft, setQuickFiltersDraft] = useState<QuickFilter[]>(DEFAULT_QUICK_FILTERS);
+
+  const [categories, setCategories] = useState<CategoryConfig[]>(DEFAULT_CATEGORIES);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [categoriesDraft, setCategoriesDraft] = useState<CategoryConfig[]>(DEFAULT_CATEGORIES);
+
+  const [feedAddOpen, setFeedAddOpen] = useState(false);
+  const [feedAddInput, setFeedAddInput] = useState("");
 
   const defaultBottomNav = useMemo<BottomNavConfig>(() => {
     return {
@@ -198,6 +365,32 @@ export default function AdminPage() {
     setQuickFilters(cleaned);
   }, []);
 
+  const loadCategories = useCallback(async () => {
+    const res = await fetch(`/api/materials?key=categories&t=${Date.now()}`, { cache: "no-store" });
+    const data = await readJson<unknown>(res);
+    if (!res.ok) return;
+    if (!Array.isArray(data)) return;
+    const cleaned = data
+      .map((it) => it as Partial<CategoryConfig>)
+      .map((it) => {
+        const name = typeof it.name === "string" ? it.name.trim() : "";
+        const hidden = Boolean(it.hidden);
+        const subCategories = Array.isArray(it.subCategories)
+          ? it.subCategories
+              .map((s) => (typeof s === "string" ? s.trim() : ""))
+              .filter((s) => s.length > 0)
+          : undefined;
+        return {
+          name,
+          hidden,
+          subCategories: subCategories && subCategories.length ? subCategories : undefined
+        } satisfies CategoryConfig;
+      })
+      .filter((it) => it.name.length > 0);
+    if (!cleaned.length) return;
+    setCategories(cleaned);
+  }, []);
+
   useEffect(() => {
     if (!authed) return;
     loadMaterials().catch((e: unknown) => {
@@ -205,7 +398,8 @@ export default function AdminPage() {
     });
     loadBottomNav().catch(() => {});
     loadQuickFilters().catch(() => {});
-  }, [authed, loadBottomNav, loadMaterials, loadQuickFilters]);
+    loadCategories().catch(() => {});
+  }, [authed, loadBottomNav, loadCategories, loadMaterials, loadQuickFilters]);
 
   const baseList = useMemo(() => {
     if (section !== "materials") return materials;
@@ -339,6 +533,63 @@ export default function AdminPage() {
     setFilter("");
   }, []);
 
+  const openFeedAdd = useCallback(
+    (prefill?: string) => {
+      setFeedAddInput((prefill || "").trim());
+      setFeedAddOpen(true);
+    },
+    []
+  );
+
+  const addPostToFeed = useCallback(() => {
+    const parsed = parseTelegramPostInput(feedAddInput);
+    if (!parsed) {
+      setStatus("Вставь ссылку на пост или его id");
+      return;
+    }
+
+    const id = (parsed.id || "").trim();
+    const link = (parsed.link || "").trim();
+
+    const found =
+      (id ? materials.find((m) => m.id === id) : null) ||
+      (link ? materials.find((m) => (m.link || "").trim() === link) : null) ||
+      (id ? materials.find((m) => typeof m.link === "string" && m.link.includes(`/${id}`)) : null) ||
+      null;
+
+    const now = Math.floor(Date.now() / 1000);
+    if (found) {
+      const updated: MaterialItem = {
+        ...found,
+        hashtag: ensureHashtag(found.hashtag || "", "#вленту"),
+        date: found.date ?? now
+      };
+      setDraft(updated);
+      setSelectedId(updated.id);
+    } else {
+      const next: MaterialItem = {
+        id: id || `custom_${Date.now()}`,
+        title: "Новость",
+        hashtag: "#вленту",
+        image: "/ban.png",
+        images: [],
+        link: link || "",
+        description: "",
+        video_link: "",
+        date: now
+      };
+      setDraft(next);
+      setSelectedId(next.id);
+    }
+
+    setFeedAddOpen(false);
+    setSection("materials");
+    setMaterialsView("list");
+    setActiveHubCategory("Лента новостей");
+    setFilter("");
+    setStatus(null);
+  }, [feedAddInput, materials]);
+
   const openHubCategory = useCallback((category: string) => {
     setSection("materials");
     setMaterialsView("list");
@@ -424,6 +675,43 @@ export default function AdminPage() {
       setBusy(false);
     }
   }, [headers, quickFiltersDraft]);
+
+  const saveCategories = useCallback(async () => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const cleaned = categoriesDraft
+        .map((it) => {
+          const name = (it.name || "").trim();
+          const hidden = Boolean(it.hidden);
+          const subCategories = Array.isArray(it.subCategories)
+            ? it.subCategories.map((s) => (s || "").trim()).filter(Boolean)
+            : undefined;
+          return {
+            name,
+            hidden,
+            subCategories: subCategories && subCategories.length ? subCategories : undefined
+          } satisfies CategoryConfig;
+        })
+        .filter((it) => it.name.length > 0);
+      const res = await fetch("/api/materials?key=categories", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...headers },
+        body: JSON.stringify(cleaned)
+      });
+      const data = await readJson<unknown>(res);
+      if (!res.ok) {
+        const message =
+          pickStringField(data, "error") || `Не удалось сохранить (${res.status})`;
+        throw new Error(message);
+      }
+      setCategories(cleaned.length ? cleaned : DEFAULT_CATEGORIES);
+      setCategoriesOpen(false);
+      setStatus("Сохранено");
+    } finally {
+      setBusy(false);
+    }
+  }, [categoriesDraft, headers]);
 
   const login = useCallback(async () => {
     setBusy(true);
@@ -620,7 +908,7 @@ export default function AdminPage() {
                         Изменить
                       </button>
                       <button
-                        onClick={addToNews}
+                        onClick={() => openFeedAdd()}
                         className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs"
                       >
                         В ленту
@@ -648,6 +936,24 @@ export default function AdminPage() {
                     ))}
                   </div>
                 </div>
+
+                <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <h2 className="text-lg font-black text-gray-900">Категории и подразделы</h2>
+                    <button
+                      onClick={() => {
+                        setCategoriesDraft(categories.length ? categories : DEFAULT_CATEGORIES);
+                        setCategoriesOpen(true);
+                      }}
+                      className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs"
+                    >
+                      Изменить
+                    </button>
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {categories.length} категорий
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="grid gap-3 md:grid-cols-2">
@@ -660,7 +966,7 @@ export default function AdminPage() {
                   </button>
                   <div className="flex gap-2">
                     <button
-                      onClick={addToNews}
+                      onClick={() => openFeedAdd(selectedId || "")}
                       className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs"
                     >
                       В ленту
@@ -935,6 +1241,182 @@ export default function AdminPage() {
         </div>
       ) : null}
 
+      {categoriesOpen ? (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
+            onClick={() => setCategoriesOpen(false)}
+          />
+          <div className="relative w-full max-w-4xl md:max-h-[90vh] overflow-y-auto bg-white rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+            <button
+              onClick={() => setCategoriesOpen(false)}
+              className="absolute top-4 right-4 z-20 bg-black/20 hover:bg-black/40 text-white p-2 rounded-full backdrop-blur-md transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4 gap-3">
+                <h2 className="text-lg font-black text-gray-900">Категории и подразделы</h2>
+                <button
+                  onClick={() =>
+                    setCategoriesDraft((prev) => [...prev, { name: "Новая категория", subCategories: [] }])
+                  }
+                  className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs"
+                >
+                  + Категория
+                </button>
+              </div>
+
+              <div className="grid gap-4">
+                {categoriesDraft.map((cat, idx) => (
+                  <div key={`${cat.name}-${idx}`} className="rounded-[1.5rem] border border-gray-100 bg-gray-50/30 p-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <input
+                        value={cat.name}
+                        onChange={(e) =>
+                          setCategoriesDraft((prev) => {
+                            const next = [...prev];
+                            next[idx] = { ...next[idx], name: e.target.value };
+                            return next;
+                          })
+                        }
+                        className="flex-1 rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                        placeholder="Название категории"
+                      />
+                      <label className="flex items-center gap-2 text-xs font-bold text-gray-500">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(cat.hidden)}
+                          onChange={(e) =>
+                            setCategoriesDraft((prev) => {
+                              const next = [...prev];
+                              next[idx] = { ...next[idx], hidden: e.target.checked };
+                              return next;
+                            })
+                          }
+                          className="h-4 w-4 accent-pink-500"
+                        />
+                        скрыть
+                      </label>
+                      <button
+                        onClick={() =>
+                          setCategoriesDraft((prev) => {
+                            const next = [...prev];
+                            next.splice(idx, 1);
+                            return next;
+                          })
+                        }
+                        className="rounded-2xl bg-white px-4 py-3 text-xs font-bold text-gray-700 border border-gray-100 hover:bg-gray-50"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <label className="grid gap-1">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        Подразделы (по строкам или через запятую)
+                      </span>
+                      <textarea
+                        value={(cat.subCategories || []).join("\n")}
+                        onChange={(e) =>
+                          setCategoriesDraft((prev) => {
+                            const next = [...prev];
+                            next[idx] = { ...next[idx], subCategories: normalizeList(e.target.value) };
+                            return next;
+                          })
+                        }
+                        rows={Math.min(10, Math.max(3, (cat.subCategories || []).length || 3))}
+                        className="w-full rounded-[1.5rem] border border-gray-100 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                        placeholder={"Груша\nЯблоко\nПесочные часы"}
+                      />
+                    </label>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid gap-2 mt-6">
+                <button
+                  onClick={() =>
+                    saveCategories().catch((e: unknown) =>
+                      setStatus(e instanceof Error ? e.message : "Ошибка")
+                    )
+                  }
+                  className="w-full bg-pink-500 text-white font-bold py-3 rounded-xl hover:bg-pink-600 transition-colors text-sm disabled:opacity-60"
+                  disabled={busy}
+                >
+                  Сохранить
+                </button>
+                <button
+                  onClick={() => setCategoriesOpen(false)}
+                  className="w-full bg-white text-gray-700 font-bold py-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors text-sm"
+                  disabled={busy}
+                >
+                  Отмена
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {feedAddOpen ? (
+        <div className="fixed inset-0 z-[56] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
+            onClick={() => setFeedAddOpen(false)}
+          />
+          <div className="relative w-full max-w-md bg-white rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+            <button
+              onClick={() => setFeedAddOpen(false)}
+              className="absolute top-4 right-4 z-20 bg-black/20 hover:bg-black/40 text-white p-2 rounded-full backdrop-blur-md transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="p-6">
+              <h2 className="text-lg font-black text-gray-900 mb-2">Добавить пост в ленту</h2>
+              <div className="text-sm text-gray-600 mb-4">
+                Вставь ссылку на пост или его id (например 15178)
+              </div>
+              <input
+                value={feedAddInput}
+                onChange={(e) => setFeedAddInput(e.target.value)}
+                className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                placeholder="https://t.me/c/2055411531/15178"
+              />
+
+              <div className="grid gap-2 mt-6">
+                <button
+                  onClick={addPostToFeed}
+                  className="w-full bg-pink-500 text-white font-bold py-3 rounded-xl hover:bg-pink-600 transition-colors text-sm disabled:opacity-60"
+                  disabled={busy}
+                >
+                  Добавить
+                </button>
+                <button
+                  onClick={() => {
+                    setFeedAddOpen(false);
+                    addToNews();
+                  }}
+                  className="w-full bg-white text-gray-700 font-bold py-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors text-sm disabled:opacity-60"
+                  disabled={busy}
+                >
+                  Создать новость вручную
+                </button>
+                <button
+                  onClick={() => setFeedAddOpen(false)}
+                  className="w-full bg-white text-gray-700 font-bold py-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors text-sm disabled:opacity-60"
+                  disabled={busy}
+                >
+                  Отмена
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {draft && section === "materials" ? (
         <div className="fixed inset-0 z-[60]">
           <div
@@ -1036,6 +1518,20 @@ export default function AdminPage() {
                     className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
                     placeholder="#новинка #советы"
                   />
+                </label>
+                <label className="flex items-center gap-2 text-xs font-bold text-gray-500">
+                  <input
+                    type="checkbox"
+                    checked={hasHashtag(draft.hashtag || "", "#вленту")}
+                    onChange={(e) => {
+                      const next = e.target.checked
+                        ? ensureHashtag(draft.hashtag || "", "#вленту")
+                        : removeHashtag(draft.hashtag || "", "#вленту");
+                      setDraft({ ...draft, hashtag: next });
+                    }}
+                    className="h-4 w-4 accent-pink-500"
+                  />
+                  В ленту
                 </label>
 
                 <label className="grid gap-1">

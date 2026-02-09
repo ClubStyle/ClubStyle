@@ -38,9 +38,10 @@ const getEmbedUrl = (url: string) => {
 type Category = {
   name: string;
   subCategories?: string[];
+  hidden?: boolean;
 };
 
-const CATEGORIES: Category[] = [
+const DEFAULT_CATEGORIES: Category[] = [
   { 
     name: "Типы фигуры", 
     subCategories: ["Груша", "Яблоко", "Песочные часы", "Перевернутый треугольник", "Прямоугольник"] 
@@ -137,6 +138,7 @@ export default function Library() {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [categorySearchQuery, setCategorySearchQuery] = useState("");
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialItem | null>(null);
 
@@ -151,6 +153,32 @@ export default function Library() {
         const rec = JSON.parse(savedRecent);
         setTimeout(() => setRecent(rec), 0);
     }
+
+    fetch(`/api/materials?key=categories&t=${Date.now()}`, { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!Array.isArray(data)) return;
+        const cleaned = (data as unknown[])
+          .map((it) => (it && typeof it === "object" ? (it as Record<string, unknown>) : null))
+          .map((it) => {
+            const name = typeof it?.name === "string" ? it.name.trim() : "";
+            const hidden = Boolean(it?.hidden);
+            const subCategories = Array.isArray(it?.subCategories)
+              ? it.subCategories
+                  .map((s) => (typeof s === "string" ? s.trim() : ""))
+                  .filter((s) => s.length > 0)
+              : undefined;
+            return {
+              name,
+              hidden,
+              subCategories: subCategories && subCategories.length ? subCategories : undefined
+            } satisfies Category;
+          })
+          .filter((it) => it.name.length > 0);
+        if (!cleaned.length) return;
+        setCategories(cleaned);
+      })
+      .catch(() => {});
   }, []);
 
   const toggleFavorite = (item: string) => {
@@ -364,7 +392,7 @@ export default function Library() {
                <div className="mt-8 pt-6 border-t border-gray-100">
                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest pl-1 mb-4">Категории</h3>
                    <div className="grid grid-rows-2 grid-flow-col gap-2 overflow-x-auto pb-4 no-scrollbar -mx-6 px-6">
-                        {CATEGORIES.map((cat) => (
+                        {categories.filter((cat) => !cat.hidden).map((cat) => (
                             <button
                                 key={cat.name}
                                 onClick={() => {
@@ -425,7 +453,7 @@ export default function Library() {
                         />
                     </div>
 
-                    {CATEGORIES.find(c => c.name === activeCategory)?.subCategories
+                    {categories.find(c => c.name === activeCategory)?.subCategories
                         ?.filter(sub => {
                             const query = categorySearchQuery.toLowerCase();
                             if (!query) return true;
@@ -498,7 +526,7 @@ export default function Library() {
                             </div>
                          );
                     })}
-                    {(!CATEGORIES.find(c => c.name === activeCategory)?.subCategories) && (
+                    {(!categories.find(c => c.name === activeCategory)?.subCategories) && (
                         <div className="text-center text-gray-400 py-8">
                             Нет подкатегорий
                         </div>
