@@ -259,8 +259,20 @@ async function health() {
   let webhookUrl: string | null = null;
   let webhookError: string | null = null;
   let chatTitle: string | null = null;
+  let chatType: string | null = null;
+  let chatUsername: string | null = null;
   let memberStatus: string | null = null;
   let memberError: string | null = null;
+  let lastUpdateId: number | null = null;
+  let lastSyncRaw: unknown = null;
+  let pendingError: string | null = null;
+  let pending: Array<{
+    update_id: number;
+    kind: "channel_post" | "message" | "other";
+    chatId?: number;
+    messageId?: number;
+    date?: number;
+  }> = [];
   try {
     const me = await bot.getMe();
     botId = typeof me?.id === "number" ? me.id : null;
@@ -279,6 +291,11 @@ async function health() {
   try {
     const chat = await bot.getChat(chatId);
     chatTitle = typeof (chat as { title?: unknown })?.title === "string" ? (chat as { title: string }).title : null;
+    chatType = typeof (chat as { type?: unknown })?.type === "string" ? (chat as { type: string }).type : null;
+    chatUsername =
+      typeof (chat as { username?: unknown })?.username === "string"
+        ? (chat as { username: string }).username
+        : null;
   } catch (e: unknown) {
     memberError = memberError || (e instanceof Error ? e.message : "getChat failed");
   }
@@ -304,6 +321,8 @@ async function health() {
         webhookUrl,
         webhookError,
         chatTitle,
+        chatType,
+        chatUsername,
         memberStatus,
         memberError
       },
@@ -312,7 +331,38 @@ async function health() {
   }
 
   const lastUpdateRaw = await safeReadKv(supabase.client, supabase.table, "telegram_last_update_id");
-  const lastSyncRaw = await safeReadKv(supabase.client, supabase.table, "telegram_last_sync");
+  lastSyncRaw = await safeReadKv(supabase.client, supabase.table, "telegram_last_sync");
+  const parsedLastUpdate =
+    typeof lastUpdateRaw === "number" ? lastUpdateRaw : Number(lastUpdateRaw || 0);
+  lastUpdateId = Number.isFinite(parsedLastUpdate) ? parsedLastUpdate : 0;
+
+  try {
+    const offset = lastUpdateId && lastUpdateId > 0 ? lastUpdateId + 1 : undefined;
+    const updates = (await bot.getUpdates({
+      offset,
+      limit: 5,
+      allowed_updates: ["channel_post", "message"]
+    })) as TelegramBot.Update[];
+    pending = updates.map((u) => {
+      const msg = u.channel_post || u.message;
+      const kind = u.channel_post ? "channel_post" : u.message ? "message" : "other";
+      const chatIdValue = typeof msg?.chat?.id === "number" ? msg.chat.id : undefined;
+      const messageIdValue = typeof msg?.message_id === "number" ? msg.message_id : undefined;
+      const dateValue = typeof msg?.date === "number" ? msg.date : undefined;
+      return {
+        update_id: Number(u.update_id) || 0,
+        kind,
+        chatId: chatIdValue,
+        messageId: messageIdValue,
+        date: dateValue
+      };
+    });
+  } catch (e: unknown) {
+    pendingError = e instanceof Error ? e.message : "getUpdates failed";
+  }
+
+  const pendingTarget = pending.filter((p) => p.chatId === chatId).length;
+  const pendingOther = pending.filter((p) => typeof p.chatId === "number" && p.chatId !== chatId).length;
   return Response.json(
     {
       ok: true,
@@ -325,13 +375,22 @@ async function health() {
       webhookError,
       chatTitle,
       memberStatus,
+      chatType,
+      chatUsername,
       memberError,
       telegram_last_update_id: lastUpdateRaw,
-      telegram_last_sync: lastSyncRaw
+      telegram_last_update_id_num: lastUpdateId,
+      telegram_last_sync: lastSyncRaw,
+      pendingUpdates: pending,
+      pendingUpdatesError: pendingError,
+      pendingUpdatesCount: pending.length,
+      pendingTargetCount: pendingTarget,
+      pendingOtherCount: pendingOther
     },
     { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
   );
 }
+
 
 async function readSeedFromLocalFile(seedCount: number): Promise<MaterialItem[]> {
   if (!seedCount) return [];

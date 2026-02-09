@@ -442,14 +442,38 @@ export default function AdminPage() {
       const tokenPresent = Boolean(record.tokenPresent);
       const supabasePresent = Boolean(record.supabasePresent);
       const chatId = typeof record.chatId === "number" ? record.chatId : Number(record.chatId || 0);
+      const chatTitle = typeof record.chatTitle === "string" ? record.chatTitle.trim() : "";
       const webhookUrl = typeof record.webhookUrl === "string" ? record.webhookUrl.trim() : "";
       const memberStatus = typeof record.memberStatus === "string" ? record.memberStatus.trim() : "";
       const botUsername = typeof record.botUsername === "string" ? record.botUsername.trim() : "";
+      const lastUpdateId =
+        typeof record.telegram_last_update_id_num === "number"
+          ? record.telegram_last_update_id_num
+          : Number(record.telegram_last_update_id || 0);
+      const pendingCount =
+        typeof record.pendingUpdatesCount === "number"
+          ? record.pendingUpdatesCount
+          : Number(record.pendingUpdatesCount || 0);
+      const pendingTarget =
+        typeof record.pendingTargetCount === "number"
+          ? record.pendingTargetCount
+          : Number(record.pendingTargetCount || 0);
+      const pendingError = typeof record.pendingUpdatesError === "string" ? record.pendingUpdatesError.trim() : "";
       const msg = `Диагностика: token=${tokenPresent ? "ok" : "нет"}, supabase=${
         supabasePresent ? "ok" : "нет"
       }, chatId=${Number.isFinite(chatId) && chatId ? chatId : "?"}${
+        chatTitle ? `, чат="${chatTitle}"` : ""
+      }${
         botUsername ? `, bot=@${botUsername}` : ""
-      }${memberStatus ? `, роль=${memberStatus}` : ""}${webhookUrl ? `, webhook=есть` : ""}`;
+      }${memberStatus ? `, роль=${memberStatus}` : ""}${
+        webhookUrl ? `, webhook=есть` : ""
+      }${
+        Number.isFinite(lastUpdateId) && lastUpdateId > 0 ? `, offset=${lastUpdateId}` : ""
+      }${
+        Number.isFinite(pendingCount) ? `, pending=${pendingCount}` : ""
+      }${
+        Number.isFinite(pendingTarget) ? `, pendingTarget=${pendingTarget}` : ""
+      }${pendingError ? `, pendingErr=${pendingError}` : ""}`;
       await loadTelegramSync();
       setStatus(msg);
     } finally {
