@@ -443,6 +443,7 @@ export default function AdminPage() {
       const supabasePresent = Boolean(record.supabasePresent);
       const chatId = typeof record.chatId === "number" ? record.chatId : Number(record.chatId || 0);
       const chatTitle = typeof record.chatTitle === "string" ? record.chatTitle.trim() : "";
+      const chatType = typeof record.chatType === "string" ? record.chatType.trim() : "";
       const webhookUrl = typeof record.webhookUrl === "string" ? record.webhookUrl.trim() : "";
       const memberStatus = typeof record.memberStatus === "string" ? record.memberStatus.trim() : "";
       const botUsername = typeof record.botUsername === "string" ? record.botUsername.trim() : "";
@@ -459,13 +460,25 @@ export default function AdminPage() {
           ? record.pendingTargetCount
           : Number(record.pendingTargetCount || 0);
       const pendingError = typeof record.pendingUpdatesError === "string" ? record.pendingUpdatesError.trim() : "";
+      const pendingAll =
+        typeof record.pendingAllUpdatesCount === "number"
+          ? record.pendingAllUpdatesCount
+          : Number(record.pendingAllUpdatesCount || 0);
+      const pendingAllTarget =
+        typeof record.pendingAllTargetCount === "number"
+          ? record.pendingAllTargetCount
+          : Number(record.pendingAllTargetCount || 0);
+      const pendingAllError =
+        typeof record.pendingAllUpdatesError === "string" ? record.pendingAllUpdatesError.trim() : "";
       const msg = `Диагностика: token=${tokenPresent ? "ok" : "нет"}, supabase=${
         supabasePresent ? "ok" : "нет"
       }, chatId=${Number.isFinite(chatId) && chatId ? chatId : "?"}${
         chatTitle ? `, чат="${chatTitle}"` : ""
-      }${
+      }${chatType ? `, type=${chatType}` : ""}${
         botUsername ? `, bot=@${botUsername}` : ""
-      }${memberStatus ? `, роль=${memberStatus}` : ""}${
+      }${
+        memberStatus ? `, роль=${memberStatus}` : ""
+      }${
         webhookUrl ? `, webhook=есть` : ""
       }${
         Number.isFinite(lastUpdateId) && lastUpdateId > 0 ? `, offset=${lastUpdateId}` : ""
@@ -473,7 +486,13 @@ export default function AdminPage() {
         Number.isFinite(pendingCount) ? `, pending=${pendingCount}` : ""
       }${
         Number.isFinite(pendingTarget) ? `, pendingTarget=${pendingTarget}` : ""
-      }${pendingError ? `, pendingErr=${pendingError}` : ""}`;
+      }${
+        Number.isFinite(pendingAll) ? `, pendingAll=${pendingAll}` : ""
+      }${
+        Number.isFinite(pendingAllTarget) ? `, pendingAllTarget=${pendingAllTarget}` : ""
+      }${pendingError ? `, pendingErr=${pendingError}` : ""}${
+        pendingAllError ? `, pendingAllErr=${pendingAllError}` : ""
+      }`;
       await loadTelegramSync();
       setStatus(msg);
     } finally {

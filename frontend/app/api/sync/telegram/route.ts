@@ -237,6 +237,23 @@ function asPositiveInt(value: string | null | undefined) {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 }
 
+function describeTelegramError(e: unknown) {
+  if (e && typeof e === "object") {
+    const anyError = e as Record<string, unknown>;
+    const response = anyError.response as Record<string, unknown> | undefined;
+    const body = response?.body as Record<string, unknown> | undefined;
+    const code = typeof body?.error_code === "number" ? body.error_code : null;
+    const description = typeof body?.description === "string" ? body.description : "";
+    const statusCode = typeof response?.statusCode === "number" ? response.statusCode : null;
+    const base = e instanceof Error ? e.message : typeof anyError.message === "string" ? anyError.message : "";
+    const parts = [base, description].filter(Boolean);
+    const suffix = [statusCode ? `http:${statusCode}` : "", code ? `tg:${code}` : ""].filter(Boolean).join(", ");
+    const joined = parts.join(" — ").trim();
+    return `${joined}${suffix ? ` (${suffix})` : ""}` || "Telegram error";
+  }
+  return e instanceof Error ? e.message : "Telegram error";
+}
+
 async function health() {
   const { token, chatId, daysWindow } = getTelegramConfig();
   const supabase = getSupabase();
@@ -267,6 +284,14 @@ async function health() {
   let lastSyncRaw: unknown = null;
   let pendingError: string | null = null;
   let pending: Array<{
+    update_id: number;
+    kind: "channel_post" | "message" | "other";
+    chatId?: number;
+    messageId?: number;
+    date?: number;
+  }> = [];
+  let pendingAllError: string | null = null;
+  let pendingAll: Array<{
     update_id: number;
     kind: "channel_post" | "message" | "other";
     chatId?: number;
@@ -358,11 +383,36 @@ async function health() {
       };
     });
   } catch (e: unknown) {
-    pendingError = e instanceof Error ? e.message : "getUpdates failed";
+    pendingError = describeTelegramError(e);
+  }
+
+  try {
+    const updates = (await bot.getUpdates({
+      limit: 5,
+      allowed_updates: ["channel_post", "message"]
+    })) as TelegramBot.Update[];
+    pendingAll = updates.map((u) => {
+      const msg = u.channel_post || u.message;
+      const kind = u.channel_post ? "channel_post" : u.message ? "message" : "other";
+      const chatIdValue = typeof msg?.chat?.id === "number" ? msg.chat.id : undefined;
+      const messageIdValue = typeof msg?.message_id === "number" ? msg.message_id : undefined;
+      const dateValue = typeof msg?.date === "number" ? msg.date : undefined;
+      return {
+        update_id: Number(u.update_id) || 0,
+        kind,
+        chatId: chatIdValue,
+        messageId: messageIdValue,
+        date: dateValue
+      };
+    });
+  } catch (e: unknown) {
+    pendingAllError = describeTelegramError(e);
   }
 
   const pendingTarget = pending.filter((p) => p.chatId === chatId).length;
   const pendingOther = pending.filter((p) => typeof p.chatId === "number" && p.chatId !== chatId).length;
+  const pendingAllTarget = pendingAll.filter((p) => p.chatId === chatId).length;
+  const pendingAllOther = pendingAll.filter((p) => typeof p.chatId === "number" && p.chatId !== chatId).length;
   return Response.json(
     {
       ok: true,
@@ -385,7 +435,12 @@ async function health() {
       pendingUpdatesError: pendingError,
       pendingUpdatesCount: pending.length,
       pendingTargetCount: pendingTarget,
-      pendingOtherCount: pendingOther
+      pendingOtherCount: pendingOther,
+      pendingAllUpdates: pendingAll,
+      pendingAllUpdatesError: pendingAllError,
+      pendingAllUpdatesCount: pendingAll.length,
+      pendingAllTargetCount: pendingAllTarget,
+      pendingAllOtherCount: pendingAllOther
     },
     { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
   );
@@ -492,6 +547,9 @@ async function syncTelegram(request?: Request) {
     let updatesCount = 0;
     let added = 0;
     let maxUpdateId = lastUpdateId || 0;
+    let webhookCleared: boolean | undefined = undefined;
+    let webhookUrlAtSync: string | undefined = undefined;
+    let webhookClearError: string | undefined = undefined;
 
     if (!seedOnly) {
       if (!token) {
@@ -500,6 +558,21 @@ async function syncTelegram(request?: Request) {
         }
       } else {
         const bot = new TelegramBot(token, { polling: false });
+        try {
+          const info = await bot.getWebHookInfo();
+          const urlValue =
+            typeof (info as { url?: unknown })?.url === "string" ? (info as { url: string }).url : "";
+          webhookUrlAtSync = urlValue || undefined;
+          if (urlValue) {
+            await bot.deleteWebHook();
+            webhookCleared = true;
+          } else {
+            webhookCleared = false;
+          }
+        } catch (e: unknown) {
+          webhookClearError = describeTelegramError(e);
+        }
+
         const cutoffTs = Math.floor(Date.now() / 1000) - daysWindow * 24 * 60 * 60;
         const offsetStart =
           Number.isFinite(lastUpdateId) && lastUpdateId > 0 ? lastUpdateId + 1 : undefined;
@@ -507,11 +580,16 @@ async function syncTelegram(request?: Request) {
         const updates: TelegramBot.Update[] = [];
         let offset = offsetStart;
         while (true) {
-          const batch = (await bot.getUpdates({
-            offset,
-            limit: 100,
-            allowed_updates: ["channel_post", "message"]
-          })) as TelegramBot.Update[];
+          let batch: TelegramBot.Update[] = [];
+          try {
+            batch = (await bot.getUpdates({
+              offset,
+              limit: 100,
+              allowed_updates: ["channel_post", "message"]
+            })) as TelegramBot.Update[];
+          } catch (e: unknown) {
+            throw new Error(describeTelegramError(e));
+          }
           if (!batch.length) break;
           updates.push(...batch);
           offset = batch[batch.length - 1]!.update_id + 1;
@@ -660,7 +738,10 @@ async function syncTelegram(request?: Request) {
       added,
       updates: updatesCount,
       maxUpdateId,
-      total: combined.length
+      total: combined.length,
+      webhookCleared,
+      webhookUrl: webhookUrlAtSync,
+      webhookError: webhookClearError
     });
 
     return Response.json(
@@ -676,7 +757,7 @@ async function syncTelegram(request?: Request) {
       { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
     );
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : "Sync failed";
+    const message = describeTelegramError(e);
     const supabase = getSupabase();
     if (supabase) {
       try {
