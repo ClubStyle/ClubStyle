@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Image from "next/image";
 import Script from "next/script";
 import "./globals.css";
 
@@ -32,16 +31,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen relative`}
       >
-        {/* Global Background Texture */}
-        <div className="fixed inset-0 z-[-1] opacity-50 pointer-events-none">
-          <Image
-            src="/bumaga.png"
-            alt="Paper Texture"
-            fill
-            className="object-cover"
-            priority
-          />
-        </div>
+        <div
+          className="fixed inset-0 z-[-1] opacity-50 pointer-events-none bg-cover bg-center"
+          style={{ backgroundImage: "url(/bumaga.png)" }}
+        />
         {children}
       </body>
     </html>

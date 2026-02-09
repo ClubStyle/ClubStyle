@@ -99,10 +99,10 @@ const DEFAULT_MENU_ITEMS = [
 const DEFAULT_QUICK_FILTERS: QuickFilter[] = [
   { label: "типы фигур", category: "Типы фигуры" },
   { label: "plus size", category: "Plus Size" },
-  { label: "#находкиврф", category: "LINK:https://t.me/c/2055411531/14980" },
+  { label: "находки рф", category: "Покупки по РФ" },
   { label: "находки мир", category: "Покупки по миру" },
   { label: "обувь", category: "Обувь" },
-  { label: "сумки", category: "Сумки" },
+  { label: "сумки", category: "TGSEARCH:сумки" },
   { label: "верхняя одежда", category: "Верхняя одежда" },
   { label: "верха", category: "Верха" },
   { label: "низы", category: "Низы" },
@@ -236,6 +236,24 @@ function hasHashtag(raw: string, tag: string) {
     .map((p) => p.trim())
     .filter(Boolean);
   return parts.some((p) => p.toLowerCase() === t.toLowerCase());
+}
+
+function hashtagToUi(raw: string) {
+  return (raw || "")
+    .split(" ")
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .map((t) => t.replace(/^#+/, ""))
+    .join(" ");
+}
+
+function hashtagFromUi(raw: string) {
+  const parts = (raw || "")
+    .split(" ")
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .map((t) => (t.startsWith("#") ? t : `#${t}`));
+  return parts.join(" ").trim();
 }
 
 function parseTelegramPostInput(raw: string) {
@@ -546,6 +564,50 @@ export default function AdminPage() {
       setBusy(false);
     }
   }, [headers, loadMaterials, loadTelegramSync]);
+
+  const enableTelegramWebhook = useCallback(async () => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const res = await fetch(`/api/sync/telegram?setWebhook=1&t=${Date.now()}`, {
+        method: "POST",
+        headers,
+        cache: "no-store"
+      });
+      const data = await readJson<unknown>(res);
+      if (!res.ok) {
+        const message =
+          pickStringField(data, "error") || `Не удалось включить webhook (${res.status})`;
+        throw new Error(message);
+      }
+      await loadTelegramSync();
+      setStatus("Webhook включен. Новые посты будут приходить сами");
+    } finally {
+      setBusy(false);
+    }
+  }, [headers, loadTelegramSync]);
+
+  const disableTelegramWebhook = useCallback(async () => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const res = await fetch(`/api/sync/telegram?deleteWebhook=1&t=${Date.now()}`, {
+        method: "POST",
+        headers,
+        cache: "no-store"
+      });
+      const data = await readJson<unknown>(res);
+      if (!res.ok) {
+        const message =
+          pickStringField(data, "error") || `Не удалось выключить webhook (${res.status})`;
+        throw new Error(message);
+      }
+      await loadTelegramSync();
+      setStatus("Webhook выключен");
+    } finally {
+      setBusy(false);
+    }
+  }, [headers, loadTelegramSync]);
 
   const syncTelegram = useCallback(async () => {
     setBusy(true);
@@ -1097,6 +1159,28 @@ export default function AdminPage() {
                       </button>
                       <button
                         onClick={() =>
+                          enableTelegramWebhook().catch((e: unknown) =>
+                            setStatus(e instanceof Error ? e.message : "Ошибка")
+                          )
+                        }
+                        className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs disabled:opacity-60"
+                        disabled={busy}
+                      >
+                        Webhook
+                      </button>
+                      <button
+                        onClick={() =>
+                          disableTelegramWebhook().catch((e: unknown) =>
+                            setStatus(e instanceof Error ? e.message : "Ошибка")
+                          )
+                        }
+                        className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs disabled:opacity-60"
+                        disabled={busy}
+                      >
+                        Webhook off
+                      </button>
+                      <button
+                        onClick={() =>
                           diagnoseTelegramSync().catch((e: unknown) =>
                             setStatus(e instanceof Error ? e.message : "Ошибка")
                           )
@@ -1234,6 +1318,7 @@ export default function AdminPage() {
                   const badge =
                     m.hashtag?.split(" ").map((t) => t.trim()).filter(Boolean)[0] ||
                     "#материал";
+                  const badgeUi = hashtagToUi(badge) || "материал";
                   const isSelected = selectedId === m.id;
                   return (
                     <div
@@ -1256,7 +1341,7 @@ export default function AdminPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-[10px] font-bold text-pink-500 bg-pink-50 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                            {badge}
+                            {badgeUi}
                           </span>
                         </div>
                         <h3 className="font-bold text-gray-900 text-sm leading-tight mb-1 line-clamp-2">
@@ -1714,7 +1799,7 @@ export default function AdminPage() {
             <div className="p-6 pt-6">
               <div className="flex gap-2 mb-3">
                 <span className="bg-pink-50 text-pink-500 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                  {draft.hashtag || "#материал"}
+                  {hashtagToUi(draft.hashtag || "") || "материал"}
                 </span>
               </div>
 
@@ -1760,13 +1845,13 @@ export default function AdminPage() {
 
                 <label className="grid gap-1">
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                    Хэштеги
+                    Категории
                   </span>
                   <input
-                    value={draft.hashtag}
-                    onChange={(e) => setDraft({ ...draft, hashtag: e.target.value })}
+                    value={hashtagToUi(draft.hashtag)}
+                    onChange={(e) => setDraft({ ...draft, hashtag: hashtagFromUi(e.target.value) })}
                     className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
-                    placeholder="#новинка #советы"
+                    placeholder="новинка советы"
                   />
                 </label>
                 <label className="flex items-center gap-2 text-xs font-bold text-gray-500">

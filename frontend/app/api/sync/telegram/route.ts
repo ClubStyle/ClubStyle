@@ -5,6 +5,9 @@ import TelegramBot from "node-telegram-bot-api";
 
 export const runtime = "nodejs";
 
+const localMaterialsPath = path.join(process.cwd(), "data", "materials.json");
+const localUiPath = path.join(process.cwd(), "data", "ui.json");
+
 type MaterialItem = {
   id: string;
   title: string;
@@ -109,6 +112,40 @@ function makeImageUrl(fileId: string) {
 }
 
 type TextEntity = { type?: string; offset?: number; length?: number; url?: string };
+
+async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
+  try {
+    const raw = await fs.readFile(filePath, "utf8");
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed as T;
+  } catch {
+    return fallback;
+  }
+}
+
+async function writeJsonFile(filePath: string, value: unknown) {
+  await fs.writeFile(filePath, JSON.stringify(value, null, 2));
+}
+
+async function readLocalUi() {
+  const data = await readJsonFile<Record<string, unknown>>(localUiPath, {});
+  return data && typeof data === "object" ? data : {};
+}
+
+async function readLocalKey(key: string) {
+  const ui = await readLocalUi();
+  return ui[key];
+}
+
+async function writeLocalKey(key: string, value: unknown) {
+  const ui = await readLocalUi();
+  await writeJsonFile(localUiPath, { ...ui, [key]: value });
+}
+
+async function readLocalMaterials() {
+  const parsed = await readJsonFile<unknown>(localMaterialsPath, []);
+  return Array.isArray(parsed) ? (parsed as MaterialItem[]) : [];
+}
 
 function uniqStrings(items: string[]) {
   const seen = new Set<string>();
@@ -215,6 +252,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const isCron = request.headers.get("x-vercel-cron") === "1";
+  const telegramSecret = (process.env.SYNC_TELEGRAM_SECRET || "").trim();
+  const webhookSecret = (request.headers.get("x-telegram-bot-api-secret-token") || "").trim();
+  if (telegramSecret && webhookSecret && webhookSecret === telegramSecret) {
+    return handleTelegramWebhook(request);
+  }
   if (!isCron && !isAuthorized(request) && !isAdminAuthorized(request)) {
     return new Response("Forbidden", { status: 403 });
   }
@@ -227,7 +269,8 @@ export async function OPTIONS() {
     headers: {
       "access-control-allow-origin": "*",
       "access-control-allow-methods": "GET,POST,OPTIONS",
-      "access-control-allow-headers": "content-type,authorization,x-admin-user,x-admin-pass"
+      "access-control-allow-headers":
+        "content-type,authorization,x-admin-user,x-admin-pass,x-telegram-bot-api-secret-token"
     }
   });
 }
@@ -249,9 +292,234 @@ function describeTelegramError(e: unknown) {
     const parts = [base, description].filter(Boolean);
     const suffix = [statusCode ? `http:${statusCode}` : "", code ? `tg:${code}` : ""].filter(Boolean).join(", ");
     const joined = parts.join(" — ").trim();
-    return `${joined}${suffix ? ` (${suffix})` : ""}` || "Telegram error";
+    const raw = `${joined}${suffix ? ` (${suffix})` : ""}`.trim();
+    if (/Legacy API keys are disabled/i.test(raw)) {
+      return "Supabase: отключены legacy API keys. Обнови SUPABASE_SERVICE_ROLE_KEY/SUPABASE_ANON_KEY в переменных окружения (актуальные ключи в Supabase → Settings → API).";
+    }
+    return raw || "Telegram error";
   }
-  return e instanceof Error ? e.message : "Telegram error";
+  const raw = e instanceof Error ? e.message : "Telegram error";
+  if (/Legacy API keys are disabled/i.test(raw)) {
+    return "Supabase: отключены legacy API keys. Обнови SUPABASE_SERVICE_ROLE_KEY/SUPABASE_ANON_KEY в переменных окружения (актуальные ключи в Supabase → Settings → API).";
+  }
+  return raw;
+}
+
+function getBaseUrl(request: Request) {
+  const proto = (request.headers.get("x-forwarded-proto") || "").split(",")[0]?.trim() || "";
+  const host =
+    (request.headers.get("x-forwarded-host") || request.headers.get("host") || "")
+      .split(",")[0]
+      ?.trim() || "";
+  if (proto && host) return `${proto}://${host}`;
+  const u = new URL(request.url);
+  return `${u.protocol}//${u.host}`;
+}
+
+async function handleTelegramWebhook(request: Request) {
+  const { token, chatId, daysWindow } = getTelegramConfig();
+  const supabase = getSupabase();
+  if (!supabase) {
+    return Response.json(
+      { error: "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required" },
+      { status: 500, headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+    );
+  }
+  if (!token) {
+    return Response.json(
+      { error: "TELEGRAM_BOT_TOKEN is not set" },
+      { status: 500, headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+    );
+  }
+
+  const update = (await request.json()) as TelegramBot.Update;
+  const anyUpdate = update as unknown as Record<string, unknown>;
+  const msg =
+    (update as { channel_post?: unknown }).channel_post ||
+    (update as { message?: unknown }).message ||
+    (anyUpdate.edited_channel_post as unknown) ||
+    (anyUpdate.edited_message as unknown) ||
+    null;
+
+  const message = msg as
+    | {
+        chat?: { id?: number };
+        message_id?: number;
+        date?: number;
+        text?: string;
+        caption?: string;
+        entities?: unknown;
+        caption_entities?: unknown;
+        media_group_id?: string;
+        photo?: Array<{ file_id?: string }>;
+        document?: { file_id?: string; mime_type?: string };
+      }
+    | null;
+
+  if (!message) {
+    return Response.json(
+      { ok: true, ignored: true },
+      { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+    );
+  }
+
+  const msgChatId = typeof message.chat?.id === "number" ? message.chat.id : null;
+  const msgDate = typeof message.date === "number" ? message.date : null;
+  const msgId = typeof message.message_id === "number" ? message.message_id : null;
+  if (!msgChatId || msgChatId !== chatId || !msgDate || !msgId) {
+    return Response.json(
+      { ok: true, ignored: true },
+      { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+    );
+  }
+
+  const cutoffTs = Math.floor(Date.now() / 1000) - daysWindow * 24 * 60 * 60;
+  if (msgDate < cutoffTs) {
+    return Response.json(
+      { ok: true, ignored: true, reason: "outside_window" },
+      { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+    );
+  }
+
+  const rawGroupId = typeof message.media_group_id === "string" ? message.media_group_id.trim() : "";
+  const groupKey = rawGroupId ? `telegram_media_group:${rawGroupId}` : "";
+  const existingGroupRaw = groupKey
+    ? await safeReadKv(supabase.client, supabase.table, groupKey)
+    : null;
+
+  const existingGroup =
+    existingGroupRaw && typeof existingGroupRaw === "object"
+      ? (existingGroupRaw as Partial<{
+          ids: number[];
+          chatId: number;
+          date: number;
+          text: string;
+          entities: TextEntity[];
+          photoFileIds: string[];
+        }>)
+      : null;
+
+  const ids = Array.isArray(existingGroup?.ids) ? existingGroup!.ids.filter((n) => typeof n === "number") : [];
+  if (!ids.includes(msgId)) ids.push(msgId);
+
+  const photoFileIds = Array.isArray(existingGroup?.photoFileIds)
+    ? existingGroup!.photoFileIds.filter((s) => typeof s === "string")
+    : [];
+
+  const textCandidate = (message.caption || message.text || "").toString();
+  const currentText = typeof existingGroup?.text === "string" ? existingGroup!.text : "";
+  const nextText = textCandidate.length > currentText.length ? textCandidate : currentText;
+
+  const entsRaw = (message.caption_entities || message.entities || []) as unknown;
+  const nextEntities = Array.isArray(entsRaw)
+    ? (entsRaw as TextEntity[])
+    : Array.isArray(existingGroup?.entities)
+      ? existingGroup!.entities
+      : [];
+
+  if (Array.isArray(message.photo) && message.photo.length) {
+    const last = message.photo[message.photo.length - 1];
+    if (last?.file_id) photoFileIds.push(String(last.file_id));
+  } else if (
+    message.document?.file_id &&
+    typeof message.document.mime_type === "string" &&
+    message.document.mime_type.startsWith("image/")
+  ) {
+    photoFileIds.push(String(message.document.file_id));
+  }
+
+  const groupState = {
+    ids,
+    chatId: msgChatId,
+    date: Math.max(typeof existingGroup?.date === "number" ? existingGroup!.date : 0, msgDate),
+    text: nextText,
+    entities: nextEntities,
+    photoFileIds: uniqStrings(photoFileIds)
+  };
+
+  if (groupKey) {
+    await writeKv(supabase.client, supabase.table, groupKey, groupState);
+  }
+
+  const minId = groupState.ids.length ? Math.min(...groupState.ids) : msgId;
+  const id = String(minId);
+
+  const lastUpdateRaw = await safeReadKv(supabase.client, supabase.table, "telegram_last_update_id");
+  const lastUpdateId = typeof lastUpdateRaw === "number" ? lastUpdateRaw : Number(lastUpdateRaw || 0);
+  const updateId = Number((update as { update_id?: unknown })?.update_id || 0);
+  const maxUpdateId = Math.max(Number.isFinite(lastUpdateId) ? lastUpdateId : 0, Number.isFinite(updateId) ? updateId : 0);
+
+  const byId = new Map<string, MaterialItem>();
+  for (const item of asArray(await readKv(supabase.client, supabase.table, "materials"))) {
+    byId.set(item.id, item);
+  }
+
+  const existingItem = byId.get(id);
+  const title = groupState.text.split("\n")[0].substring(0, 100) || "Новый пост";
+  const hashtags = (groupState.text.match(/#[a-zа-я0-9_]+/gi) || []).join(" ");
+  const publicChatId = msgChatId.toString().replace("-100", "");
+  const link = `https://t.me/c/${publicChatId}/${id}`;
+  const images = groupState.photoFileIds.map(makeImageUrl);
+  const image = images.length ? images[0] : "/ban.png";
+  const extractedLinks = extractUrls(groupState.text, groupState.entities);
+  const descriptionFromTg = appendMissingLinks(groupState.text, extractedLinks);
+
+  const shouldUpdateImages =
+    !existingItem ||
+    existingItem.image === "/ban.png" ||
+    !Array.isArray(existingItem.images) ||
+    existingItem.images.length === 0;
+
+  const currentTitle =
+    existingItem && typeof existingItem.title === "string" ? existingItem.title.trim() : "";
+  const currentHashtag =
+    existingItem && typeof existingItem.hashtag === "string" ? existingItem.hashtag.trim() : "";
+  const currentDescription =
+    existingItem && typeof existingItem.description === "string" ? existingItem.description : "";
+
+  const next: MaterialItem = {
+    ...(existingItem || { id }),
+    id,
+    title: currentTitle && currentTitle !== "Новый пост" ? currentTitle : title,
+    hashtag: currentHashtag && currentHashtag !== "#новинка" ? currentHashtag : hashtags || "#новинка",
+    image: existingItem?.image || image,
+    images: Array.isArray(existingItem?.images) ? existingItem?.images : images,
+    link,
+    description: appendMissingLinks(
+      currentDescription.trim().length ? currentDescription : descriptionFromTg,
+      extractedLinks
+    ),
+    date: Math.max(existingItem?.date || 0, groupState.date || 0) || groupState.date
+  };
+
+  if (shouldUpdateImages) {
+    next.image = image;
+    next.images = images;
+  }
+
+  byId.set(id, next);
+  const added = existingItem ? 0 : 1;
+
+  const combined = Array.from(byId.values()).sort((a, b) => (b.date || 0) - (a.date || 0));
+  await writeKv(supabase.client, supabase.table, "materials", combined);
+  if (maxUpdateId > 0) {
+    await writeKv(supabase.client, supabase.table, "telegram_last_update_id", maxUpdateId);
+  }
+
+  await writeKv(supabase.client, supabase.table, "telegram_last_sync", {
+    ok: true,
+    at: Date.now(),
+    added,
+    updates: 1,
+    maxUpdateId,
+    total: combined.length,
+    source: "webhook"
+  });
+
+  return Response.json(
+    { ok: true, added, total: combined.length, maxUpdateId },
+    { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+  );
 }
 
 async function health() {
@@ -449,8 +717,7 @@ async function health() {
 
 async function readSeedFromLocalFile(seedCount: number): Promise<MaterialItem[]> {
   if (!seedCount) return [];
-  const filePath = path.join(process.cwd(), "data", "materials.json");
-  const raw = await fs.readFile(filePath, "utf8");
+  const raw = await fs.readFile(localMaterialsPath, "utf8");
   const parsed = JSON.parse(raw) as unknown;
   if (!Array.isArray(parsed)) return [];
 
@@ -487,6 +754,8 @@ async function syncTelegram(request?: Request) {
   if (wantHealth && request) {
     return health();
   }
+  const setWebhook = url?.searchParams.get("setWebhook") === "1";
+  const deleteWebhook = url?.searchParams.get("deleteWebhook") === "1";
   const reset = url?.searchParams.get("reset") === "1";
   const seedCount = asPositiveInt(url?.searchParams.get("seed"));
   const seedOnly = url?.searchParams.get("seedOnly") === "1";
@@ -494,6 +763,41 @@ async function syncTelegram(request?: Request) {
   const { token, chatId, daysWindow } = getTelegramConfig();
 
   try {
+    if ((setWebhook || deleteWebhook) && request) {
+      const secret = (process.env.SYNC_TELEGRAM_SECRET || "").trim();
+      if (!secret) {
+        return Response.json(
+          { error: "SYNC_TELEGRAM_SECRET is not set" },
+          { status: 500, headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+        );
+      }
+      if (!token) {
+        return Response.json(
+          { error: "TELEGRAM_BOT_TOKEN is not set" },
+          { status: 500, headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+        );
+      }
+      const bot = new TelegramBot(token, { polling: false });
+      if (deleteWebhook) {
+        await bot.deleteWebHook();
+      } else {
+        const base = getBaseUrl(request);
+        const path = new URL(request.url).pathname;
+        await (bot as unknown as { setWebHook: (url: string, options?: unknown) => Promise<unknown> }).setWebHook(
+          `${base}${path}`,
+          { secret_token: secret }
+        );
+      }
+      const info = await bot.getWebHookInfo();
+      const urlValue =
+        typeof (info as { url?: unknown })?.url === "string" ? (info as { url: string }).url : "";
+      return Response.json(
+        { ok: true, webhookUrl: urlValue || "" },
+        { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+      );
+    }
+
+    const isVercel = Boolean(process.env.VERCEL);
     const supabase = getSupabase();
     if (!supabase) {
       if (seedCount) {
@@ -516,6 +820,245 @@ async function syncTelegram(request?: Request) {
               "access-control-allow-origin": "*"
             }
           }
+        );
+      }
+      if (!isVercel) {
+        const readKey = async (key: string) => readLocalKey(key);
+        const writeKey = async (key: string, value: unknown) => writeLocalKey(key, value);
+        const readMaterials = async () => readLocalMaterials();
+        const writeMaterials = async (list: MaterialItem[]) => writeJsonFile(localMaterialsPath, list);
+
+        const lastUpdateRaw = await readKey("telegram_last_update_id");
+        const lastUpdateId = typeof lastUpdateRaw === "number" ? lastUpdateRaw : Number(lastUpdateRaw || 0);
+        const byId = new Map<string, MaterialItem>();
+        for (const item of await readMaterials()) {
+          byId.set(item.id, item);
+        }
+
+        if (reset) {
+          await writeKey("telegram_last_update_id", 0);
+          await writeKey("telegram_last_sync", {
+            ok: true,
+            at: Date.now(),
+            reset: true
+          });
+          return Response.json(
+            { ok: true, reset: true },
+            { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+          );
+        }
+
+        let updatesCount = 0;
+        let added = 0;
+        let maxUpdateId = lastUpdateId || 0;
+        let webhookCleared: boolean | undefined = undefined;
+        let webhookUrlAtSync: string | undefined = undefined;
+        let webhookClearError: string | undefined = undefined;
+        let webhookActive: boolean | undefined = undefined;
+
+        if (!seedOnly) {
+          if (!token) {
+            if (!seedCount) {
+              return Response.json({ error: "TELEGRAM_BOT_TOKEN is not set" }, { status: 500 });
+            }
+          } else {
+            const bot = new TelegramBot(token, { polling: false });
+            try {
+              const info = await bot.getWebHookInfo();
+              const urlValue =
+                typeof (info as { url?: unknown })?.url === "string" ? (info as { url: string }).url : "";
+              webhookUrlAtSync = urlValue || undefined;
+              webhookCleared = false;
+              webhookActive = Boolean(urlValue);
+            } catch (e: unknown) {
+              webhookClearError = describeTelegramError(e);
+            }
+
+            const cutoffTs = Math.floor(Date.now() / 1000) - daysWindow * 24 * 60 * 60;
+            const offsetStart =
+              Number.isFinite(lastUpdateId) && lastUpdateId > 0 ? lastUpdateId + 1 : undefined;
+
+            const updates: TelegramBot.Update[] = [];
+            if (!webhookActive) {
+              let offset = offsetStart;
+              while (true) {
+                let batch: TelegramBot.Update[] = [];
+                try {
+                  batch = (await bot.getUpdates({
+                    offset,
+                    limit: 100,
+                    allowed_updates: ["channel_post", "message"]
+                  })) as TelegramBot.Update[];
+                } catch (e: unknown) {
+                  throw new Error(describeTelegramError(e));
+                }
+                if (!batch.length) break;
+                updates.push(...batch);
+                offset = batch[batch.length - 1]!.update_id + 1;
+                if (batch.length < 100) break;
+              }
+            }
+
+            updatesCount = updates.length;
+            maxUpdateId = updates.reduce(
+              (m, u) => Math.max(m, Number(u.update_id) || 0),
+              lastUpdateId || 0
+            );
+
+            const groups = new Map<
+              string,
+              {
+                ids: number[];
+                chatId: number;
+                date: number;
+                text: string;
+                entities?: TextEntity[];
+                photoFileIds: string[];
+              }
+            >();
+
+            for (const update of updates) {
+              const msg = update.channel_post || update.message;
+              if (!msg) continue;
+              if (!msg.chat || msg.chat.id !== chatId) continue;
+              if (!msg.date || msg.date < cutoffTs) continue;
+
+              const key = msg.media_group_id ? `group:${msg.media_group_id}` : `single:${msg.message_id}`;
+              if (!groups.has(key)) {
+                groups.set(key, {
+                  ids: [],
+                  chatId: msg.chat.id,
+                  date: msg.date,
+                  text: "",
+                  entities: [],
+                  photoFileIds: []
+                });
+              }
+
+              const g = groups.get(key)!;
+              g.ids.push(msg.message_id);
+              g.date = Math.max(g.date, msg.date);
+              const text = msg.caption || msg.text || "";
+              if (text && text.length > (g.text?.length || 0)) {
+                g.text = text;
+                const ents = (msg.caption_entities || msg.entities || []) as unknown;
+                g.entities = Array.isArray(ents) ? (ents as TextEntity[]) : [];
+              }
+
+              if (msg.photo?.length) {
+                const photo = msg.photo[msg.photo.length - 1];
+                if (photo?.file_id) g.photoFileIds.push(String(photo.file_id));
+              } else if (
+                msg.document?.file_id &&
+                typeof msg.document.mime_type === "string" &&
+                msg.document.mime_type.startsWith("image/")
+              ) {
+                g.photoFileIds.push(String(msg.document.file_id));
+              }
+            }
+
+            for (const g of groups.values()) {
+              const minId = g.ids.length ? Math.min(...g.ids) : undefined;
+              if (!minId) continue;
+              const id = String(minId);
+              const existingItem = byId.get(id);
+
+              const title = g.text.split("\n")[0].substring(0, 100) || "Новый пост";
+              const hashtags = (g.text.match(/#[a-zа-я0-9_]+/gi) || []).join(" ");
+              const publicChatId = g.chatId.toString().replace("-100", "");
+              const link = `https://t.me/c/${publicChatId}/${id}`;
+              const images = g.photoFileIds.map(makeImageUrl);
+              const image = images.length ? images[0] : "/ban.png";
+              const extractedLinks = extractUrls(g.text, g.entities);
+              const descriptionFromTg = appendMissingLinks(g.text, extractedLinks);
+
+              const shouldUpdateImages =
+                !existingItem ||
+                existingItem.image === "/ban.png" ||
+                !Array.isArray(existingItem.images) ||
+                existingItem.images.length === 0;
+
+              const currentTitle =
+                existingItem && typeof existingItem.title === "string" ? existingItem.title.trim() : "";
+              const currentHashtag =
+                existingItem && typeof existingItem.hashtag === "string" ? existingItem.hashtag.trim() : "";
+              const currentDescription =
+                existingItem && typeof existingItem.description === "string" ? existingItem.description : "";
+
+              const next: MaterialItem = {
+                ...(existingItem || { id }),
+                id,
+                title: currentTitle && currentTitle !== "Новый пост" ? currentTitle : title,
+                hashtag:
+                  currentHashtag && currentHashtag !== "#новинка" ? currentHashtag : hashtags || "#новинка",
+                image: existingItem?.image || image,
+                images: Array.isArray(existingItem?.images) ? existingItem?.images : images,
+                link,
+                description: appendMissingLinks(
+                  currentDescription.trim().length ? currentDescription : descriptionFromTg,
+                  extractedLinks
+                ),
+                date: Math.max(existingItem?.date || 0, g.date || 0) || g.date
+              };
+
+              if (shouldUpdateImages) {
+                next.image = image;
+                next.images = images;
+              }
+
+              byId.set(id, next);
+              if (!existingItem) added++;
+            }
+          }
+        }
+
+        let seeded = 0;
+        if (seedCount) {
+          const seedItems = await readSeedFromLocalFile(seedCount);
+          if (forceSeed) {
+            for (const it of seedItems) {
+              if (byId.has(it.id)) continue;
+              byId.set(it.id, it);
+              seeded++;
+            }
+          } else if (byId.size < seedCount) {
+            for (const it of seedItems) {
+              if (byId.has(it.id)) continue;
+              byId.set(it.id, it);
+              seeded++;
+              if (byId.size >= seedCount) break;
+            }
+          }
+        }
+
+        const combined = Array.from(byId.values()).sort((a, b) => (b.date || 0) - (a.date || 0));
+        await writeMaterials(combined);
+        await writeKey("telegram_last_update_id", maxUpdateId);
+        await writeKey("telegram_last_sync", {
+          ok: true,
+          at: Date.now(),
+          added,
+          updates: updatesCount,
+          maxUpdateId,
+          total: combined.length,
+          webhookCleared,
+          webhookActive,
+          webhookUrl: webhookUrlAtSync,
+          webhookError: webhookClearError,
+          storage: "local"
+        });
+
+        return Response.json(
+          {
+            ok: true,
+            added,
+            seeded,
+            seedTarget: seedCount || 0,
+            total: combined.length,
+            updates: updatesCount,
+            maxUpdateId
+          },
+          { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
         );
       }
       return Response.json(
@@ -550,6 +1093,7 @@ async function syncTelegram(request?: Request) {
     let webhookCleared: boolean | undefined = undefined;
     let webhookUrlAtSync: string | undefined = undefined;
     let webhookClearError: string | undefined = undefined;
+    let webhookActive: boolean | undefined = undefined;
 
     if (!seedOnly) {
       if (!token) {
@@ -563,12 +1107,8 @@ async function syncTelegram(request?: Request) {
           const urlValue =
             typeof (info as { url?: unknown })?.url === "string" ? (info as { url: string }).url : "";
           webhookUrlAtSync = urlValue || undefined;
-          if (urlValue) {
-            await bot.deleteWebHook();
-            webhookCleared = true;
-          } else {
-            webhookCleared = false;
-          }
+          webhookCleared = false;
+          webhookActive = Boolean(urlValue);
         } catch (e: unknown) {
           webhookClearError = describeTelegramError(e);
         }
@@ -578,22 +1118,24 @@ async function syncTelegram(request?: Request) {
           Number.isFinite(lastUpdateId) && lastUpdateId > 0 ? lastUpdateId + 1 : undefined;
 
         const updates: TelegramBot.Update[] = [];
-        let offset = offsetStart;
-        while (true) {
-          let batch: TelegramBot.Update[] = [];
-          try {
-            batch = (await bot.getUpdates({
-              offset,
-              limit: 100,
-              allowed_updates: ["channel_post", "message"]
-            })) as TelegramBot.Update[];
-          } catch (e: unknown) {
-            throw new Error(describeTelegramError(e));
+        if (!webhookActive) {
+          let offset = offsetStart;
+          while (true) {
+            let batch: TelegramBot.Update[] = [];
+            try {
+              batch = (await bot.getUpdates({
+                offset,
+                limit: 100,
+                allowed_updates: ["channel_post", "message"]
+              })) as TelegramBot.Update[];
+            } catch (e: unknown) {
+              throw new Error(describeTelegramError(e));
+            }
+            if (!batch.length) break;
+            updates.push(...batch);
+            offset = batch[batch.length - 1]!.update_id + 1;
+            if (batch.length < 100) break;
           }
-          if (!batch.length) break;
-          updates.push(...batch);
-          offset = batch[batch.length - 1]!.update_id + 1;
-          if (batch.length < 100) break;
         }
 
         updatesCount = updates.length;
@@ -740,6 +1282,7 @@ async function syncTelegram(request?: Request) {
       maxUpdateId,
       total: combined.length,
       webhookCleared,
+      webhookActive,
       webhookUrl: webhookUrlAtSync,
       webhookError: webhookClearError
     });
@@ -765,6 +1308,15 @@ async function syncTelegram(request?: Request) {
           ok: false,
           at: Date.now(),
           error: message
+        });
+      } catch {}
+    } else if (!process.env.VERCEL) {
+      try {
+        await writeLocalKey("telegram_last_sync", {
+          ok: false,
+          at: Date.now(),
+          error: message,
+          storage: "local"
         });
       } catch {}
     }
