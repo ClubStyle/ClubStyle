@@ -442,15 +442,67 @@ export default function AdminPage() {
       const tokenPresent = Boolean(record.tokenPresent);
       const supabasePresent = Boolean(record.supabasePresent);
       const chatId = typeof record.chatId === "number" ? record.chatId : Number(record.chatId || 0);
-      const msg = `Диагностика: token=${tokenPresent ? "ok" : "нет"}, supabase=${supabasePresent ? "ok" : "нет"}, chatId=${
-        Number.isFinite(chatId) && chatId ? chatId : "?"
-      }`;
+      const webhookUrl = typeof record.webhookUrl === "string" ? record.webhookUrl.trim() : "";
+      const memberStatus = typeof record.memberStatus === "string" ? record.memberStatus.trim() : "";
+      const botUsername = typeof record.botUsername === "string" ? record.botUsername.trim() : "";
+      const msg = `Диагностика: token=${tokenPresent ? "ok" : "нет"}, supabase=${
+        supabasePresent ? "ok" : "нет"
+      }, chatId=${Number.isFinite(chatId) && chatId ? chatId : "?"}${
+        botUsername ? `, bot=@${botUsername}` : ""
+      }${memberStatus ? `, роль=${memberStatus}` : ""}${webhookUrl ? `, webhook=есть` : ""}`;
       await loadTelegramSync();
       setStatus(msg);
     } finally {
       setBusy(false);
     }
   }, [headers, loadTelegramSync]);
+
+  const resetTelegramOffset = useCallback(async () => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const res = await fetch(`/api/sync/telegram?reset=1&t=${Date.now()}`, {
+        method: "POST",
+        headers,
+        cache: "no-store"
+      });
+      const data = await readJson<unknown>(res);
+      if (!res.ok) {
+        const message =
+          pickStringField(data, "error") || `Не удалось сбросить (${res.status})`;
+        throw new Error(message);
+      }
+      await loadTelegramSync();
+      setStatus("Offset сброшен. Нажми «Обновить»");
+    } finally {
+      setBusy(false);
+    }
+  }, [headers, loadTelegramSync]);
+
+  const importTelegramSeed = useCallback(async () => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const res = await fetch(`/api/sync/telegram?seed=200&forceSeed=1&t=${Date.now()}`, {
+        method: "POST",
+        headers,
+        cache: "no-store"
+      });
+      const data = await readJson<unknown>(res);
+      if (!res.ok) {
+        const message =
+          pickStringField(data, "error") || `Не удалось импортировать (${res.status})`;
+        throw new Error(message);
+      }
+      const record = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+      const seeded = typeof record.seeded === "number" ? record.seeded : Number(record.seeded || 0);
+      await loadMaterials();
+      await loadTelegramSync();
+      setStatus(`Импорт из файла: +${Number.isFinite(seeded) ? seeded : 0}`);
+    } finally {
+      setBusy(false);
+    }
+  }, [headers, loadMaterials, loadTelegramSync]);
 
   const syncTelegram = useCallback(async () => {
     setBusy(true);
@@ -1010,6 +1062,28 @@ export default function AdminPage() {
                         disabled={busy}
                       >
                         Проверить
+                      </button>
+                      <button
+                        onClick={() =>
+                          resetTelegramOffset().catch((e: unknown) =>
+                            setStatus(e instanceof Error ? e.message : "Ошибка")
+                          )
+                        }
+                        className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs disabled:opacity-60"
+                        disabled={busy}
+                      >
+                        Сбросить
+                      </button>
+                      <button
+                        onClick={() =>
+                          importTelegramSeed().catch((e: unknown) =>
+                            setStatus(e instanceof Error ? e.message : "Ошибка")
+                          )
+                        }
+                        className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs disabled:opacity-60"
+                        disabled={busy}
+                      >
+                        Импорт
                       </button>
                       <button
                         onClick={() => {

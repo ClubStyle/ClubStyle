@@ -240,14 +240,72 @@ function asPositiveInt(value: string | null | undefined) {
 async function health() {
   const { token, chatId, daysWindow } = getTelegramConfig();
   const supabase = getSupabase();
+  if (!token) {
+    return Response.json(
+      {
+        ok: false,
+        tokenPresent: false,
+        supabasePresent: Boolean(supabase),
+        chatId,
+        daysWindow
+      },
+      { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+    );
+  }
+
+  const bot = new TelegramBot(token, { polling: false });
+  let botId: number | null = null;
+  let botUsername: string | null = null;
+  let webhookUrl: string | null = null;
+  let webhookError: string | null = null;
+  let chatTitle: string | null = null;
+  let memberStatus: string | null = null;
+  let memberError: string | null = null;
+  try {
+    const me = await bot.getMe();
+    botId = typeof me?.id === "number" ? me.id : null;
+    botUsername = typeof me?.username === "string" ? me.username : null;
+  } catch (e: unknown) {
+    memberError = e instanceof Error ? e.message : "getMe failed";
+  }
+
+  try {
+    const info = await bot.getWebHookInfo();
+    webhookUrl = typeof (info as { url?: unknown })?.url === "string" ? (info as { url: string }).url : null;
+  } catch (e: unknown) {
+    webhookError = e instanceof Error ? e.message : "getWebHookInfo failed";
+  }
+
+  try {
+    const chat = await bot.getChat(chatId);
+    chatTitle = typeof (chat as { title?: unknown })?.title === "string" ? (chat as { title: string }).title : null;
+  } catch (e: unknown) {
+    memberError = memberError || (e instanceof Error ? e.message : "getChat failed");
+  }
+
+  if (botId != null) {
+    try {
+      const member = await bot.getChatMember(chatId, botId);
+      memberStatus = typeof (member as { status?: unknown })?.status === "string" ? (member as { status: string }).status : null;
+    } catch (e: unknown) {
+      memberError = e instanceof Error ? e.message : "getChatMember failed";
+    }
+  }
+
   if (!supabase) {
     return Response.json(
       {
         ok: false,
-        tokenPresent: Boolean(token),
+        tokenPresent: true,
         supabasePresent: false,
         chatId,
-        daysWindow
+        daysWindow,
+        botUsername,
+        webhookUrl,
+        webhookError,
+        chatTitle,
+        memberStatus,
+        memberError
       },
       { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
     );
@@ -258,10 +316,16 @@ async function health() {
   return Response.json(
     {
       ok: true,
-      tokenPresent: Boolean(token),
+      tokenPresent: true,
       supabasePresent: true,
       chatId,
       daysWindow,
+      botUsername,
+      webhookUrl,
+      webhookError,
+      chatTitle,
+      memberStatus,
+      memberError,
       telegram_last_update_id: lastUpdateRaw,
       telegram_last_sync: lastSyncRaw
     },
@@ -309,8 +373,10 @@ async function syncTelegram(request?: Request) {
   if (wantHealth && request) {
     return health();
   }
+  const reset = url?.searchParams.get("reset") === "1";
   const seedCount = asPositiveInt(url?.searchParams.get("seed"));
   const seedOnly = url?.searchParams.get("seedOnly") === "1";
+  const forceSeed = url?.searchParams.get("forceSeed") === "1";
   const { token, chatId, daysWindow } = getTelegramConfig();
 
   try {
@@ -349,6 +415,19 @@ async function syncTelegram(request?: Request) {
     const byId = new Map<string, MaterialItem>();
     for (const item of asArray(await readKv(supabase.client, supabase.table, "materials"))) {
       byId.set(item.id, item);
+    }
+
+    if (reset) {
+      await writeKv(supabase.client, supabase.table, "telegram_last_update_id", 0);
+      await writeKv(supabase.client, supabase.table, "telegram_last_sync", {
+        ok: true,
+        at: Date.now(),
+        reset: true
+      });
+      return Response.json(
+        { ok: true, reset: true },
+        { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+      );
     }
 
     let updatesCount = 0;
@@ -495,15 +574,19 @@ async function syncTelegram(request?: Request) {
 
     let seeded = 0;
     if (seedCount) {
-      const current = Array.from(byId.values()).sort((a, b) => (b.date || 0) - (a.date || 0));
-      if (current.length < seedCount) {
-        const seedItems = await readSeedFromLocalFile(seedCount);
+      const seedItems = await readSeedFromLocalFile(seedCount);
+      if (forceSeed) {
         for (const it of seedItems) {
-          if (!byId.has(it.id)) {
-            byId.set(it.id, it);
-            seeded++;
-            if (byId.size >= seedCount) break;
-          }
+          if (byId.has(it.id)) continue;
+          byId.set(it.id, it);
+          seeded++;
+        }
+      } else if (byId.size < seedCount) {
+        for (const it of seedItems) {
+          if (byId.has(it.id)) continue;
+          byId.set(it.id, it);
+          seeded++;
+          if (byId.size >= seedCount) break;
         }
       }
     }
