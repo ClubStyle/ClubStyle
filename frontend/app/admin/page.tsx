@@ -391,6 +391,34 @@ export default function AdminPage() {
     setCategories(cleaned);
   }, []);
 
+  const syncTelegram = useCallback(async () => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const res = await fetch(`/api/sync/telegram?t=${Date.now()}`, {
+        method: "POST",
+        headers,
+        cache: "no-store"
+      });
+      const data = await readJson<unknown>(res);
+      if (!res.ok) {
+        const message =
+          pickStringField(data, "error") || `Не удалось синхронизировать (${res.status})`;
+        throw new Error(message);
+      }
+      const record = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+      const added = typeof record.added === "number" ? record.added : Number(record.added || 0);
+      const updates = typeof record.updates === "number" ? record.updates : Number(record.updates || 0);
+      const msg = `Синхронизация Telegram: +${Number.isFinite(added) ? added : 0}, обновлений: ${
+        Number.isFinite(updates) ? updates : 0
+      }`;
+      await loadMaterials();
+      setStatus(msg);
+    } finally {
+      setBusy(false);
+    }
+  }, [headers, loadMaterials]);
+
   useEffect(() => {
     if (!authed) return;
     loadMaterials().catch((e: unknown) => {
@@ -899,6 +927,17 @@ export default function AdminPage() {
                     <h2 className="text-lg font-black text-gray-900">Быстрые категории</h2>
                     <div className="flex gap-2">
                       <button
+                        onClick={() =>
+                          syncTelegram().catch((e: unknown) =>
+                            setStatus(e instanceof Error ? e.message : "Ошибка")
+                          )
+                        }
+                        className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs disabled:opacity-60"
+                        disabled={busy}
+                      >
+                        Обновить
+                      </button>
+                      <button
                         onClick={() => {
                           setQuickFiltersDraft(quickFilters);
                           setQuickFiltersOpen(true);
@@ -965,6 +1004,17 @@ export default function AdminPage() {
                     ← К плиткам
                   </button>
                   <div className="flex gap-2">
+                    <button
+                      onClick={() =>
+                        syncTelegram().catch((e: unknown) =>
+                          setStatus(e instanceof Error ? e.message : "Ошибка")
+                        )
+                      }
+                      className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs disabled:opacity-60"
+                      disabled={busy}
+                    >
+                      Обновить
+                    </button>
                     <button
                       onClick={() => openFeedAdd(selectedId || "")}
                       className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs"

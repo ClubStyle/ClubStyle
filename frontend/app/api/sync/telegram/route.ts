@@ -174,6 +174,25 @@ function isAuthorized(request: Request) {
   return false;
 }
 
+function isAdminAuthorized(request: Request) {
+  const secret = (process.env.ADMIN_SECRET || "").trim();
+  const auth = (request.headers.get("authorization") || "").trim();
+  if (secret) {
+    if (auth === secret) return true;
+    if (auth.toLowerCase().startsWith("bearer ")) {
+      const token = auth.slice("bearer ".length).trim();
+      if (token === secret) return true;
+    }
+  }
+
+  const user = (process.env.ADMIN_USER || "h1").trim();
+  const pass = (process.env.ADMIN_PASSWORD || "").trim();
+  if (!pass) return false;
+  const reqUser = (request.headers.get("x-admin-user") || "").trim();
+  const reqPass = (request.headers.get("x-admin-pass") || "").trim();
+  return reqUser === user && reqPass === pass;
+}
+
 export async function GET(request: Request) {
   const isCron = request.headers.get("x-vercel-cron") === "1";
   if (!isCron) {
@@ -184,7 +203,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const isCron = request.headers.get("x-vercel-cron") === "1";
-  if (!isCron && !isAuthorized(request)) {
+  if (!isCron && !isAuthorized(request) && !isAdminAuthorized(request)) {
     return new Response("Forbidden", { status: 403 });
   }
   return syncTelegram(request);
@@ -196,7 +215,7 @@ export async function OPTIONS() {
     headers: {
       "access-control-allow-origin": "*",
       "access-control-allow-methods": "GET,POST,OPTIONS",
-      "access-control-allow-headers": "content-type,authorization"
+      "access-control-allow-headers": "content-type,authorization,x-admin-user,x-admin-pass"
     }
   });
 }
