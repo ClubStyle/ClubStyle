@@ -420,6 +420,38 @@ export default function AdminPage() {
     });
   }, []);
 
+  const diagnoseTelegramSync = useCallback(async () => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const res = await fetch(`/api/sync/telegram?health=1&t=${Date.now()}`, {
+        method: "POST",
+        headers,
+        cache: "no-store"
+      });
+      const data = await readJson<unknown>(res);
+      if (!res.ok) {
+        const message =
+          pickStringField(data, "error") || `Не удалось проверить (${res.status})`;
+        throw new Error(message);
+      }
+      if (!data || typeof data !== "object") {
+        throw new Error("Неверный ответ health");
+      }
+      const record = data as Record<string, unknown>;
+      const tokenPresent = Boolean(record.tokenPresent);
+      const supabasePresent = Boolean(record.supabasePresent);
+      const chatId = typeof record.chatId === "number" ? record.chatId : Number(record.chatId || 0);
+      const msg = `Диагностика: token=${tokenPresent ? "ok" : "нет"}, supabase=${supabasePresent ? "ok" : "нет"}, chatId=${
+        Number.isFinite(chatId) && chatId ? chatId : "?"
+      }`;
+      await loadTelegramSync();
+      setStatus(msg);
+    } finally {
+      setBusy(false);
+    }
+  }, [headers, loadTelegramSync]);
+
   const syncTelegram = useCallback(async () => {
     setBusy(true);
     setStatus(null);
@@ -967,6 +999,17 @@ export default function AdminPage() {
                         disabled={busy}
                       >
                         Обновить
+                      </button>
+                      <button
+                        onClick={() =>
+                          diagnoseTelegramSync().catch((e: unknown) =>
+                            setStatus(e instanceof Error ? e.message : "Ошибка")
+                          )
+                        }
+                        className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs disabled:opacity-60"
+                        disabled={busy}
+                      >
+                        Проверить
                       </button>
                       <button
                         onClick={() => {

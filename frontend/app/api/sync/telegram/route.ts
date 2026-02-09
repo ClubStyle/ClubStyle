@@ -76,6 +76,18 @@ async function readKv(
   return (data as KvRow | null)?.value;
 }
 
+async function safeReadKv(
+  client: ReturnType<typeof createClient<Database, "public">>,
+  table: "app_kv",
+  key: string
+) {
+  try {
+    return await readKv(client, table, key);
+  } catch {
+    return null;
+  }
+}
+
 async function writeKv(
   client: ReturnType<typeof createClient<Database, "public">>,
   table: "app_kv",
@@ -225,6 +237,38 @@ function asPositiveInt(value: string | null | undefined) {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 }
 
+async function health() {
+  const { token, chatId, daysWindow } = getTelegramConfig();
+  const supabase = getSupabase();
+  if (!supabase) {
+    return Response.json(
+      {
+        ok: false,
+        tokenPresent: Boolean(token),
+        supabasePresent: false,
+        chatId,
+        daysWindow
+      },
+      { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+    );
+  }
+
+  const lastUpdateRaw = await safeReadKv(supabase.client, supabase.table, "telegram_last_update_id");
+  const lastSyncRaw = await safeReadKv(supabase.client, supabase.table, "telegram_last_sync");
+  return Response.json(
+    {
+      ok: true,
+      tokenPresent: Boolean(token),
+      supabasePresent: true,
+      chatId,
+      daysWindow,
+      telegram_last_update_id: lastUpdateRaw,
+      telegram_last_sync: lastSyncRaw
+    },
+    { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+  );
+}
+
 async function readSeedFromLocalFile(seedCount: number): Promise<MaterialItem[]> {
   if (!seedCount) return [];
   const filePath = path.join(process.cwd(), "data", "materials.json");
@@ -261,6 +305,10 @@ async function readSeedFromLocalFile(seedCount: number): Promise<MaterialItem[]>
 
 async function syncTelegram(request?: Request) {
   const url = request ? new URL(request.url) : null;
+  const wantHealth = url?.searchParams.get("health") === "1";
+  if (wantHealth && request) {
+    return health();
+  }
   const seedCount = asPositiveInt(url?.searchParams.get("seed"));
   const seedOnly = url?.searchParams.get("seedOnly") === "1";
   const { token, chatId, daysWindow } = getTelegramConfig();
