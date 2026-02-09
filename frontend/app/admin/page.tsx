@@ -26,6 +26,14 @@ type BottomNavItem = {
   icon: "home" | "users" | "heart";
 };
 
+type TelegramSyncStatus = {
+  ok?: boolean;
+  at?: number;
+  added?: number;
+  updates?: number;
+  error?: string;
+};
+
 type BottomNavConfig = {
   items: BottomNavItem[];
   innerClassName: string;
@@ -282,6 +290,7 @@ export default function AdminPage() {
 
   const [feedAddOpen, setFeedAddOpen] = useState(false);
   const [feedAddInput, setFeedAddInput] = useState("");
+  const [telegramSync, setTelegramSync] = useState<TelegramSyncStatus | null>(null);
 
   const defaultBottomNav = useMemo<BottomNavConfig>(() => {
     return {
@@ -391,6 +400,26 @@ export default function AdminPage() {
     setCategories(cleaned);
   }, []);
 
+  const loadTelegramSync = useCallback(async () => {
+    const res = await fetch(`/api/materials?key=telegram_last_sync&t=${Date.now()}`, { cache: "no-store" });
+    const data = await readJson<unknown>(res);
+    if (!res.ok) return;
+    if (!data || typeof data !== "object") return;
+    const record = data as Record<string, unknown>;
+    const ok = typeof record.ok === "boolean" ? record.ok : undefined;
+    const at = typeof record.at === "number" ? record.at : Number(record.at || 0);
+    const added = typeof record.added === "number" ? record.added : Number(record.added || 0);
+    const updates = typeof record.updates === "number" ? record.updates : Number(record.updates || 0);
+    const error = typeof record.error === "string" ? record.error : undefined;
+    setTelegramSync({
+      ok,
+      at: Number.isFinite(at) && at > 0 ? at : undefined,
+      added: Number.isFinite(added) ? added : undefined,
+      updates: Number.isFinite(updates) ? updates : undefined,
+      error
+    });
+  }, []);
+
   const syncTelegram = useCallback(async () => {
     setBusy(true);
     setStatus(null);
@@ -413,11 +442,12 @@ export default function AdminPage() {
         Number.isFinite(updates) ? updates : 0
       }`;
       await loadMaterials();
+      await loadTelegramSync();
       setStatus(msg);
     } finally {
       setBusy(false);
     }
-  }, [headers, loadMaterials]);
+  }, [headers, loadMaterials, loadTelegramSync]);
 
   useEffect(() => {
     if (!authed) return;
@@ -427,7 +457,8 @@ export default function AdminPage() {
     loadBottomNav().catch(() => {});
     loadQuickFilters().catch(() => {});
     loadCategories().catch(() => {});
-  }, [authed, loadBottomNav, loadCategories, loadMaterials, loadQuickFilters]);
+    loadTelegramSync().catch(() => {});
+  }, [authed, loadBottomNav, loadCategories, loadMaterials, loadQuickFilters, loadTelegramSync]);
 
   const baseList = useMemo(() => {
     if (section !== "materials") return materials;
@@ -954,6 +985,15 @@ export default function AdminPage() {
                       </button>
                     </div>
                   </div>
+                  {telegramSync ? (
+                    <div className="text-xs text-gray-500 mb-3">
+                      {telegramSync.ok === false
+                        ? `Telegram sync: ошибка${telegramSync.at ? ` (${new Date(telegramSync.at).toLocaleString("ru-RU")})` : ""}${telegramSync.error ? ` — ${telegramSync.error}` : ""}`
+                        : `Telegram sync: ${telegramSync.at ? new Date(telegramSync.at).toLocaleString("ru-RU") : "—"}${typeof telegramSync.added === "number" ? `, +${telegramSync.added}` : ""}${
+                            typeof telegramSync.updates === "number" ? `, обновлений: ${telegramSync.updates}` : ""
+                          }`}
+                    </div>
+                  ) : null}
 
                   <div className="flex flex-wrap gap-2">
                     {quickFilters.map((qf, idx) => (
