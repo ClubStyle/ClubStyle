@@ -334,8 +334,8 @@ async function handleTelegramWebhook(request: Request) {
   const supabase = getSupabase();
   if (!supabase) {
     return Response.json(
-      { error: "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required" },
-      { status: 500, headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+      { error: "На Vercel синхронизация Telegram требует SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY" },
+      { status: 501, headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
     );
   }
   if (!token) {
@@ -1119,8 +1119,8 @@ async function syncTelegram(request?: Request) {
         );
       }
       return Response.json(
-        { error: "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_ANON_KEY) are required for Vercel sync" },
-        { status: 500, headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+        { error: "На Vercel синхронизация Telegram требует SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY" },
+        { status: 501, headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
       );
     }
 
