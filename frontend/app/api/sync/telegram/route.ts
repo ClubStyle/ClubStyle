@@ -257,6 +257,45 @@ function appendMissingLinks(description: string, links: string[]) {
   return `${base}${suffix}`;
 }
 
+function ensureTag(raw: string, tag: string) {
+  const t = tag.startsWith("#") ? tag : `#${tag}`;
+  const parts = (raw || "")
+    .split(" ")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (parts.some((p) => p.toLowerCase() === t.toLowerCase())) return parts.join(" ");
+  return [...parts, t].join(" ").trim();
+}
+
+function parseSinceSeconds(raw: string | null | undefined) {
+  const v = (raw || "").trim();
+  if (!v) return null;
+  if (/^\d+$/.test(v)) {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    if (n >= 1_000_000_000_000) return Math.floor(n / 1000);
+    if (n >= 1_000_000_000) return Math.floor(n);
+    return null;
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    const ms = new Date(`${v}T00:00:00Z`).getTime();
+    if (!Number.isFinite(ms) || ms <= 0) return null;
+    return Math.floor(ms / 1000);
+  }
+  return null;
+}
+
+function getDefaultTelegramSinceSeconds() {
+  const fromEnv = parseSinceSeconds(process.env.TELEGRAM_SINCE_DATE);
+  if (fromEnv) return fromEnv;
+  const nowMs = Date.now();
+  const year = new Date(nowMs).getUTCFullYear();
+  const thisYear = Date.UTC(year, 1, 6, 0, 0, 0);
+  const prevYear = Date.UTC(year - 1, 1, 6, 0, 0, 0);
+  const ms = nowMs >= thisYear ? thisYear : prevYear;
+  return Math.floor(ms / 1000);
+}
+
 function isAuthorized(request: Request) {
   const secret = getTelegramSecret();
   if (!secret) return false;
@@ -382,7 +421,7 @@ async function handleTelegramWebhook(request: Request) {
   const supabase = getSupabase();
   if (!supabase) {
     return Response.json(
-      { error: "На Vercel синхронизация Telegram требует SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY" },
+      { error: "На Vercel синхронизация Telegram требует SUPABASE_URL и ключ Supabase (sb_secret_...)" },
       { status: 501, headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
     );
   }
@@ -435,7 +474,8 @@ async function handleTelegramWebhook(request: Request) {
       );
     }
 
-    const cutoffTs = Math.floor(Date.now() / 1000) - daysWindow * 24 * 60 * 60;
+    const windowCutoffTs = Math.floor(Date.now() / 1000) - daysWindow * 24 * 60 * 60;
+    const cutoffTs = Math.max(windowCutoffTs, getDefaultTelegramSinceSeconds());
     if (msgDate < cutoffTs) {
       return Response.json(
         { ok: true, ignored: true, reason: "outside_window" },
@@ -849,7 +889,7 @@ async function health() {
 }
 
 
-async function readSeedFromLocalFile(seedCount: number): Promise<MaterialItem[]> {
+async function readSeedFromLocalFile(seedCount: number, sinceTs?: number | null): Promise<MaterialItem[]> {
   if (!seedCount) return [];
   const raw = await fs.readFile(localMaterialsPath, "utf8");
   const parsed = JSON.parse(raw) as unknown;
@@ -862,12 +902,17 @@ async function readSeedFromLocalFile(seedCount: number): Promise<MaterialItem[]>
     return idOk && linkOk;
   });
 
-  const sorted = fromChannel.sort((a, b) => (b.date || 0) - (a.date || 0));
+  const filtered =
+    sinceTs && Number.isFinite(sinceTs) && sinceTs > 0
+      ? fromChannel.filter((m) => (m.date || 0) >= sinceTs)
+      : fromChannel;
+  const sorted = filtered.sort((a, b) => (b.date || 0) - (a.date || 0));
   return sorted.slice(0, seedCount).map((m) => {
     const images = Array.isArray(m.images) ? m.images : [];
-    const safeImages = images.filter((img) => typeof img === "string" && !img.startsWith("/uploads/"));
-    const image =
-      typeof m.image === "string" && !m.image.startsWith("/uploads/") ? m.image : "/ban.png";
+    const safeImages = images
+      .map((img) => (typeof img === "string" ? img.trim() : ""))
+      .filter(Boolean);
+    const image = typeof m.image === "string" && m.image.trim() ? m.image : "/ban.png";
     return {
       id: String(m.id),
       title: typeof m.title === "string" ? m.title : "Пост",
@@ -894,9 +939,15 @@ async function syncTelegram(request?: Request) {
   const seedCount = asPositiveInt(url?.searchParams.get("seed"));
   const seedOnly = url?.searchParams.get("seedOnly") === "1";
   const forceSeed = url?.searchParams.get("forceSeed") === "1";
+  const restore = url?.searchParams.get("restore") === "1";
+  const sinceTs = parseSinceSeconds(url?.searchParams.get("since")) ?? getDefaultTelegramSinceSeconds();
+  const pruneBeforeTs = parseSinceSeconds(url?.searchParams.get("pruneBefore"));
+  const feed = url?.searchParams.get("feed") === "1";
+  const preserveExisting = url?.searchParams.get("preserve") !== "0";
   const { token, chatId, daysWindow } = getTelegramConfig();
 
   try {
+    const isAdmin = Boolean(request && isAdminAuthorized(request));
     if ((setWebhook || deleteWebhook) && request) {
       const secret = getTelegramSecret();
       if (!token) {
@@ -935,7 +986,7 @@ async function syncTelegram(request?: Request) {
     const supabase = getSupabase();
     if (!supabase) {
       if (seedCount) {
-        const seedItems = await readSeedFromLocalFile(seedCount);
+        const seedItems = await readSeedFromLocalFile(seedCount, sinceTs);
         return Response.json(
           {
             ok: true,
@@ -946,7 +997,7 @@ async function syncTelegram(request?: Request) {
             updates: 0,
             maxUpdateId: 0,
             seedOnly: Boolean(seedOnly),
-            materials: seedItems
+            materials: feed ? seedItems.map((m) => ({ ...m, hashtag: ensureTag(m.hashtag || "#вленту", "#вленту") })) : seedItems
           },
           {
             headers: {
@@ -961,6 +1012,31 @@ async function syncTelegram(request?: Request) {
         const writeKey = async (key: string, value: unknown) => writeLocalKey(key, value);
         const readMaterials = async () => readLocalMaterials();
         const writeMaterials = async (list: MaterialItem[]) => writeJsonFile(localMaterialsPath, list);
+
+        if (pruneBeforeTs && isAdmin) {
+          const publicChatId = chatId.toString().replace("-100", "");
+          const linkPrefix = `https://t.me/c/${publicChatId}/`;
+          const materials = asArray(await readMaterials());
+          const isTelegramPost = (m: MaterialItem) =>
+            typeof m.id === "string" &&
+            /^\d+$/.test(m.id) &&
+            typeof m.link === "string" &&
+            m.link.startsWith(linkPrefix);
+          const kept = materials.filter((m) => !isTelegramPost(m) || (m.date || 0) >= pruneBeforeTs);
+          const removed = Math.max(0, materials.length - kept.length);
+          await writeMaterials(kept);
+          await writeKey("telegram_last_sync", {
+            ok: true,
+            at: Date.now(),
+            pruned: removed,
+            pruneBefore: pruneBeforeTs,
+            storage: "local"
+          });
+          return Response.json(
+            { ok: true, pruned: removed, total: kept.length },
+            { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+          );
+        }
 
         const lastUpdateRaw = await readKey("telegram_last_update_id");
         const lastUpdateId = typeof lastUpdateRaw === "number" ? lastUpdateRaw : Number(lastUpdateRaw || 0);
@@ -1008,7 +1084,10 @@ async function syncTelegram(request?: Request) {
               webhookClearError = describeTelegramError(e);
             }
 
-            const cutoffTs = Math.floor(Date.now() / 1000) - daysWindow * 24 * 60 * 60;
+            const cutoffTs = Math.max(
+              sinceTs,
+              Math.floor(Date.now() / 1000) - daysWindow * 24 * 60 * 60
+            );
             const offsetStart =
               Number.isFinite(lastUpdateId) && lastUpdateId > 0 ? lastUpdateId + 1 : undefined;
 
@@ -1125,20 +1204,27 @@ async function syncTelegram(request?: Request) {
               const next: MaterialItem = {
                 ...(existingItem || { id }),
                 id,
-                title: currentTitle && currentTitle !== "Новый пост" ? currentTitle : title,
+                title:
+                  preserveExisting && currentTitle && currentTitle !== "Новый пост"
+                    ? currentTitle
+                    : title,
                 hashtag:
-                  currentHashtag && currentHashtag !== "#новинка" ? currentHashtag : hashtags || "#новинка",
-                image: existingItem?.image || image,
-                images: Array.isArray(existingItem?.images) ? existingItem?.images : images,
-                link,
-                description: appendMissingLinks(
-                  currentDescription.trim().length ? currentDescription : descriptionFromTg,
-                  extractedLinks
-                ),
+                  preserveExisting && currentHashtag && currentHashtag !== "#новинка"
+                    ? currentHashtag
+                    : feed
+                      ? ensureTag(hashtags || "#вленту", "#вленту")
+                      : hashtags || "#новинка",
+                image: preserveExisting ? (existingItem?.image || image) : image,
+                images: preserveExisting ? (Array.isArray(existingItem?.images) ? existingItem!.images : images) : images,
+                link: preserveExisting && existingItem?.link ? existingItem.link : link,
+                description:
+                  preserveExisting && currentDescription.trim().length
+                    ? appendMissingLinks(currentDescription, extractedLinks)
+                    : descriptionFromTg,
                 date: Math.max(existingItem?.date || 0, g.date || 0) || g.date
               };
 
-              if (shouldUpdateImages) {
+              if (!preserveExisting || shouldUpdateImages) {
                 next.image = image;
                 next.images = images;
               }
@@ -1151,17 +1237,17 @@ async function syncTelegram(request?: Request) {
 
         let seeded = 0;
         if (seedCount) {
-          const seedItems = await readSeedFromLocalFile(seedCount);
+          const seedItems = await readSeedFromLocalFile(seedCount, sinceTs);
           if (forceSeed) {
             for (const it of seedItems) {
               if (byId.has(it.id)) continue;
-              byId.set(it.id, it);
+              byId.set(it.id, feed ? { ...it, hashtag: ensureTag(it.hashtag || "#вленту", "#вленту") } : it);
               seeded++;
             }
           } else if (byId.size < seedCount) {
             for (const it of seedItems) {
               if (byId.has(it.id)) continue;
-              byId.set(it.id, it);
+              byId.set(it.id, feed ? { ...it, hashtag: ensureTag(it.hashtag || "#вленту", "#вленту") } : it);
               seeded++;
               if (byId.size >= seedCount) break;
             }
@@ -1199,8 +1285,95 @@ async function syncTelegram(request?: Request) {
         );
       }
       return Response.json(
-        { error: "На Vercel синхронизация Telegram требует SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY" },
+        { error: "На Vercel синхронизация Telegram требует SUPABASE_URL и ключ Supabase (sb_secret_...)" },
         { status: 501, headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+      );
+    }
+
+    if (restore && isAdmin) {
+      const base = asArray(await readLocalMaterials());
+      const current = asArray(await readKv(supabase.client, supabase.table, "materials"));
+      const publicChatId = chatId.toString().replace("-100", "");
+      const linkPrefix = `https://t.me/c/${publicChatId}/`;
+      const isTelegramPost = (m: MaterialItem) =>
+        typeof m.id === "string" &&
+        /^\d+$/.test(m.id) &&
+        typeof m.link === "string" &&
+        m.link.startsWith(linkPrefix);
+      const looksLikeHasImages = (m: MaterialItem | undefined | null) =>
+        Boolean(
+          m &&
+            ((typeof m.image === "string" && m.image !== "/ban.png") ||
+              (Array.isArray(m.images) && m.images.length > 0))
+        );
+
+      const byId = new Map<string, MaterialItem>();
+      for (const it of base) byId.set(it.id, it);
+
+      let keptNew = 0;
+      let keptCustom = 0;
+      for (const it of current) {
+        if (!it || typeof it !== "object" || typeof it.id !== "string") continue;
+        if (!isTelegramPost(it)) {
+          byId.set(it.id, it);
+          keptCustom++;
+          continue;
+        }
+        if ((it.date || 0) < sinceTs) continue;
+        const prev = byId.get(it.id);
+        if (!prev) {
+          byId.set(it.id, it);
+          keptNew++;
+          continue;
+        }
+        const merged: MaterialItem = {
+          ...prev,
+          ...it,
+          image: looksLikeHasImages(it) ? it.image : prev.image,
+          images: looksLikeHasImages(it) ? (Array.isArray(it.images) ? it.images : prev.images) : prev.images
+        };
+        byId.set(it.id, merged);
+        keptNew++;
+      }
+
+      const combined = Array.from(byId.values()).sort((a, b) => (b.date || 0) - (a.date || 0));
+      await writeKv(supabase.client, supabase.table, "materials", combined);
+      await writeKv(supabase.client, supabase.table, "telegram_last_sync", {
+        ok: true,
+        at: Date.now(),
+        restored: true,
+        base: base.length,
+        keptNew,
+        keptCustom,
+        total: combined.length
+      });
+      return Response.json(
+        { ok: true, restored: true, total: combined.length, base: base.length, keptNew, keptCustom },
+        { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+      );
+    }
+
+    if (pruneBeforeTs && isAdmin) {
+      const publicChatId = chatId.toString().replace("-100", "");
+      const linkPrefix = `https://t.me/c/${publicChatId}/`;
+      const materials = asArray(await readKv(supabase.client, supabase.table, "materials"));
+      const isTelegramPost = (m: MaterialItem) =>
+        typeof m.id === "string" &&
+        /^\d+$/.test(m.id) &&
+        typeof m.link === "string" &&
+        m.link.startsWith(linkPrefix);
+      const kept = materials.filter((m) => !isTelegramPost(m) || (m.date || 0) >= pruneBeforeTs);
+      const removed = Math.max(0, materials.length - kept.length);
+      await writeKv(supabase.client, supabase.table, "materials", kept);
+      await writeKv(supabase.client, supabase.table, "telegram_last_sync", {
+        ok: true,
+        at: Date.now(),
+        pruned: removed,
+        pruneBefore: pruneBeforeTs
+      });
+      return Response.json(
+        { ok: true, pruned: removed, total: kept.length },
+        { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
       );
     }
 
@@ -1250,7 +1423,10 @@ async function syncTelegram(request?: Request) {
           webhookClearError = describeTelegramError(e);
         }
 
-        const cutoffTs = Math.floor(Date.now() / 1000) - daysWindow * 24 * 60 * 60;
+        const cutoffTs = Math.max(
+          sinceTs,
+          Math.floor(Date.now() / 1000) - daysWindow * 24 * 60 * 60
+        );
         const offsetStart =
           Number.isFinite(lastUpdateId) && lastUpdateId > 0 ? lastUpdateId + 1 : undefined;
 
@@ -1397,16 +1573,27 @@ async function syncTelegram(request?: Request) {
           const next: MaterialItem = {
             ...(existingItem || { id }),
             id,
-            title: currentTitle && currentTitle !== "Новый пост" ? currentTitle : title,
-            hashtag: currentHashtag && currentHashtag !== "#новинка" ? currentHashtag : hashtags || "#новинка",
-            image: existingItem?.image || image,
-            images: Array.isArray(existingItem?.images) ? existingItem?.images : images,
-            link,
-            description: appendMissingLinks(currentDescription.trim().length ? currentDescription : descriptionFromTg, extractedLinks),
+            title:
+              preserveExisting && currentTitle && currentTitle !== "Новый пост"
+                ? currentTitle
+                : title,
+            hashtag:
+              preserveExisting && currentHashtag && currentHashtag !== "#новинка"
+                ? currentHashtag
+                : feed
+                  ? ensureTag(hashtags || "#вленту", "#вленту")
+                  : hashtags || "#новинка",
+            image: preserveExisting ? (existingItem?.image || image) : image,
+            images: preserveExisting ? (Array.isArray(existingItem?.images) ? existingItem!.images : images) : images,
+            link: preserveExisting && existingItem?.link ? existingItem.link : link,
+            description:
+              preserveExisting && currentDescription.trim().length
+                ? appendMissingLinks(currentDescription, extractedLinks)
+                : descriptionFromTg,
             date: Math.max(existingItem?.date || 0, g.date || 0) || g.date
           };
 
-          if (shouldUpdateImages) {
+          if (!preserveExisting || shouldUpdateImages) {
             next.image = image;
             next.images = images;
           }
@@ -1419,17 +1606,17 @@ async function syncTelegram(request?: Request) {
 
     let seeded = 0;
     if (seedCount) {
-      const seedItems = await readSeedFromLocalFile(seedCount);
+      const seedItems = await readSeedFromLocalFile(seedCount, sinceTs);
       if (forceSeed) {
         for (const it of seedItems) {
           if (byId.has(it.id)) continue;
-          byId.set(it.id, it);
+          byId.set(it.id, feed ? { ...it, hashtag: ensureTag(it.hashtag || "#вленту", "#вленту") } : it);
           seeded++;
         }
       } else if (byId.size < seedCount) {
         for (const it of seedItems) {
           if (byId.has(it.id)) continue;
-          byId.set(it.id, it);
+          byId.set(it.id, feed ? { ...it, hashtag: ensureTag(it.hashtag || "#вленту", "#вленту") } : it);
           seeded++;
           if (byId.size >= seedCount) break;
         }
