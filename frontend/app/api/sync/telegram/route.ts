@@ -548,6 +548,9 @@ async function health() {
   let botId: number | null = null;
   let botUsername: string | null = null;
   let webhookUrl: string | null = null;
+  let webhookPendingUpdateCount: number | null = null;
+  let webhookLastErrorDate: number | null = null;
+  let webhookLastErrorMessage: string | null = null;
   let webhookError: string | null = null;
   let chatTitle: string | null = null;
   let chatType: string | null = null;
@@ -582,7 +585,17 @@ async function health() {
 
   try {
     const info = await bot.getWebHookInfo();
-    webhookUrl = typeof (info as { url?: unknown })?.url === "string" ? (info as { url: string }).url : null;
+    const anyInfo = info as unknown as Record<string, unknown>;
+    webhookUrl = typeof anyInfo.url === "string" ? anyInfo.url : null;
+    webhookPendingUpdateCount =
+      typeof anyInfo.pending_update_count === "number"
+        ? anyInfo.pending_update_count
+        : Number(anyInfo.pending_update_count || 0);
+    if (!Number.isFinite(webhookPendingUpdateCount)) webhookPendingUpdateCount = null;
+    webhookLastErrorDate =
+      typeof anyInfo.last_error_date === "number" ? anyInfo.last_error_date : Number(anyInfo.last_error_date || 0);
+    if (!Number.isFinite(webhookLastErrorDate) || webhookLastErrorDate <= 0) webhookLastErrorDate = null;
+    webhookLastErrorMessage = typeof anyInfo.last_error_message === "string" ? anyInfo.last_error_message : null;
   } catch (e: unknown) {
     webhookError = e instanceof Error ? e.message : "getWebHookInfo failed";
   }
@@ -635,52 +648,55 @@ async function health() {
     typeof lastUpdateRaw === "number" ? lastUpdateRaw : Number(lastUpdateRaw || 0);
   lastUpdateId = Number.isFinite(parsedLastUpdate) ? parsedLastUpdate : 0;
 
-  try {
-    const offset = lastUpdateId && lastUpdateId > 0 ? lastUpdateId + 1 : undefined;
-    const updates = (await bot.getUpdates({
-      offset,
-      limit: 5,
-      allowed_updates: ["channel_post", "message"]
-    })) as TelegramBot.Update[];
-    pending = updates.map((u) => {
-      const msg = u.channel_post || u.message;
-      const kind = u.channel_post ? "channel_post" : u.message ? "message" : "other";
-      const chatIdValue = typeof msg?.chat?.id === "number" ? msg.chat.id : undefined;
-      const messageIdValue = typeof msg?.message_id === "number" ? msg.message_id : undefined;
-      const dateValue = typeof msg?.date === "number" ? msg.date : undefined;
-      return {
-        update_id: Number(u.update_id) || 0,
-        kind,
-        chatId: chatIdValue,
-        messageId: messageIdValue,
-        date: dateValue
-      };
-    });
-  } catch (e: unknown) {
-    pendingError = describeTelegramError(e);
-  }
+  const webhookActive = Boolean(webhookUrl && webhookUrl.trim().length > 0);
+  if (!webhookActive) {
+    try {
+      const offset = lastUpdateId && lastUpdateId > 0 ? lastUpdateId + 1 : undefined;
+      const updates = (await bot.getUpdates({
+        offset,
+        limit: 5,
+        allowed_updates: ["channel_post", "message"]
+      })) as TelegramBot.Update[];
+      pending = updates.map((u) => {
+        const msg = u.channel_post || u.message;
+        const kind = u.channel_post ? "channel_post" : u.message ? "message" : "other";
+        const chatIdValue = typeof msg?.chat?.id === "number" ? msg.chat.id : undefined;
+        const messageIdValue = typeof msg?.message_id === "number" ? msg.message_id : undefined;
+        const dateValue = typeof msg?.date === "number" ? msg.date : undefined;
+        return {
+          update_id: Number(u.update_id) || 0,
+          kind,
+          chatId: chatIdValue,
+          messageId: messageIdValue,
+          date: dateValue
+        };
+      });
+    } catch (e: unknown) {
+      pendingError = describeTelegramError(e);
+    }
 
-  try {
-    const updates = (await bot.getUpdates({
-      limit: 5,
-      allowed_updates: ["channel_post", "message"]
-    })) as TelegramBot.Update[];
-    pendingAll = updates.map((u) => {
-      const msg = u.channel_post || u.message;
-      const kind = u.channel_post ? "channel_post" : u.message ? "message" : "other";
-      const chatIdValue = typeof msg?.chat?.id === "number" ? msg.chat.id : undefined;
-      const messageIdValue = typeof msg?.message_id === "number" ? msg.message_id : undefined;
-      const dateValue = typeof msg?.date === "number" ? msg.date : undefined;
-      return {
-        update_id: Number(u.update_id) || 0,
-        kind,
-        chatId: chatIdValue,
-        messageId: messageIdValue,
-        date: dateValue
-      };
-    });
-  } catch (e: unknown) {
-    pendingAllError = describeTelegramError(e);
+    try {
+      const updates = (await bot.getUpdates({
+        limit: 5,
+        allowed_updates: ["channel_post", "message"]
+      })) as TelegramBot.Update[];
+      pendingAll = updates.map((u) => {
+        const msg = u.channel_post || u.message;
+        const kind = u.channel_post ? "channel_post" : u.message ? "message" : "other";
+        const chatIdValue = typeof msg?.chat?.id === "number" ? msg.chat.id : undefined;
+        const messageIdValue = typeof msg?.message_id === "number" ? msg.message_id : undefined;
+        const dateValue = typeof msg?.date === "number" ? msg.date : undefined;
+        return {
+          update_id: Number(u.update_id) || 0,
+          kind,
+          chatId: chatIdValue,
+          messageId: messageIdValue,
+          date: dateValue
+        };
+      });
+    } catch (e: unknown) {
+      pendingAllError = describeTelegramError(e);
+    }
   }
 
   const pendingTarget = pending.filter((p) => p.chatId === chatId).length;
@@ -696,6 +712,9 @@ async function health() {
       daysWindow,
       botUsername,
       webhookUrl,
+      webhookPendingUpdateCount,
+      webhookLastErrorDate,
+      webhookLastErrorMessage,
       webhookError,
       chatTitle,
       memberStatus,

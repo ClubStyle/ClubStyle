@@ -463,6 +463,12 @@ export default function AdminPage() {
       const chatTitle = typeof record.chatTitle === "string" ? record.chatTitle.trim() : "";
       const chatType = typeof record.chatType === "string" ? record.chatType.trim() : "";
       const webhookUrl = typeof record.webhookUrl === "string" ? record.webhookUrl.trim() : "";
+      const webhookPending =
+        typeof record.webhookPendingUpdateCount === "number"
+          ? record.webhookPendingUpdateCount
+          : Number(record.webhookPendingUpdateCount || 0);
+      const webhookLastError =
+        typeof record.webhookLastErrorMessage === "string" ? record.webhookLastErrorMessage.trim() : "";
       const memberStatus = typeof record.memberStatus === "string" ? record.memberStatus.trim() : "";
       const botUsername = typeof record.botUsername === "string" ? record.botUsername.trim() : "";
       const lastUpdateId =
@@ -477,7 +483,10 @@ export default function AdminPage() {
         typeof record.pendingTargetCount === "number"
           ? record.pendingTargetCount
           : Number(record.pendingTargetCount || 0);
-      const pendingError = typeof record.pendingUpdatesError === "string" ? record.pendingUpdatesError.trim() : "";
+      const pendingErrorRaw =
+        typeof record.pendingUpdatesError === "string" ? record.pendingUpdatesError.trim() : "";
+      const pendingError =
+        webhookUrl && /409 Conflict/i.test(pendingErrorRaw) ? "" : pendingErrorRaw;
       const pendingAll =
         typeof record.pendingAllUpdatesCount === "number"
           ? record.pendingAllUpdatesCount
@@ -486,8 +495,10 @@ export default function AdminPage() {
         typeof record.pendingAllTargetCount === "number"
           ? record.pendingAllTargetCount
           : Number(record.pendingAllTargetCount || 0);
-      const pendingAllError =
+      const pendingAllErrorRaw =
         typeof record.pendingAllUpdatesError === "string" ? record.pendingAllUpdatesError.trim() : "";
+      const pendingAllError =
+        webhookUrl && /409 Conflict/i.test(pendingAllErrorRaw) ? "" : pendingAllErrorRaw;
       const msg = `Диагностика: token=${tokenPresent ? "ok" : "нет"}, supabase=${
         supabasePresent ? "ok" : "нет"
       }, chatId=${Number.isFinite(chatId) && chatId ? chatId : "?"}${
@@ -498,6 +509,10 @@ export default function AdminPage() {
         memberStatus ? `, роль=${memberStatus}` : ""
       }${
         webhookUrl ? `, webhook=есть` : ""
+      }${
+        webhookUrl && Number.isFinite(webhookPending) ? `, webhookPending=${webhookPending}` : ""
+      }${
+        webhookUrl && webhookLastError ? `, webhookErr=${webhookLastError}` : ""
       }${
         Number.isFinite(lastUpdateId) && lastUpdateId > 0 ? `, offset=${lastUpdateId}` : ""
       }${
