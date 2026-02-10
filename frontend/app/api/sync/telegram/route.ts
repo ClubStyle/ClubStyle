@@ -72,8 +72,10 @@ function getTelegramSecret() {
 
 function getSupabase() {
   const url = process.env.SUPABASE_URL;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  const isVercel = Boolean(process.env.VERCEL);
+  const serviceRole = (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+  const anon = (process.env.SUPABASE_ANON_KEY || "").trim();
+  const key = isVercel ? serviceRole : serviceRole || anon;
   if (!url || !key) return null;
   return { client: createClient<Database, "public">(url, key), table: "app_kv" as const };
 }
@@ -671,8 +673,18 @@ async function health() {
     );
   }
 
+  let supabaseAccessible = true;
+  let supabaseError: string | null = null;
   const lastUpdateRaw = await safeReadKv(supabase.client, supabase.table, "telegram_last_update_id");
   lastSyncRaw = await safeReadKv(supabase.client, supabase.table, "telegram_last_sync");
+  if (lastUpdateRaw === null && lastSyncRaw === null) {
+    try {
+      await readKv(supabase.client, supabase.table, "materials");
+    } catch (e: unknown) {
+      supabaseAccessible = false;
+      supabaseError = e instanceof Error ? e.message : "supabase read failed";
+    }
+  }
   const parsedLastUpdate =
     typeof lastUpdateRaw === "number" ? lastUpdateRaw : Number(lastUpdateRaw || 0);
   lastUpdateId = Number.isFinite(parsedLastUpdate) ? parsedLastUpdate : 0;
@@ -737,6 +749,8 @@ async function health() {
       ok: true,
       tokenPresent: true,
       supabasePresent: true,
+      supabaseAccessible,
+      supabaseError,
       chatId,
       daysWindow,
       botUsername,
