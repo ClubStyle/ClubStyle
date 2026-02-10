@@ -338,194 +338,216 @@ async function handleTelegramWebhook(request: Request) {
     );
   }
 
-  const update = (await request.json()) as TelegramBot.Update;
-  const anyUpdate = update as unknown as Record<string, unknown>;
-  const msg =
-    (update as { channel_post?: unknown }).channel_post ||
-    (update as { message?: unknown }).message ||
-    (anyUpdate.edited_channel_post as unknown) ||
-    (anyUpdate.edited_message as unknown) ||
-    null;
+  try {
+    const update = (await request.json()) as TelegramBot.Update;
+    const anyUpdate = update as unknown as Record<string, unknown>;
+    const msg =
+      (update as { channel_post?: unknown }).channel_post ||
+      (update as { message?: unknown }).message ||
+      (anyUpdate.edited_channel_post as unknown) ||
+      (anyUpdate.edited_message as unknown) ||
+      null;
 
-  const message = msg as
-    | {
-        chat?: { id?: number };
-        message_id?: number;
-        date?: number;
-        text?: string;
-        caption?: string;
-        entities?: unknown;
-        caption_entities?: unknown;
-        media_group_id?: string;
-        photo?: Array<{ file_id?: string }>;
-        document?: { file_id?: string; mime_type?: string };
-      }
-    | null;
+    const message = msg as
+      | {
+          chat?: { id?: number };
+          message_id?: number;
+          date?: number;
+          text?: string;
+          caption?: string;
+          entities?: unknown;
+          caption_entities?: unknown;
+          media_group_id?: string;
+          photo?: Array<{ file_id?: string }>;
+          document?: { file_id?: string; mime_type?: string };
+        }
+      | null;
 
-  if (!message) {
-    return Response.json(
-      { ok: true, ignored: true },
-      { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
-    );
-  }
+    if (!message) {
+      return Response.json(
+        { ok: true, ignored: true },
+        { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+      );
+    }
 
-  const msgChatId = typeof message.chat?.id === "number" ? message.chat.id : null;
-  const msgDate = typeof message.date === "number" ? message.date : null;
-  const msgId = typeof message.message_id === "number" ? message.message_id : null;
-  if (!msgChatId || msgChatId !== chatId || !msgDate || !msgId) {
-    return Response.json(
-      { ok: true, ignored: true },
-      { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
-    );
-  }
+    const msgChatId = typeof message.chat?.id === "number" ? message.chat.id : null;
+    const msgDate = typeof message.date === "number" ? message.date : null;
+    const msgId = typeof message.message_id === "number" ? message.message_id : null;
+    if (!msgChatId || msgChatId !== chatId || !msgDate || !msgId) {
+      return Response.json(
+        { ok: true, ignored: true },
+        { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+      );
+    }
 
-  const cutoffTs = Math.floor(Date.now() / 1000) - daysWindow * 24 * 60 * 60;
-  if (msgDate < cutoffTs) {
-    return Response.json(
-      { ok: true, ignored: true, reason: "outside_window" },
-      { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
-    );
-  }
+    const cutoffTs = Math.floor(Date.now() / 1000) - daysWindow * 24 * 60 * 60;
+    if (msgDate < cutoffTs) {
+      return Response.json(
+        { ok: true, ignored: true, reason: "outside_window" },
+        { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+      );
+    }
 
-  const rawGroupId = typeof message.media_group_id === "string" ? message.media_group_id.trim() : "";
-  const groupKey = rawGroupId ? `telegram_media_group:${rawGroupId}` : "";
-  const existingGroupRaw = groupKey
-    ? await safeReadKv(supabase.client, supabase.table, groupKey)
-    : null;
-
-  const existingGroup =
-    existingGroupRaw && typeof existingGroupRaw === "object"
-      ? (existingGroupRaw as Partial<{
-          ids: number[];
-          chatId: number;
-          date: number;
-          text: string;
-          entities: TextEntity[];
-          photoFileIds: string[];
-        }>)
+    const rawGroupId = typeof message.media_group_id === "string" ? message.media_group_id.trim() : "";
+    const groupKey = rawGroupId ? `telegram_media_group:${rawGroupId}` : "";
+    const existingGroupRaw = groupKey
+      ? await safeReadKv(supabase.client, supabase.table, groupKey)
       : null;
 
-  const ids = Array.isArray(existingGroup?.ids) ? existingGroup!.ids.filter((n) => typeof n === "number") : [];
-  if (!ids.includes(msgId)) ids.push(msgId);
+    const existingGroup =
+      existingGroupRaw && typeof existingGroupRaw === "object"
+        ? (existingGroupRaw as Partial<{
+            ids: number[];
+            chatId: number;
+            date: number;
+            text: string;
+            entities: TextEntity[];
+            photoFileIds: string[];
+          }>)
+        : null;
 
-  const photoFileIds = Array.isArray(existingGroup?.photoFileIds)
-    ? existingGroup!.photoFileIds.filter((s) => typeof s === "string")
-    : [];
+    const ids = Array.isArray(existingGroup?.ids)
+      ? existingGroup!.ids.filter((n) => typeof n === "number")
+      : [];
+    if (!ids.includes(msgId)) ids.push(msgId);
 
-  const textCandidate = (message.caption || message.text || "").toString();
-  const currentText = typeof existingGroup?.text === "string" ? existingGroup!.text : "";
-  const nextText = textCandidate.length > currentText.length ? textCandidate : currentText;
-
-  const entsRaw = (message.caption_entities || message.entities || []) as unknown;
-  const nextEntities = Array.isArray(entsRaw)
-    ? (entsRaw as TextEntity[])
-    : Array.isArray(existingGroup?.entities)
-      ? existingGroup!.entities
+    const photoFileIds = Array.isArray(existingGroup?.photoFileIds)
+      ? existingGroup!.photoFileIds.filter((s) => typeof s === "string")
       : [];
 
-  if (Array.isArray(message.photo) && message.photo.length) {
-    const last = message.photo[message.photo.length - 1];
-    if (last?.file_id) photoFileIds.push(String(last.file_id));
-  } else if (
-    message.document?.file_id &&
-    typeof message.document.mime_type === "string" &&
-    message.document.mime_type.startsWith("image/")
-  ) {
-    photoFileIds.push(String(message.document.file_id));
+    const textCandidate = (message.caption || message.text || "").toString();
+    const currentText = typeof existingGroup?.text === "string" ? existingGroup!.text : "";
+    const nextText = textCandidate.length > currentText.length ? textCandidate : currentText;
+
+    const entsRaw = (message.caption_entities || message.entities || []) as unknown;
+    const nextEntities = Array.isArray(entsRaw)
+      ? (entsRaw as TextEntity[])
+      : Array.isArray(existingGroup?.entities)
+        ? existingGroup!.entities
+        : [];
+
+    if (Array.isArray(message.photo) && message.photo.length) {
+      const last = message.photo[message.photo.length - 1];
+      if (last?.file_id) photoFileIds.push(String(last.file_id));
+    } else if (
+      message.document?.file_id &&
+      typeof message.document.mime_type === "string" &&
+      message.document.mime_type.startsWith("image/")
+    ) {
+      photoFileIds.push(String(message.document.file_id));
+    }
+
+    const groupState = {
+      ids,
+      chatId: msgChatId,
+      date: Math.max(typeof existingGroup?.date === "number" ? existingGroup!.date : 0, msgDate),
+      text: nextText,
+      entities: nextEntities,
+      photoFileIds: uniqStrings(photoFileIds)
+    };
+
+    if (groupKey) {
+      await writeKv(supabase.client, supabase.table, groupKey, groupState);
+    }
+
+    const minId = groupState.ids.length ? Math.min(...groupState.ids) : msgId;
+    const id = String(minId);
+
+    const lastUpdateRaw = await safeReadKv(supabase.client, supabase.table, "telegram_last_update_id");
+    const lastUpdateId = typeof lastUpdateRaw === "number" ? lastUpdateRaw : Number(lastUpdateRaw || 0);
+    const updateId = Number((update as { update_id?: unknown })?.update_id || 0);
+    const maxUpdateId = Math.max(
+      Number.isFinite(lastUpdateId) ? lastUpdateId : 0,
+      Number.isFinite(updateId) ? updateId : 0
+    );
+
+    const byId = new Map<string, MaterialItem>();
+    for (const item of asArray(await readKv(supabase.client, supabase.table, "materials"))) {
+      byId.set(item.id, item);
+    }
+
+    const existingItem = byId.get(id);
+    const title = groupState.text.split("\n")[0].substring(0, 100) || "Новый пост";
+    const hashtags = (groupState.text.match(/#[a-zа-я0-9_]+/gi) || []).join(" ");
+    const publicChatId = msgChatId.toString().replace("-100", "");
+    const link = `https://t.me/c/${publicChatId}/${id}`;
+    const images = groupState.photoFileIds.map(makeImageUrl);
+    const image = images.length ? images[0] : "/ban.png";
+    const extractedLinks = extractUrls(groupState.text, groupState.entities);
+    const descriptionFromTg = appendMissingLinks(groupState.text, extractedLinks);
+
+    const shouldUpdateImages =
+      !existingItem ||
+      existingItem.image === "/ban.png" ||
+      !Array.isArray(existingItem.images) ||
+      existingItem.images.length === 0;
+
+    const currentTitle =
+      existingItem && typeof existingItem.title === "string" ? existingItem.title.trim() : "";
+    const currentHashtag =
+      existingItem && typeof existingItem.hashtag === "string" ? existingItem.hashtag.trim() : "";
+    const currentDescription =
+      existingItem && typeof existingItem.description === "string" ? existingItem.description : "";
+
+    const next: MaterialItem = {
+      ...(existingItem || { id }),
+      id,
+      title: currentTitle && currentTitle !== "Новый пост" ? currentTitle : title,
+      hashtag:
+        currentHashtag && currentHashtag !== "#новинка" ? currentHashtag : hashtags || "#новинка",
+      image: existingItem?.image || image,
+      images: Array.isArray(existingItem?.images) ? existingItem?.images : images,
+      link,
+      description: appendMissingLinks(
+        currentDescription.trim().length ? currentDescription : descriptionFromTg,
+        extractedLinks
+      ),
+      date: Math.max(existingItem?.date || 0, groupState.date || 0) || groupState.date
+    };
+
+    if (shouldUpdateImages) {
+      next.image = image;
+      next.images = images;
+    }
+
+    byId.set(id, next);
+    const added = existingItem ? 0 : 1;
+
+    const combined = Array.from(byId.values()).sort((a, b) => (b.date || 0) - (a.date || 0));
+    await writeKv(supabase.client, supabase.table, "materials", combined);
+    if (maxUpdateId > 0) {
+      await writeKv(supabase.client, supabase.table, "telegram_last_update_id", maxUpdateId);
+    }
+
+    await writeKv(supabase.client, supabase.table, "telegram_last_sync", {
+      ok: true,
+      at: Date.now(),
+      added,
+      updates: 1,
+      maxUpdateId,
+      total: combined.length,
+      source: "webhook"
+    });
+
+    return Response.json(
+      { ok: true, added, total: combined.length, maxUpdateId },
+      { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+    );
+  } catch (e: unknown) {
+    const message = describeTelegramError(e);
+    try {
+      await writeKv(supabase.client, supabase.table, "telegram_last_sync", {
+        ok: false,
+        at: Date.now(),
+        error: message,
+        source: "webhook"
+      });
+    } catch {}
+    return Response.json(
+      { error: message },
+      { status: 500, headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+    );
   }
-
-  const groupState = {
-    ids,
-    chatId: msgChatId,
-    date: Math.max(typeof existingGroup?.date === "number" ? existingGroup!.date : 0, msgDate),
-    text: nextText,
-    entities: nextEntities,
-    photoFileIds: uniqStrings(photoFileIds)
-  };
-
-  if (groupKey) {
-    await writeKv(supabase.client, supabase.table, groupKey, groupState);
-  }
-
-  const minId = groupState.ids.length ? Math.min(...groupState.ids) : msgId;
-  const id = String(minId);
-
-  const lastUpdateRaw = await safeReadKv(supabase.client, supabase.table, "telegram_last_update_id");
-  const lastUpdateId = typeof lastUpdateRaw === "number" ? lastUpdateRaw : Number(lastUpdateRaw || 0);
-  const updateId = Number((update as { update_id?: unknown })?.update_id || 0);
-  const maxUpdateId = Math.max(Number.isFinite(lastUpdateId) ? lastUpdateId : 0, Number.isFinite(updateId) ? updateId : 0);
-
-  const byId = new Map<string, MaterialItem>();
-  for (const item of asArray(await readKv(supabase.client, supabase.table, "materials"))) {
-    byId.set(item.id, item);
-  }
-
-  const existingItem = byId.get(id);
-  const title = groupState.text.split("\n")[0].substring(0, 100) || "Новый пост";
-  const hashtags = (groupState.text.match(/#[a-zа-я0-9_]+/gi) || []).join(" ");
-  const publicChatId = msgChatId.toString().replace("-100", "");
-  const link = `https://t.me/c/${publicChatId}/${id}`;
-  const images = groupState.photoFileIds.map(makeImageUrl);
-  const image = images.length ? images[0] : "/ban.png";
-  const extractedLinks = extractUrls(groupState.text, groupState.entities);
-  const descriptionFromTg = appendMissingLinks(groupState.text, extractedLinks);
-
-  const shouldUpdateImages =
-    !existingItem ||
-    existingItem.image === "/ban.png" ||
-    !Array.isArray(existingItem.images) ||
-    existingItem.images.length === 0;
-
-  const currentTitle =
-    existingItem && typeof existingItem.title === "string" ? existingItem.title.trim() : "";
-  const currentHashtag =
-    existingItem && typeof existingItem.hashtag === "string" ? existingItem.hashtag.trim() : "";
-  const currentDescription =
-    existingItem && typeof existingItem.description === "string" ? existingItem.description : "";
-
-  const next: MaterialItem = {
-    ...(existingItem || { id }),
-    id,
-    title: currentTitle && currentTitle !== "Новый пост" ? currentTitle : title,
-    hashtag: currentHashtag && currentHashtag !== "#новинка" ? currentHashtag : hashtags || "#новинка",
-    image: existingItem?.image || image,
-    images: Array.isArray(existingItem?.images) ? existingItem?.images : images,
-    link,
-    description: appendMissingLinks(
-      currentDescription.trim().length ? currentDescription : descriptionFromTg,
-      extractedLinks
-    ),
-    date: Math.max(existingItem?.date || 0, groupState.date || 0) || groupState.date
-  };
-
-  if (shouldUpdateImages) {
-    next.image = image;
-    next.images = images;
-  }
-
-  byId.set(id, next);
-  const added = existingItem ? 0 : 1;
-
-  const combined = Array.from(byId.values()).sort((a, b) => (b.date || 0) - (a.date || 0));
-  await writeKv(supabase.client, supabase.table, "materials", combined);
-  if (maxUpdateId > 0) {
-    await writeKv(supabase.client, supabase.table, "telegram_last_update_id", maxUpdateId);
-  }
-
-  await writeKv(supabase.client, supabase.table, "telegram_last_sync", {
-    ok: true,
-    at: Date.now(),
-    added,
-    updates: 1,
-    maxUpdateId,
-    total: combined.length,
-    source: "webhook"
-  });
-
-  return Response.json(
-    { ok: true, added, total: combined.length, maxUpdateId },
-    { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
-  );
 }
 
 async function health() {
