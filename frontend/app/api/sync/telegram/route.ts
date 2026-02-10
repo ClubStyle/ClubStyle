@@ -8,6 +8,26 @@ export const runtime = "nodejs";
 const localMaterialsPath = path.join(process.cwd(), "data", "materials.json");
 const localUiPath = path.join(process.cwd(), "data", "ui.json");
 
+const TELEGRAM_ALLOWED_UPDATES = [
+  "channel_post",
+  "edited_channel_post",
+  "message",
+  "edited_message"
+] as const;
+
+type TelegramInboundMessage = {
+  chat?: { id?: number };
+  message_id?: number;
+  date?: number;
+  text?: string;
+  caption?: string;
+  entities?: unknown;
+  caption_entities?: unknown;
+  media_group_id?: string;
+  photo?: Array<{ file_id?: string }>;
+  document?: { file_id?: string; mime_type?: string };
+};
+
 type MaterialItem = {
   id: string;
   title: string;
@@ -156,6 +176,33 @@ function asArray(value: unknown): MaterialItem[] {
 
 function makeImageUrl(fileId: string) {
   return `/api/telegram-file?fileId=${encodeURIComponent(fileId)}`;
+}
+
+function pickUpdateMessage(
+  update: TelegramBot.Update
+): {
+  msg: TelegramInboundMessage | null;
+  kind: "channel_post" | "edited_channel_post" | "message" | "edited_message" | "other";
+} {
+  const anyUpdate = update as unknown as Record<string, unknown>;
+  const msg = ((
+    (update as { channel_post?: unknown }).channel_post ||
+    (anyUpdate.edited_channel_post as unknown) ||
+    (update as { message?: unknown }).message ||
+    (anyUpdate.edited_message as unknown) ||
+    null
+  ) as unknown) as TelegramInboundMessage | null;
+  const kind =
+    (update as { channel_post?: unknown }).channel_post
+      ? "channel_post"
+      : anyUpdate.edited_channel_post
+        ? "edited_channel_post"
+        : (update as { message?: unknown }).message
+          ? "message"
+          : anyUpdate.edited_message
+            ? "edited_message"
+            : "other";
+  return { msg, kind };
 }
 
 type TextEntity = { type?: string; offset?: number; length?: number; url?: string };
@@ -681,7 +728,7 @@ async function health() {
   let pendingError: string | null = null;
   let pending: Array<{
     update_id: number;
-    kind: "channel_post" | "message" | "other";
+    kind: "channel_post" | "edited_channel_post" | "message" | "edited_message" | "other";
     chatId?: number;
     messageId?: number;
     date?: number;
@@ -689,7 +736,7 @@ async function health() {
   let pendingAllError: string | null = null;
   let pendingAll: Array<{
     update_id: number;
-    kind: "channel_post" | "message" | "other";
+    kind: "channel_post" | "edited_channel_post" | "message" | "edited_message" | "other";
     chatId?: number;
     messageId?: number;
     date?: number;
@@ -800,11 +847,10 @@ async function health() {
       const updates = (await bot.getUpdates({
         offset,
         limit: 5,
-        allowed_updates: ["channel_post", "message"]
+        allowed_updates: [...TELEGRAM_ALLOWED_UPDATES]
       })) as TelegramBot.Update[];
       pending = updates.map((u) => {
-        const msg = u.channel_post || u.message;
-        const kind = u.channel_post ? "channel_post" : u.message ? "message" : "other";
+        const { msg, kind } = pickUpdateMessage(u);
         const chatIdValue = typeof msg?.chat?.id === "number" ? msg.chat.id : undefined;
         const messageIdValue = typeof msg?.message_id === "number" ? msg.message_id : undefined;
         const dateValue = typeof msg?.date === "number" ? msg.date : undefined;
@@ -823,11 +869,10 @@ async function health() {
     try {
       const updates = (await bot.getUpdates({
         limit: 5,
-        allowed_updates: ["channel_post", "message"]
+        allowed_updates: [...TELEGRAM_ALLOWED_UPDATES]
       })) as TelegramBot.Update[];
       pendingAll = updates.map((u) => {
-        const msg = u.channel_post || u.message;
-        const kind = u.channel_post ? "channel_post" : u.message ? "message" : "other";
+        const { msg, kind } = pickUpdateMessage(u);
         const chatIdValue = typeof msg?.chat?.id === "number" ? msg.chat.id : undefined;
         const messageIdValue = typeof msg?.message_id === "number" ? msg.message_id : undefined;
         const dateValue = typeof msg?.date === "number" ? msg.date : undefined;
@@ -970,7 +1015,7 @@ async function syncTelegram(request?: Request) {
         const path = new URL(request.url).pathname;
         await (bot as unknown as { setWebHook: (url: string, options?: unknown) => Promise<unknown> }).setWebHook(
           `${base}${path}`,
-          { secret_token: secret }
+          { secret_token: secret, allowed_updates: [...TELEGRAM_ALLOWED_UPDATES] }
         );
       }
       const info = await bot.getWebHookInfo();
@@ -1103,7 +1148,7 @@ async function syncTelegram(request?: Request) {
                   batch = (await bot.getUpdates({
                     offset,
                     limit,
-                    allowed_updates: ["channel_post", "message"]
+                    allowed_updates: [...TELEGRAM_ALLOWED_UPDATES]
                   })) as TelegramBot.Update[];
                 } catch (e: unknown) {
                   throw new Error(describeTelegramError(e));
@@ -1134,12 +1179,14 @@ async function syncTelegram(request?: Request) {
             >();
 
             for (const update of updates) {
-              const msg = update.channel_post || update.message;
+              const { msg } = pickUpdateMessage(update);
               if (!msg) continue;
               if (!msg.chat || msg.chat.id !== chatId) continue;
               if (!msg.date || msg.date < cutoffTs) continue;
+              if (typeof msg.message_id !== "number") continue;
 
-              const key = msg.media_group_id ? `group:${msg.media_group_id}` : `single:${msg.message_id}`;
+              const msgId = msg.message_id;
+              const key = msg.media_group_id ? `group:${msg.media_group_id}` : `single:${msgId}`;
               if (!groups.has(key)) {
                 groups.set(key, {
                   ids: [],
@@ -1152,7 +1199,7 @@ async function syncTelegram(request?: Request) {
               }
 
               const g = groups.get(key)!;
-              g.ids.push(msg.message_id);
+              g.ids.push(msgId);
               g.date = Math.max(g.date, msg.date);
               const text = msg.caption || msg.text || "";
               if (text && text.length > (g.text?.length || 0)) {
@@ -1451,7 +1498,7 @@ async function syncTelegram(request?: Request) {
               batch = (await bot.getUpdates({
                 offset,
                 limit,
-                allowed_updates: ["channel_post", "message"]
+                allowed_updates: [...TELEGRAM_ALLOWED_UPDATES]
               })) as TelegramBot.Update[];
             } catch (e: unknown) {
               throw new Error(describeTelegramError(e));
@@ -1470,7 +1517,7 @@ async function syncTelegram(request?: Request) {
               const path = new URL(request.url).pathname;
               await (bot as unknown as { setWebHook: (url: string, options?: unknown) => Promise<unknown> }).setWebHook(
                 `${base}${path}`,
-                { secret_token: secret }
+                { secret_token: secret, allowed_updates: [...TELEGRAM_ALLOWED_UPDATES] }
               );
               webhookActive = true;
               webhookUrlAtSync = `${base}${path}`;
@@ -1499,14 +1546,16 @@ async function syncTelegram(request?: Request) {
         >();
 
         for (const update of updates) {
-          const msg = update.channel_post || update.message;
+          const { msg } = pickUpdateMessage(update);
           if (!msg) continue;
           if (!msg.chat || msg.chat.id !== chatId) continue;
           if (!msg.date || msg.date < cutoffTs) continue;
+          if (typeof msg.message_id !== "number") continue;
 
+          const msgId = msg.message_id;
           const key = msg.media_group_id
             ? `group:${msg.media_group_id}`
-            : `single:${msg.message_id}`;
+            : `single:${msgId}`;
           if (!groups.has(key)) {
             groups.set(key, {
               ids: [],
@@ -1519,7 +1568,7 @@ async function syncTelegram(request?: Request) {
           }
 
           const g = groups.get(key)!;
-          g.ids.push(msg.message_id);
+          g.ids.push(msgId);
           g.date = Math.max(g.date, msg.date);
           const text = msg.caption || msg.text || "";
           if (text && text.length > (g.text?.length || 0)) {
