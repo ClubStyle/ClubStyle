@@ -1,7 +1,7 @@
 "use client";
 
 import Image, { type ImageProps } from "next/image";
-import { Search, BookOpen, Heart, PlayCircle, ChevronLeft, ExternalLink, Play } from "lucide-react";
+import { Search, BookOpen, Heart, PlayCircle, ChevronLeft, ExternalLink } from "lucide-react";
 import BottomNav from "../components/BottomNav";
 import { useState, useEffect, Suspense, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -1555,7 +1555,13 @@ function HomeContent() {
                         ) : (
                             <>
                                 <SafeImage
-                                    src={selectedMaterial.images?.[0] || selectedMaterial.image}
+                                    src={
+                                      selectedMaterial.hashtag?.toLowerCase().includes("#эфир")
+                                        ? (selectedMaterial.image && selectedMaterial.image !== "/ban.png"
+                                            ? selectedMaterial.image
+                                            : (selectedMaterial.images?.[0] || selectedMaterial.image))
+                                        : (selectedMaterial.images?.[0] || selectedMaterial.image)
+                                    }
                                     alt={selectedMaterial.title}
                                     {...(selectedMaterial.hashtag?.toLowerCase().includes('#эфир')
                                         ? { 
@@ -1570,30 +1576,6 @@ function HomeContent() {
                                     )}
                                 />
                                 <div className="absolute inset-0 bg-black/20" />
-                                
-                                {/* Play Button Overlay */}
-                                {selectedMaterial.hashtag?.toLowerCase().includes('#эфир') && (
-                                <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                                    <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center pl-1 border border-white/30 shadow-2xl">
-                                        <Play size={32} fill="white" className="text-white" />
-                                    </div>
-                                </div>
-                                )}
-
-                                {/* Fake Video Controls */}
-                                {selectedMaterial.hashtag?.toLowerCase().includes('#эфир') && (
-                                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-10 pointer-events-none">
-                                    <div className="h-1 bg-white/30 rounded-full overflow-hidden mb-2">
-                                        <div className="h-full w-1/3 bg-pink-500 rounded-full relative">
-                                            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full shadow-sm scale-150"></div>
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-between text-[10px] text-white/90 font-medium font-mono">
-                                        <span>04:20</span>
-                                        <span>15:00</span>
-                                    </div>
-                                </div>
-                                )}
                             </>
                         )}
                     </div>

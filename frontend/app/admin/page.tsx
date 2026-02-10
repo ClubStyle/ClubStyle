@@ -1857,7 +1857,9 @@ export default function AdminPage() {
                       .finally(() => setBusy(false));
                   }}
                 />
-                Загрузить обложку
+                {(draft.hashtag || "").toLowerCase().includes("#эфир")
+                  ? "Загрузить обложку эфира"
+                  : "Загрузить обложку"}
               </label>
             </div>
 
