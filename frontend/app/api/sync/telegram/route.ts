@@ -320,6 +320,20 @@ function describeTelegramError(e: unknown) {
   return raw;
 }
 
+function describeSupabaseError(e: unknown) {
+  if (e instanceof Error) return e.message || "supabase error";
+  if (e && typeof e === "object") {
+    const anyError = e as Record<string, unknown>;
+    const message = typeof anyError.message === "string" ? anyError.message : "";
+    if (message) return message;
+    try {
+      const raw = JSON.stringify(anyError);
+      if (raw && raw !== "{}") return raw;
+    } catch {}
+  }
+  return String(e || "supabase error");
+}
+
 function getBaseUrl(request: Request) {
   const proto = (request.headers.get("x-forwarded-proto") || "").split(",")[0]?.trim() || "";
   const host =
@@ -675,14 +689,25 @@ async function health() {
 
   let supabaseAccessible = true;
   let supabaseError: string | null = null;
-  const lastUpdateRaw = await safeReadKv(supabase.client, supabase.table, "telegram_last_update_id");
-  lastSyncRaw = await safeReadKv(supabase.client, supabase.table, "telegram_last_sync");
-  if (lastUpdateRaw === null && lastSyncRaw === null) {
+  let lastUpdateRaw: unknown = null;
+  try {
+    lastUpdateRaw = await readKv(supabase.client, supabase.table, "telegram_last_update_id");
+  } catch (e: unknown) {
+    supabaseAccessible = false;
+    supabaseError = describeSupabaseError(e);
+  }
+  try {
+    lastSyncRaw = await readKv(supabase.client, supabase.table, "telegram_last_sync");
+  } catch (e: unknown) {
+    supabaseAccessible = false;
+    supabaseError = supabaseError || describeSupabaseError(e);
+  }
+  if (supabaseAccessible && lastUpdateRaw === null && lastSyncRaw === null) {
     try {
       await readKv(supabase.client, supabase.table, "materials");
     } catch (e: unknown) {
       supabaseAccessible = false;
-      supabaseError = e instanceof Error ? e.message : "supabase read failed";
+      supabaseError = describeSupabaseError(e);
     }
   }
   const parsedLastUpdate =

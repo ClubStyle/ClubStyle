@@ -77,6 +77,8 @@ export async function GET(request: Request) {
       pragma: 'no-cache',
       expires: '0'
     } as const;
+    const withSource = (source: "supabase" | "file") =>
+      ({ ...noStoreHeaders, "x-materials-source": source }) as const;
     const supabase = getSupabase();
     if (supabase) {
       try {
@@ -88,10 +90,10 @@ export async function GET(request: Request) {
         if (!error && data?.value != null) {
           if (key === 'materials') {
             if (Array.isArray(data.value)) {
-              return NextResponse.json(data.value, { headers: noStoreHeaders });
+              return NextResponse.json(data.value, { headers: withSource("supabase") });
             }
           } else {
-            return NextResponse.json(data.value, { headers: noStoreHeaders });
+            return NextResponse.json(data.value, { headers: withSource("supabase") });
           }
         }
       } catch {}
@@ -101,14 +103,14 @@ export async function GET(request: Request) {
       const ui = await readUiFile();
       const value = ui[key];
       if (value == null) {
-        return NextResponse.json(null, { headers: noStoreHeaders });
+        return NextResponse.json(null, { headers: withSource("file") });
       }
-      return NextResponse.json(value, { headers: noStoreHeaders });
+      return NextResponse.json(value, { headers: withSource("file") });
     }
 
     const fileContents = await fs.promises.readFile(dataPath, 'utf8');
     const data = JSON.parse(fileContents);
-    return NextResponse.json(data, { headers: noStoreHeaders });
+    return NextResponse.json(data, { headers: withSource("file") });
   } catch (error) {
     console.error("Error reading materials data:", error);
     return NextResponse.json(
