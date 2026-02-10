@@ -59,9 +59,9 @@ function getTelegramConfig() {
 
 function getTelegramMaxUpdatesPerSync() {
   const raw = (process.env.TELEGRAM_MAX_UPDATES_PER_SYNC || "").trim();
-  const n = raw ? Number(raw) : 500;
-  const out = Number.isFinite(n) ? Math.floor(n) : 500;
-  return out > 0 ? out : 500;
+  const n = raw ? Number(raw) : 200;
+  const out = Number.isFinite(n) ? Math.floor(n) : 200;
+  return out > 0 ? out : 200;
 }
 
 function getTelegramSecret() {
