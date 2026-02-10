@@ -24,7 +24,13 @@ function isAdminAuthorized(request: Request) {
 
 function getSupabase() {
   const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  const key =
+    process.env.SUPABASE_SECRET_KEY ||
+    process.env.SUPABASE_SECRET_DEFAULT_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_DEFAULT_KEY ||
+    process.env.SUPABASE_ANON_KEY;
   if (!url || !key) return null;
   return createClient(url, key);
 }
@@ -43,7 +49,10 @@ export async function POST(request: Request) {
   const supabase = getSupabase();
   if (!supabase) {
     return Response.json(
-      { error: "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_ANON_KEY) are required" },
+      {
+        error:
+          "SUPABASE_URL и ключ Supabase обязательны (SUPABASE_SECRET_KEY / SUPABASE_SERVICE_ROLE_KEY / SUPABASE_PUBLISHABLE_KEY)"
+      },
       { status: 500, headers: { "cache-control": "no-store" } }
     );
   }

@@ -30,7 +30,12 @@ type Database = {
 function getSupabase() {
   const url = process.env.SUPABASE_URL;
   const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+    process.env.SUPABASE_SECRET_KEY ||
+    process.env.SUPABASE_SECRET_DEFAULT_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_DEFAULT_KEY ||
+    process.env.SUPABASE_ANON_KEY;
   if (!url || !key) return null;
   return { client: createClient<Database, 'public'>(url, key), table: 'app_kv' as const };
 }

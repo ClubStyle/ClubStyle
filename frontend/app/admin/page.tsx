@@ -461,6 +461,10 @@ export default function AdminPage() {
       const supabasePresent = Boolean(record.supabasePresent);
       const supabaseAccessible = record.supabaseAccessible !== false;
       const supabaseError = typeof record.supabaseError === "string" ? record.supabaseError.trim() : "";
+      const supabaseKeyFormat =
+        typeof record.supabaseKeyFormat === "string" ? record.supabaseKeyFormat.trim() : "";
+      const supabaseKeyEnv =
+        typeof record.supabaseKeyEnv === "string" ? record.supabaseKeyEnv.trim() : "";
       const chatId = typeof record.chatId === "number" ? record.chatId : Number(record.chatId || 0);
       const chatTitle = typeof record.chatTitle === "string" ? record.chatTitle.trim() : "";
       const chatType = typeof record.chatType === "string" ? record.chatType.trim() : "";
@@ -503,6 +507,10 @@ export default function AdminPage() {
         webhookUrl && /409 Conflict/i.test(pendingAllErrorRaw) ? "" : pendingAllErrorRaw;
       const msg = `Диагностика: token=${tokenPresent ? "ok" : "нет"}, supabase=${
         supabasePresent ? (supabaseAccessible ? "ok" : "ошибка") : "нет"
+      }${
+        supabasePresent && supabaseKeyFormat ? `, key=${supabaseKeyFormat}` : ""
+      }${
+        supabasePresent && supabaseKeyEnv ? `, keyEnv=${supabaseKeyEnv}` : ""
       }, chatId=${Number.isFinite(chatId) && chatId ? chatId : "?"}${
         chatTitle ? `, чат="${chatTitle}"` : ""
       }${chatType ? `, type=${chatType}` : ""}${

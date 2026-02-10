@@ -70,14 +70,46 @@ function getTelegramSecret() {
   return (process.env.SYNC_TELEGRAM_SECRE || "").trim();
 }
 
+function classifySupabaseKeyFormat(key: string) {
+  const k = (key || "").trim();
+  if (!k) return "missing" as const;
+  if (k.startsWith("sb_secret_")) return "sb_secret" as const;
+  if (k.startsWith("sb_publishable_")) return "sb_publishable" as const;
+  if (k.startsWith("eyJ")) return "jwt" as const;
+  return "unknown" as const;
+}
+
+function pickSupabaseKey(isVercel: boolean) {
+  const preferred = [
+    ["SUPABASE_SECRET_KEY", process.env.SUPABASE_SECRET_KEY],
+    ["SUPABASE_SECRET_DEFAULT_KEY", process.env.SUPABASE_SECRET_DEFAULT_KEY],
+    ["SUPABASE_SERVICE_ROLE_KEY", process.env.SUPABASE_SERVICE_ROLE_KEY]
+  ] as const;
+  const fallback = [
+    ["SUPABASE_PUBLISHABLE_KEY", process.env.SUPABASE_PUBLISHABLE_KEY],
+    ["SUPABASE_PUBLISHABLE_DEFAULT_KEY", process.env.SUPABASE_PUBLISHABLE_DEFAULT_KEY],
+    ["SUPABASE_ANON_KEY", process.env.SUPABASE_ANON_KEY]
+  ] as const;
+  const candidates = isVercel ? [...preferred, ...fallback] : [...preferred, ...fallback];
+  for (const [env, raw] of candidates) {
+    const value = (raw || "").trim();
+    if (value) return { env, value };
+  }
+  return null;
+}
+
 function getSupabase() {
   const url = process.env.SUPABASE_URL;
   const isVercel = Boolean(process.env.VERCEL);
-  const serviceRole = (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
-  const anon = (process.env.SUPABASE_ANON_KEY || "").trim();
-  const key = isVercel ? serviceRole : serviceRole || anon;
+  const picked = pickSupabaseKey(isVercel);
+  const key = picked?.value || "";
   if (!url || !key) return null;
-  return { client: createClient<Database, "public">(url, key), table: "app_kv" as const };
+  return {
+    client: createClient<Database, "public">(url, key),
+    table: "app_kv" as const,
+    keyEnv: picked?.env || null,
+    keyFormat: classifySupabaseKeyFormat(key)
+  };
 }
 
 async function readKv(
@@ -582,6 +614,8 @@ async function health() {
         ok: false,
         tokenPresent: false,
         supabasePresent: Boolean(supabase),
+        supabaseKeyEnv: supabase?.keyEnv || null,
+        supabaseKeyFormat: supabase?.keyFormat || null,
         chatId,
         daysWindow
       },
@@ -672,6 +706,8 @@ async function health() {
         ok: false,
         tokenPresent: true,
         supabasePresent: false,
+        supabaseKeyEnv: null,
+        supabaseKeyFormat: null,
         chatId,
         daysWindow,
         botUsername,
@@ -709,6 +745,9 @@ async function health() {
       supabaseAccessible = false;
       supabaseError = describeSupabaseError(e);
     }
+  }
+  if (supabaseError && /legacy api keys are disabled/i.test(supabaseError)) {
+    supabaseError = `${supabaseError} (нужен ключ формата sb_secret_... или включи Legacy API Keys в Supabase)`;
   }
   const parsedLastUpdate =
     typeof lastUpdateRaw === "number" ? lastUpdateRaw : Number(lastUpdateRaw || 0);
@@ -776,6 +815,8 @@ async function health() {
       supabasePresent: true,
       supabaseAccessible,
       supabaseError,
+      supabaseKeyEnv: supabase.keyEnv,
+      supabaseKeyFormat: supabase.keyFormat,
       chatId,
       daysWindow,
       botUsername,
