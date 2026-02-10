@@ -57,6 +57,12 @@ function getTelegramConfig() {
   };
 }
 
+function getTelegramSecret() {
+  const secret = (process.env.SYNC_TELEGRAM_SECRET || "").trim();
+  if (secret) return secret;
+  return (process.env.SYNC_TELEGRAM_SECRE || "").trim();
+}
+
 function getSupabase() {
   const url = process.env.SUPABASE_URL;
   const key =
@@ -211,7 +217,7 @@ function appendMissingLinks(description: string, links: string[]) {
 }
 
 function isAuthorized(request: Request) {
-  const secret = (process.env.SYNC_TELEGRAM_SECRET || "").trim();
+  const secret = getTelegramSecret();
   if (!secret) return false;
   const auth = (request.headers.get("authorization") || "").trim();
   if (!auth) return false;
@@ -252,7 +258,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const isCron = request.headers.get("x-vercel-cron") === "1";
-  const telegramSecret = (process.env.SYNC_TELEGRAM_SECRET || "").trim();
+  const telegramSecret = getTelegramSecret();
   const webhookSecret = (request.headers.get("x-telegram-bot-api-secret-token") || "").trim();
   if (telegramSecret && webhookSecret && webhookSecret === telegramSecret) {
     return handleTelegramWebhook(request);
@@ -764,10 +770,10 @@ async function syncTelegram(request?: Request) {
 
   try {
     if ((setWebhook || deleteWebhook) && request) {
-      const secret = (process.env.SYNC_TELEGRAM_SECRET || "").trim();
+      const secret = getTelegramSecret();
       if (!secret) {
         return Response.json(
-          { error: "SYNC_TELEGRAM_SECRET is not set" },
+          { error: "SYNC_TELEGRAM_SECRET (or SYNC_TELEGRAM_SECRE) is not set" },
           { status: 500, headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
         );
       }
