@@ -804,16 +804,15 @@ function HomeContent() {
     };
     const tg = w.Telegram?.WebApp;
     const postId = (fallbackPostId || "").trim();
+    const postUrl = postId && /^\d+$/.test(postId) ? `https://t.me/c/2055411531/${postId}` : "";
     const platform = (tg?.platform || "").toLowerCase();
     const canOpenSearchInApp = platform === "android" || platform === "ios";
-    if (canOpenSearchInApp && tg?.openTelegramLink && searchUrl) {
-      tg.openTelegramLink(searchUrl);
+    if (postUrl) {
+      openExternalLink(postUrl);
       return;
     }
-    if (postId && /^\d+$/.test(postId)) {
-      const deep = `tg://privatepost?channel=2055411531&post=${postId}&single`;
-      if (tg?.openLink) tg.openLink(deep);
-      else window.location.assign(deep);
+    if (canOpenSearchInApp && tg?.openTelegramLink && searchUrl) {
+      tg.openTelegramLink(searchUrl);
       return;
     }
     if (tg?.openTelegramLink && searchUrl) {
