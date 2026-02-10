@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+export const runtime = "nodejs";
 
 const dataPath = path.join(process.cwd(), 'data', 'materials.json');
 const uiPath = path.join(process.cwd(), 'data', 'ui.json');
@@ -78,20 +79,22 @@ export async function GET(request: Request) {
     } as const;
     const supabase = getSupabase();
     if (supabase) {
-      const { data, error } = await supabase.client
-        .from(supabase.table)
-        .select('key,value')
-        .eq('key', key)
-        .maybeSingle();
-      if (!error && data?.value != null) {
-        if (key === 'materials') {
-          if (Array.isArray(data.value)) {
+      try {
+        const { data, error } = await supabase.client
+          .from(supabase.table)
+          .select('key,value')
+          .eq('key', key)
+          .maybeSingle();
+        if (!error && data?.value != null) {
+          if (key === 'materials') {
+            if (Array.isArray(data.value)) {
+              return NextResponse.json(data.value, { headers: noStoreHeaders });
+            }
+          } else {
             return NextResponse.json(data.value, { headers: noStoreHeaders });
           }
-        } else {
-          return NextResponse.json(data.value, { headers: noStoreHeaders });
         }
-      }
+      } catch {}
     }
 
     if (key !== 'materials') {

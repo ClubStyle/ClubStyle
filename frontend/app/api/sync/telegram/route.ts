@@ -819,12 +819,6 @@ async function syncTelegram(request?: Request) {
   try {
     if ((setWebhook || deleteWebhook) && request) {
       const secret = getTelegramSecret();
-      if (!secret) {
-        return Response.json(
-          { error: "SYNC_TELEGRAM_SECRET (or SYNC_TELEGRAM_SECRE) is not set" },
-          { status: 500, headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
-        );
-      }
       if (!token) {
         return Response.json(
           { error: "TELEGRAM_BOT_TOKEN is not set" },
@@ -835,6 +829,12 @@ async function syncTelegram(request?: Request) {
       if (deleteWebhook) {
         await bot.deleteWebHook();
       } else {
+        if (!secret) {
+          return Response.json(
+            { error: "SYNC_TELEGRAM_SECRET (or SYNC_TELEGRAM_SECRE) is not set" },
+            { status: 500, headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+          );
+        }
         const base = getBaseUrl(request);
         const path = new URL(request.url).pathname;
         await (bot as unknown as { setWebHook: (url: string, options?: unknown) => Promise<unknown> }).setWebHook(
@@ -1176,6 +1176,15 @@ async function syncTelegram(request?: Request) {
 
         const maxUpdatesPerSync = getTelegramMaxUpdatesPerSync();
         const updates: TelegramBot.Update[] = [];
+        if (webhookActive && request && isAdminAuthorized(request)) {
+          try {
+            await bot.deleteWebHook();
+            webhookCleared = true;
+            webhookActive = false;
+          } catch (e: unknown) {
+            webhookClearError = describeTelegramError(e);
+          }
+        }
         if (!webhookActive) {
           let offset = offsetStart;
           while (updates.length < maxUpdatesPerSync) {
@@ -1195,6 +1204,23 @@ async function syncTelegram(request?: Request) {
             updates.push(...batch);
             offset = batch[batch.length - 1]!.update_id + 1;
             if (batch.length < limit) break;
+          }
+        }
+        if (request && webhookUrlAtSync && !webhookActive && isAdminAuthorized(request)) {
+          const secret = getTelegramSecret();
+          if (secret) {
+            try {
+              const base = getBaseUrl(request);
+              const path = new URL(request.url).pathname;
+              await (bot as unknown as { setWebHook: (url: string, options?: unknown) => Promise<unknown> }).setWebHook(
+                `${base}${path}`,
+                { secret_token: secret }
+              );
+              webhookActive = true;
+              webhookUrlAtSync = `${base}${path}`;
+            } catch (e: unknown) {
+              webhookClearError = webhookClearError || describeTelegramError(e);
+            }
           }
         }
 
