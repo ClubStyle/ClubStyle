@@ -57,6 +57,13 @@ function getTelegramConfig() {
   };
 }
 
+function getTelegramMaxUpdatesPerSync() {
+  const raw = (process.env.TELEGRAM_MAX_UPDATES_PER_SYNC || "").trim();
+  const n = raw ? Number(raw) : 500;
+  const out = Number.isFinite(n) ? Math.floor(n) : 500;
+  return out > 0 ? out : 500;
+}
+
 function getTelegramSecret() {
   const secret = (process.env.SYNC_TELEGRAM_SECRET || "").trim();
   if (secret) return secret;
@@ -925,15 +932,18 @@ async function syncTelegram(request?: Request) {
             const offsetStart =
               Number.isFinite(lastUpdateId) && lastUpdateId > 0 ? lastUpdateId + 1 : undefined;
 
+            const maxUpdatesPerSync = getTelegramMaxUpdatesPerSync();
             const updates: TelegramBot.Update[] = [];
             if (!webhookActive) {
               let offset = offsetStart;
-              while (true) {
+              while (updates.length < maxUpdatesPerSync) {
+                const limit = Math.min(100, maxUpdatesPerSync - updates.length);
+                if (limit <= 0) break;
                 let batch: TelegramBot.Update[] = [];
                 try {
                   batch = (await bot.getUpdates({
                     offset,
-                    limit: 100,
+                    limit,
                     allowed_updates: ["channel_post", "message"]
                   })) as TelegramBot.Update[];
                 } catch (e: unknown) {
@@ -942,7 +952,7 @@ async function syncTelegram(request?: Request) {
                 if (!batch.length) break;
                 updates.push(...batch);
                 offset = batch[batch.length - 1]!.update_id + 1;
-                if (batch.length < 100) break;
+                if (batch.length < limit) break;
               }
             }
 
@@ -1164,15 +1174,18 @@ async function syncTelegram(request?: Request) {
         const offsetStart =
           Number.isFinite(lastUpdateId) && lastUpdateId > 0 ? lastUpdateId + 1 : undefined;
 
+        const maxUpdatesPerSync = getTelegramMaxUpdatesPerSync();
         const updates: TelegramBot.Update[] = [];
         if (!webhookActive) {
           let offset = offsetStart;
-          while (true) {
+          while (updates.length < maxUpdatesPerSync) {
+            const limit = Math.min(100, maxUpdatesPerSync - updates.length);
+            if (limit <= 0) break;
             let batch: TelegramBot.Update[] = [];
             try {
               batch = (await bot.getUpdates({
                 offset,
-                limit: 100,
+                limit,
                 allowed_updates: ["channel_post", "message"]
               })) as TelegramBot.Update[];
             } catch (e: unknown) {
@@ -1181,7 +1194,7 @@ async function syncTelegram(request?: Request) {
             if (!batch.length) break;
             updates.push(...batch);
             offset = batch[batch.length - 1]!.update_id + 1;
-            if (batch.length < 100) break;
+            if (batch.length < limit) break;
           }
         }
 
