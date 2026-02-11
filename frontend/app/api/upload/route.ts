@@ -41,6 +41,24 @@ function sanitizeFilename(name: string) {
   return cleaned.length ? cleaned : "file";
 }
 
+async function ensureBucket(
+  supabase: NonNullable<ReturnType<typeof getSupabase>>,
+  bucket: string
+): Promise<{ ok: true } | { ok: false; error: string; buckets?: string[] }> {
+  const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+  if (listError) {
+    return { ok: false, error: listError.message };
+  }
+  const existing = (buckets || []).map((b) => b.name).filter(Boolean);
+  if (existing.includes(bucket)) return { ok: true };
+
+  const { error: createError } = await supabase.storage.createBucket(bucket, { public: true });
+  if (createError) {
+    return { ok: false, error: createError.message, buckets: existing };
+  }
+  return { ok: true };
+}
+
 export async function POST(request: Request) {
   if (!isAdminAuthorized(request)) {
     return Response.json({ error: "Forbidden" }, { status: 403, headers: { "cache-control": "no-store" } });
@@ -72,6 +90,20 @@ export async function POST(request: Request) {
 
   const bytes = Buffer.from(await file.arrayBuffer());
   const contentType = file.type || "application/octet-stream";
+
+  const bucketReady = await ensureBucket(supabase, bucket);
+  if (!bucketReady.ok) {
+    const suffix =
+      bucketReady.buckets && bucketReady.buckets.length
+        ? ` Доступные buckets: ${bucketReady.buckets.join(", ")}`
+        : "";
+    return Response.json(
+      {
+        error: `Bucket "${bucket}" недоступен. ${bucketReady.error}.${suffix}`
+      },
+      { status: 500, headers: { "cache-control": "no-store" } }
+    );
+  }
 
   const { error: uploadError } = await supabase.storage.from(bucket).upload(key, bytes, {
     contentType,
