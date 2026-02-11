@@ -34,6 +34,13 @@ type TelegramSyncStatus = {
   error?: string;
 };
 
+type ServerInfo = {
+  version?: string | null;
+  ref?: string | null;
+  at?: number | null;
+  vercel?: boolean;
+};
+
 type BottomNavConfig = {
   items: BottomNavItem[];
   innerClassName: string;
@@ -288,6 +295,7 @@ export default function AdminPage() {
   const [adminUser, setAdminUser] = useState("h1");
   const [adminPass, setAdminPass] = useState("");
   const [authed, setAuthed] = useState(false);
+  const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
   const [section, setSection] = useState<"materials" | "bottomNav">("materials");
   const [materialsView, setMaterialsView] = useState<"hub" | "list">("hub");
   const [activeHubCategory, setActiveHubCategory] = useState<string | null>(null);
@@ -1030,6 +1038,14 @@ export default function AdminPage() {
         return;
       }
       setAuthed(true);
+      setServerInfo({
+        version: pickStringField(data, "version"),
+        ref: pickStringField(data, "ref"),
+        at: typeof (data as { at?: unknown })?.at === "number" ? (data as { at: number }).at : null,
+        vercel: typeof (data as { vercel?: unknown })?.vercel === "boolean"
+          ? (data as { vercel: boolean }).vercel
+          : undefined
+      });
       setMaterialsView("hub");
       setActiveHubCategory(null);
       setFilter("");
@@ -1172,6 +1188,13 @@ export default function AdminPage() {
                   disabled={section !== "materials" || materialsView !== "list"}
                 />
               </div>
+              {serverInfo?.version ? (
+                <div className="mt-2 text-[11px] text-gray-400">
+                  Сборка: {serverInfo.version.slice(0, 7)}
+                  {serverInfo.ref ? ` (${serverInfo.ref})` : ""}
+                  {serverInfo.vercel ? " • vercel" : ""}
+                </div>
+              ) : null}
               {status ? (
                 <div className="mt-3 text-sm text-gray-600">{status}</div>
               ) : null}
@@ -1857,6 +1880,7 @@ export default function AdminPage() {
                     if (!file) return;
                     e.target.value = "";
                     const draftId = draft.id;
+                    setStatus(`Загружаю: ${file.name}`);
                     setBusy(true);
                     uploadFile(file)
                       .then((url) => {

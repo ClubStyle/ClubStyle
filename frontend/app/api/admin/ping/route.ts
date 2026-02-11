@@ -37,5 +37,16 @@ export async function GET(request: Request) {
       { status: 403, headers: { "cache-control": "no-store" } }
     );
   }
-  return NextResponse.json({ ok: true }, { headers: { "cache-control": "no-store" } });
+  const version =
+    (process.env.VERCEL_GIT_COMMIT_SHA || "").trim() ||
+    (process.env.GIT_COMMIT_SHA || "").trim() ||
+    null;
+  const ref =
+    (process.env.VERCEL_GIT_COMMIT_REF || "").trim() ||
+    (process.env.GIT_BRANCH || "").trim() ||
+    null;
+  return NextResponse.json(
+    { ok: true, version, ref, at: Date.now(), vercel: Boolean(process.env.VERCEL) },
+    { headers: { "cache-control": "no-store" } }
+  );
 }
