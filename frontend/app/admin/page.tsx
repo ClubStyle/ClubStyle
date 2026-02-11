@@ -355,7 +355,7 @@ export default function AdminPage() {
         { month: "ФЕВРАЛЬ", title: "Пережить зиму и полюбить свое отражение" },
         { month: "МАРТ", title: "Обновляемся без лишних трат" }
       ],
-      chatUrl: "https://t.me/+ApmNBC3ALsxlNWEy",
+      chatUrl: "https://t.me/+hdjZRGlm5rA5NTBi",
       supportUrl: "https://t.me/ElennneHelp_bot",
       privacyUrl: "https://drive.google.com/file/d/1l8mYVAtxtbkdK1ep0ohYS6cFn6qc2IWC/view",
       howItWorksTitle: "Как все устроено",
@@ -1689,7 +1689,7 @@ export default function AdminPage() {
                   <h3 className="text-sm font-black text-gray-900">Ссылки</h3>
                   <label className="grid gap-1">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                      Канал клуба
+                      Чат клуба
                     </span>
                     <input
                       value={communityDraft.chatUrl}

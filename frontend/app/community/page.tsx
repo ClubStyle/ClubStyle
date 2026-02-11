@@ -70,7 +70,7 @@ export default function Community() {
         { month: "ФЕВРАЛЬ", title: "Пережить зиму и полюбить свое отражение" },
         { month: "МАРТ", title: "Обновляемся без лишних трат" }
       ],
-      chatUrl: "https://t.me/+ApmNBC3ALsxlNWEy",
+      chatUrl: "https://t.me/+hdjZRGlm5rA5NTBi",
       supportUrl: "https://t.me/ElennneHelp_bot",
       privacyUrl: "https://drive.google.com/file/d/1l8mYVAtxtbkdK1ep0ohYS6cFn6qc2IWC/view",
       howItWorksTitle: "Как все устроено",
@@ -201,7 +201,7 @@ export default function Community() {
             <div className="w-10 h-10 rounded-full bg-pink-50 text-pink-500 flex items-center justify-center">
               <MessageCircle size={20} />
             </div>
-            <span className="font-bold text-gray-900">Канал клуба</span>
+            <span className="font-bold text-gray-900">Чат клуба</span>
             <ExternalLink className="ml-auto text-gray-300" size={18} />
           </a>
 
