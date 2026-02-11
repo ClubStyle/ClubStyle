@@ -101,7 +101,7 @@ const DEFAULT_CATEGORIES: Category[] = [
       "Кроссовки"
     ]
   },
-  { name: "Верха", subCategories: ["Топ", "Футболка", "Лонгслив", "Майка", "Кардиган", "Жакет", "Жилет", "Блузка", "Рубашка", "Корсет"] },
+  { name: "Верха", subCategories: ["Топ", "Футболка", "Лонгслив", "Майка", "Кардиган", "Жакет", "Жилет", "Блузка", "Рубашка", "Корсет", "Боди"] },
   { name: "Низы", subCategories: ["Брюки", "Юбка", "Джинсы", "Шорты", "Бермуды", "Легинсы", "Комбинезон", "Платье"] },
   {
     name: "Аксессуары",
@@ -149,7 +149,7 @@ const QUICK_FILTERS = [
     { label: "находки рф", category: "Покупки по РФ" },
     { label: "находки мир", category: "Покупки по миру" },
     { label: "обувь", category: "Обувь" },
-    { label: "сумки", category: "TGSEARCH:сумки" },
+    { label: "сумки", category: "TGSEARCH:#сумка" },
     { label: "верхняя одежда", category: "Верхняя одежда" },
     { label: "верха", category: "Верха" },
     { label: "низы", category: "Низы" },
@@ -184,7 +184,8 @@ const CURATED_TAGS: CuratedGroup[] = [
       { title: "Жилет", hashtag: "#жилет", link: "https://t.me/c/2055411531/12953", id: "12953" },
       { title: "Блузка", hashtag: "#блузка", link: "https://t.me/c/2055411531/13791", id: "13791" },
       { title: "Рубашка", hashtag: "#рубашка", link: "https://t.me/c/2055411531/13452", id: "13452" },
-      { title: "Корсет", hashtag: "#корсет", link: "https://t.me/c/2055411531/11050", id: "11050" }
+      { title: "Корсет", hashtag: "#корсет", link: "https://t.me/c/2055411531/11050", id: "11050" },
+      { title: "Боди", hashtag: "#боди", link: "", id: "" }
     ]
   },
   {
@@ -219,9 +220,7 @@ const CURATED_TAGS: CuratedGroup[] = [
   {
     group: "Сумки",
     items: [
-      { title: "Сумки", hashtag: "пост 15178", link: "https://t.me/c/2055411531/15178", id: "15178" },
-      { title: "Сумки", hashtag: "пост 15153", link: "https://t.me/c/2055411531/15153", id: "15153" },
-      { title: "Сумки", hashtag: "#сумка", link: "https://t.me/c/2055411531/14403", id: "14403" }
+      { title: "Сумка", hashtag: "#сумка", link: "", id: "" }
     ]
   },
   {
@@ -387,6 +386,16 @@ const CATEGORY_TO_GROUPS: Record<string, string[]> = {
   "Обувь": ["Обувь"],
   "Верхняя одежда": ["Верхняя одежда"],
   "Купальники": ["Купальники"]
+};
+
+const SUBCATEGORY_HASHTAG_OVERRIDES: Record<string, string> = {
+  "Перевернутый треугольник": "#треугольник",
+  "Сумки": "#сумка"
+};
+
+const SUBCATEGORY_QUERY_OVERRIDES: Record<string, string[]> = {
+  "Перевернутый треугольник": ["треугольник"],
+  "Сумки": ["сумка", "сумки"]
 };
 
 const getEmbedUrl = (url: string) => {
@@ -572,49 +581,6 @@ function HomeContent() {
       }
     }
   }, [materials, handleItemClick]);
-
-  const openCurated = (item: CuratedItem) => {
-    const found = materials.find(m => m.link === item.link || m.id === item.id);
-    if (found) {
-      const safe: MaterialItem = {
-        ...found,
-        image: found.image,
-        images: found.images
-      };
-      setSelectedMaterial(safe);
-      return;
-    }
-    const fallback: MaterialItem = {
-      id: item.id,
-      title: item.title,
-      hashtag: item.hashtag,
-      image: "/ban.png",
-      images: [],
-      link: item.link,
-      description: ""
-    };
-    setSelectedMaterial(fallback);
-  };
-
-  const openCuratedGroup = (group: CuratedGroup) => {
-    const images: string[] = [];
-    const hashtags = Array.from(new Set(group.items.map(it => it.hashtag))).join(' ');
-    for (const it of group.items) {
-      const found = materials.find(m => m.link === it.link || m.id === it.id);
-      const img = found?.image || "/ban.png";
-      images.push(img);
-    }
-    const synthetic: MaterialItem = {
-      id: `curated_${group.group}`,
-      title: group.group,
-      hashtag: hashtags || '#пост',
-      image: images[0] || '/ban.png',
-      images,
-      link: group.items[0]?.link || '#',
-      description: ""
-    };
-    setSelectedMaterial(synthetic);
-  };
   useEffect(() => {
     // Handle URL params for direct category access
     const categoryParam = searchParams.get('category');
@@ -1230,22 +1196,23 @@ function HomeContent() {
                     {((activeCategory ? (CATEGORY_TO_GROUPS[activeCategory] || []) : [])).map((grpName: string) => {
                       const grp = CURATED_TAGS.find((g) => g.group === grpName);
                       if (!grp) return null;
+                      const firstHashtag = (grp.items.find((it) => (it.hashtag || "").trim().startsWith("#"))?.hashtag || "").trim();
                       return (
                         <div key={grpName}>
                           <div className="flex items-center justify-between mb-2">
                             <div className="text-xs font-bold text-gray-900">{grp.group}</div>
                             <button
-                              onClick={() => openCuratedGroup(grp)}
+                              onClick={() => openTelegramChannelSearch(firstHashtag || grp.group)}
                               className="text-[10px] font-bold text-pink-500 bg-pink-50 px-3 py-1 rounded-lg hover:bg-pink-100 transition-colors"
                             >
                               Открыть пост
                             </button>
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            {grp.items.map((it) => (
+                            {grp.items.map((it, idx) => (
                               <button
-                                key={`${grp.group}-${it.id}`}
-                                onClick={() => openCurated(it)}
+                                key={`${grp.group}-${it.hashtag}-${idx}`}
+                                onClick={() => handleHashtagClick(it.hashtag)}
                                 className="whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold bg-white text-gray-700 border border-gray-100 shadow-sm hover:bg-gray-50 hover:border-pink-200 transition-all"
                               >
                                 {it.hashtag}
@@ -1268,9 +1235,13 @@ function HomeContent() {
                             ? LENA_LOOKS.find((m) => m.title === item)
                             : materials.find((m) => m.title === item);
                         const titleMatch = item.toLowerCase().includes(query);
-                        const hashtagMatch = material 
+                        const overrideHashtag = SUBCATEGORY_HASHTAG_OVERRIDES[item];
+                        const fallbackHashtag = overrideHashtag
+                            ? (overrideHashtag.startsWith("#") ? overrideHashtag : `#${overrideHashtag}`)
+                            : ("#" + item.toLowerCase().replace(/\s/g, ''));
+                        const hashtagMatch = material
                             ? material.hashtag.toLowerCase().includes(query)
-                            : ("#" + item.toLowerCase().replace(/\s/g, '')).includes(query);
+                            : fallbackHashtag.toLowerCase().includes(query);
                             
                         return titleMatch || hashtagMatch;
                     })
@@ -1294,17 +1265,16 @@ function HomeContent() {
                                     : activeCategory === "Сумки"
                                       ? (BAG_IMAGES[item] ?? (material ? material.image : "/ban.png"))
                                 : (material ? material.image : "/ban.png");
-                        const displayHashtag = material ? material.hashtag : "#" + item.toLowerCase().replace(/\s/g, '');
+                        const overrideHashtag = SUBCATEGORY_HASHTAG_OVERRIDES[item];
+                        const fallbackHashtag = overrideHashtag
+                          ? (overrideHashtag.startsWith("#") ? overrideHashtag : `#${overrideHashtag}`)
+                          : "#" + item.toLowerCase().replace(/\s/g, '');
+                        const displayHashtag = material ? material.hashtag : fallbackHashtag;
 
                         const handleCardClick = () => {
                             const eduLink = EDUCATION_LINKS[item];
                             if (eduLink) {
                                 openExternalLink(eduLink);
-                                return;
-                            }
-                            if (activeCategory === "Сумки") {
-                                const fallbackPostId = CURATED_TAGS.find((g) => g.group === "Сумки")?.items?.[0]?.id;
-                                openTelegramChannelSearch("сумки", fallbackPostId);
                                 return;
                             }
                             if (activeCategory === "Советы" && item === "Советы") {
@@ -1328,7 +1298,14 @@ function HomeContent() {
                                 return;
                             }
 
-                            const query = item.toLowerCase().replace(/\s/g, '');
+                            const resolvedHashtag = overrideHashtag
+                              ? (overrideHashtag.startsWith("#") ? overrideHashtag : `#${overrideHashtag}`)
+                              : "#" + item.toLowerCase().replace(/\s/g, '');
+                            const baseQuery = resolvedHashtag.slice(1).toLowerCase();
+                            const queries = (SUBCATEGORY_QUERY_OVERRIDES[item] && SUBCATEGORY_QUERY_OVERRIDES[item].length
+                              ? SUBCATEGORY_QUERY_OVERRIDES[item]
+                              : [baseQuery]
+                            ).map((q) => (q || "").toLowerCase()).filter(Boolean);
                             const isRootSheet = subCategorySheet.title === (activeCategory || "");
                             const preferAuto =
                                 activeCategory === "Обувь" ||
@@ -1339,10 +1316,10 @@ function HomeContent() {
 
                             if (isRootSheet && activeCategory === "Советы" && item === "Советы") {
                                 const relatedMaterials = materials
-                                  .filter(m =>
-                                    m.hashtag.toLowerCase().includes(query) ||
-                                    m.hashtag.toLowerCase().includes("#" + query)
-                                  )
+                                  .filter((m) => {
+                                    const h = (m.hashtag || "").toLowerCase();
+                                    return queries.some((q) => h.includes(q) || h.includes("#" + q));
+                                  })
                                   .filter(m => !m.id.startsWith('edu_') && !m.hashtag.toLowerCase().includes('#обучение'));
 
                                 if (relatedMaterials.length === 1) {
@@ -1361,10 +1338,10 @@ function HomeContent() {
 
                             if (isRootSheet && preferAuto) {
                                 const relatedMaterials = materials
-                                  .filter(m =>
-                                    m.hashtag.toLowerCase().includes(query) ||
-                                    m.hashtag.toLowerCase().includes("#" + query)
-                                  )
+                                  .filter((m) => {
+                                    const h = (m.hashtag || "").toLowerCase();
+                                    return queries.some((q) => h.includes(q) || h.includes("#" + q));
+                                  })
                                   .filter(m => !m.id.startsWith('edu_') && !m.hashtag.toLowerCase().includes('#обучение'));
 
                                 if (relatedMaterials.length === 1) {
@@ -1384,7 +1361,7 @@ function HomeContent() {
                             const curatedGroup = CURATED_TAGS.find(g => g.group === (activeCategory || ""));
                             const curatedItem = curatedGroup ? curatedGroup.items.find(it => it.title === item) : null;
                             if (curatedItem) {
-                                openCurated(curatedItem);
+                                handleHashtagClick(curatedItem.hashtag);
                                 return;
                             }
 
@@ -1393,10 +1370,10 @@ function HomeContent() {
                             if (subCategorySheet.title !== item) {
                                  // Find materials that match this item as a hashtag
                                  const relatedMaterials = materials
-                                   .filter(m => 
-                                     m.hashtag.toLowerCase().includes(query) || 
-                                     m.hashtag.toLowerCase().includes("#" + query)
-                                   )
+                                   .filter((m) => {
+                                     const h = (m.hashtag || "").toLowerCase();
+                                     return queries.some((q) => h.includes(q) || h.includes("#" + q));
+                                   })
                                    .filter(m => !m.id.startsWith('edu_') && !m.hashtag.toLowerCase().includes('#обучение'));
                                  
                                  if (relatedMaterials.length === 1) {
