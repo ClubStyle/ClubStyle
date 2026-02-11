@@ -62,12 +62,13 @@ function SafeImage({
   const isWikimedia =
     typeof src === "string" && src.startsWith("https://upload.wikimedia.org/");
   const isTelegramFile = typeof src === "string" && src.startsWith("/api/telegram-file?");
+  const isSupabaseFile = typeof src === "string" && src.startsWith("/api/supabase-file?");
   return (
     <Image
       {...props}
       src={src}
       alt={alt}
-      unoptimized={isUploads || isWikimedia || isTelegramFile}
+      unoptimized={isUploads || isWikimedia || isTelegramFile || isSupabaseFile}
       onError={(e) => {
         onError?.(e);
         const target = e.currentTarget as HTMLImageElement | null;
@@ -1848,6 +1849,7 @@ export default function AdminPage() {
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
+                    e.target.value = "";
                     setBusy(true);
                     uploadFile(file)
                       .then((url) => setDraft((d) => (d ? { ...d, image: url } : d)))
@@ -1983,6 +1985,7 @@ export default function AdminPage() {
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
+                          e.target.value = "";
                           setBusy(true);
                           uploadFile(file)
                             .then((url) =>

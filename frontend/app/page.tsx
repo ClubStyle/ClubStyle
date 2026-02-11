@@ -37,12 +37,13 @@ function SafeImage({
   const isUploads = typeof src === "string" && src.startsWith("/uploads/");
   const isWikimedia = typeof src === "string" && src.startsWith("https://upload.wikimedia.org/");
   const isTelegramFile = typeof src === "string" && src.startsWith("/api/telegram-file?");
+  const isSupabaseFile = typeof src === "string" && src.startsWith("/api/supabase-file?");
   return (
     <Image
       {...props}
       src={src}
       alt={alt}
-      unoptimized={isUploads || isWikimedia || isTelegramFile}
+      unoptimized={isUploads || isWikimedia || isTelegramFile || isSupabaseFile}
       onError={(e) => {
         onError?.(e);
         const target = e.currentTarget as HTMLImageElement | null;

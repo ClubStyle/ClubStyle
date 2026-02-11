@@ -86,13 +86,10 @@ export async function POST(request: Request) {
   }
 
   const { data } = supabase.storage.from(bucket).getPublicUrl(key);
-  const url = data?.publicUrl;
-  if (!url) {
-    return Response.json(
-      { error: "Failed to generate public url" },
-      { status: 500, headers: { "cache-control": "no-store" } }
-    );
-  }
-
-  return Response.json({ url, path: key }, { headers: { "cache-control": "no-store" } });
+  const publicUrl = data?.publicUrl || "";
+  const proxyUrl = `/api/supabase-file?bucket=${encodeURIComponent(bucket)}&path=${encodeURIComponent(key)}`;
+  return Response.json(
+    { url: proxyUrl, publicUrl: publicUrl || null, path: key, bucket },
+    { headers: { "cache-control": "no-store" } }
+  );
 }
