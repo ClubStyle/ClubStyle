@@ -618,11 +618,18 @@ async function handleTelegramWebhook(request: Request) {
     const extractedLinks = extractUrls(groupState.text, groupState.entities);
     const descriptionFromTg = appendMissingLinks(groupState.text, extractedLinks);
 
+    const existingImage =
+      existingItem && typeof existingItem.image === "string" ? existingItem.image.trim() : "";
+    const hasManualCover =
+      Boolean(existingImage) &&
+      existingImage !== "/ban.png" &&
+      !existingImage.startsWith("/api/telegram-file?");
+
     const shouldUpdateImages =
       !existingItem ||
-      existingItem.image === "/ban.png" ||
+      (!hasManualCover && existingItem.image === "/ban.png") ||
       !Array.isArray(existingItem.images) ||
-      existingItem.images.length === 0;
+      (!hasManualCover && existingItem.images.length === 0);
 
     const currentTitle =
       existingItem && typeof existingItem.title === "string" ? existingItem.title.trim() : "";
