@@ -57,6 +57,17 @@ type CategoryConfig = {
   hidden?: boolean;
 };
 
+type CommunityTheme = { month: string; title: string };
+
+type CommunityConfig = {
+  themes: CommunityTheme[];
+  chatUrl: string;
+  supportUrl: string;
+  privacyUrl: string;
+  howItWorksTitle: string;
+  howItWorksText: string;
+};
+
 async function readJson<T>(res: Response): Promise<T> {
   const text = await res.text();
   return (text ? JSON.parse(text) : null) as T;
@@ -299,7 +310,7 @@ export default function AdminPage() {
   const [adminPass, setAdminPass] = useState("");
   const [authed, setAuthed] = useState(false);
   const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
-  const [section, setSection] = useState<"materials" | "bottomNav">("materials");
+  const [section, setSection] = useState<"materials" | "community" | "bottomNav">("materials");
   const [materialsView, setMaterialsView] = useState<"hub" | "list">("hub");
   const [activeHubCategory, setActiveHubCategory] = useState<string | null>(null);
 
@@ -336,6 +347,24 @@ export default function AdminPage() {
   }, []);
 
   const [bottomNavDraft, setBottomNavDraft] = useState<BottomNavConfig>(defaultBottomNav);
+
+  const defaultCommunity = useMemo<CommunityConfig>(() => {
+    return {
+      themes: [
+        { month: "ЯНВАРЬ", title: "Вещи-инвестиции. Что купить сейчас и носить не один год" },
+        { month: "ФЕВРАЛЬ", title: "Пережить зиму и полюбить свое отражение" },
+        { month: "МАРТ", title: "Обновляемся без лишних трат" }
+      ],
+      chatUrl: "https://t.me/+ApmNBC3ALsxlNWEy",
+      supportUrl: "https://t.me/ElennneHelp_bot",
+      privacyUrl: "https://drive.google.com/file/d/1l8mYVAtxtbkdK1ep0ohYS6cFn6qc2IWC/view",
+      howItWorksTitle: "Как все устроено",
+      howItWorksText:
+        "Друзья,\n\nУ нас в Клубе стильных много новеньких, и рада приветствовать вас в нашем стильном пространстве ❤️\n\nЧтобы вам было проще здесь ориентироваться, расскажу о том, как тут все устроено.\n\nКлуб стильных - это не только полезный канал со стильными идеями и полезной информацией, но еще и очень теплое сообщество единомышлениц, увлеченных стилем, которые общаются в нашем чате.\n\nВесь основной контент, который мы с командой готовим для вас 6 дней в неделю выходит здесь - в канале Клуба стильных.\n\nМои образы со ссылками на вещи, доступные к покупке в момент публикации, выходят в постах, отмеченных хэштегом #lookдняЛена.\n\nИногда я делюсь интересными находками, их можно найти по хэштегу #вещьдня.\n\nВ клубе есть система хэштегов, позволяющая быстро находить и другие посты или рубрики.\n\nПомимо канала у нас есть чат, который разделен на тематические ветки:\n\n- Болталка — здесь вы можете общаться, делиться советами, задавать вопросы и просто приятно проводить время с одноклубницами\n- #lookдня — чат, в котором вы делитесь своими образами\n- Вопросы и предложения — технический чат для организационных и технических вопросов, а также ваших предложений по работе Клуба стильных\n- Ссылки на находки — чат, в котором участницы делятся ссылками на свои находки\n- Навигация — здесь вы легко можете найти темы, которые ранее были в Клубе и быстро перейти к ним, а также обзоры брендов и записи прямых эфиров\n- Новости — в этом чате дублируем важные информационные сообщения и анонсы\n\nВ чате работают стилисты из моей команды — Люда и Света, они помогают отвечать на ваши вопросы с понедельника по пятницу.\n\nПо техническим вопросам вам всегда помогут в службе заботы @ElennneHelp_bot."
+    };
+  }, []);
+
+  const [communityDraft, setCommunityDraft] = useState<CommunityConfig>(defaultCommunity);
 
   const headers = useMemo(() => {
     return {
@@ -385,6 +414,43 @@ export default function AdminPage() {
     if (cleaned.length === 0) return;
     setBottomNavDraft({ items: cleaned, innerClassName: inner });
   }, [defaultBottomNav.innerClassName]);
+
+  const loadCommunity = useCallback(async () => {
+    const res = await fetch(`/api/materials?key=community&t=${Date.now()}`, { cache: "no-store" });
+    const data = await readJson<unknown>(res);
+    if (!res.ok) return;
+    if (!data || typeof data !== "object") return;
+    const record = data as Record<string, unknown>;
+    const themesRaw = record.themes;
+    const themes: CommunityTheme[] = Array.isArray(themesRaw)
+      ? themesRaw
+          .map((t) => t as Partial<CommunityTheme>)
+          .map((t) => ({
+            month: typeof t.month === "string" ? t.month.trim() : "",
+            title: typeof t.title === "string" ? t.title.trim() : ""
+          }))
+          .filter((t) => t.month.length > 0 && t.title.length > 0)
+      : [];
+    const chatUrl = typeof record.chatUrl === "string" ? record.chatUrl.trim() : "";
+    const supportUrl = typeof record.supportUrl === "string" ? record.supportUrl.trim() : "";
+    const privacyUrl = typeof record.privacyUrl === "string" ? record.privacyUrl.trim() : "";
+    const howItWorksTitle =
+      typeof record.howItWorksTitle === "string" && record.howItWorksTitle.trim()
+        ? record.howItWorksTitle.trim()
+        : defaultCommunity.howItWorksTitle;
+    const howItWorksText =
+      typeof record.howItWorksText === "string" && record.howItWorksText.trim()
+        ? record.howItWorksText
+        : defaultCommunity.howItWorksText;
+    setCommunityDraft({
+      themes: themes.length ? themes : defaultCommunity.themes,
+      chatUrl: chatUrl || defaultCommunity.chatUrl,
+      supportUrl: supportUrl || defaultCommunity.supportUrl,
+      privacyUrl: privacyUrl || defaultCommunity.privacyUrl,
+      howItWorksTitle,
+      howItWorksText
+    });
+  }, [defaultCommunity]);
 
   const loadQuickFilters = useCallback(async () => {
     const res = await fetch(`/api/materials?key=quickFilters&t=${Date.now()}`, { cache: "no-store" });
@@ -710,10 +776,19 @@ export default function AdminPage() {
       setStatus(e instanceof Error ? e.message : "Ошибка загрузки");
     });
     loadBottomNav().catch(() => {});
+    loadCommunity().catch(() => {});
     loadQuickFilters().catch(() => {});
     loadCategories().catch(() => {});
     loadTelegramSync().catch(() => {});
-  }, [authed, loadBottomNav, loadCategories, loadMaterials, loadQuickFilters, loadTelegramSync]);
+  }, [
+    authed,
+    loadBottomNav,
+    loadCategories,
+    loadCommunity,
+    loadMaterials,
+    loadQuickFilters,
+    loadTelegramSync
+  ]);
 
   const baseList = useMemo(() => {
     if (section !== "materials") return materials;
@@ -967,6 +1042,44 @@ export default function AdminPage() {
     }
   }, [bottomNavDraft, headers, loadBottomNav]);
 
+  const saveCommunity = useCallback(async () => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const cleanedThemes = communityDraft.themes
+        .map((t) => ({
+          month: (t.month || "").trim(),
+          title: (t.title || "").trim()
+        }))
+        .filter((t) => t.month.length > 0 && t.title.length > 0);
+      const payload: CommunityConfig = {
+        ...communityDraft,
+        themes: cleanedThemes.length ? cleanedThemes : defaultCommunity.themes,
+        chatUrl: (communityDraft.chatUrl || "").trim(),
+        supportUrl: (communityDraft.supportUrl || "").trim(),
+        privacyUrl: (communityDraft.privacyUrl || "").trim(),
+        howItWorksTitle: (communityDraft.howItWorksTitle || "").trim() || defaultCommunity.howItWorksTitle,
+        howItWorksText: (communityDraft.howItWorksText || "").trim() || defaultCommunity.howItWorksText
+      };
+      const res = await fetch("/api/materials?key=community", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...headers },
+        body: JSON.stringify(payload)
+      });
+      const data = await readJson<unknown>(res);
+      if (!res.ok) {
+        const message =
+          pickStringField(data, "error") || `Не удалось сохранить (${res.status})`;
+        throw new Error(message);
+      }
+      setCommunityDraft(payload);
+      setStatus("Сохранено");
+      await loadCommunity();
+    } finally {
+      setBusy(false);
+    }
+  }, [communityDraft, defaultCommunity, headers, loadCommunity]);
+
   const saveQuickFilters = useCallback(async () => {
     setBusy(true);
     setStatus(null);
@@ -1108,9 +1221,12 @@ export default function AdminPage() {
               <div className="ml-auto flex gap-2">
                 <button
                   onClick={() =>
-                    (section === "bottomNav" ? saveBottomNav() : saveAll()).catch((e: unknown) =>
-                      setStatus(e instanceof Error ? e.message : "Ошибка")
-                    )
+                    (section === "bottomNav"
+                      ? saveBottomNav()
+                      : section === "community"
+                        ? saveCommunity()
+                        : saveAll()
+                    ).catch((e: unknown) => setStatus(e instanceof Error ? e.message : "Ошибка"))
                   }
                   disabled={busy}
                   className="bg-pink-500 text-white font-bold px-4 py-2 rounded-2xl shadow-lg shadow-pink-200 hover:bg-pink-600 transition-colors disabled:opacity-60 text-xs"
@@ -1173,6 +1289,16 @@ export default function AdminPage() {
                   }`}
                 >
                   Материалы
+                </button>
+                <button
+                  onClick={() => setSection("community")}
+                  className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all duration-300 ${
+                    section === "community"
+                      ? "bg-white text-pink-500 shadow-sm"
+                      : "text-gray-400 hover:text-gray-600"
+                  }`}
+                >
+                  О клубе
                 </button>
                 <button
                   onClick={() => setSection("bottomNav")}
@@ -1472,6 +1598,166 @@ export default function AdminPage() {
                 ) : null}
               </div>
             )}
+          </div>
+        ) : null}
+
+        {authed && section === "community" ? (
+          <div className="px-4 lg:px-10 2xl:px-16 mt-6 grid gap-4">
+            <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <h2 className="text-lg font-black text-gray-900">О клубе</h2>
+                <a
+                  href="/community"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs"
+                >
+                  Открыть страницу
+                </a>
+              </div>
+
+              <div className="grid gap-4">
+                <div className="grid gap-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black text-gray-900">Темы месяца</h3>
+                    <button
+                      onClick={() =>
+                        setCommunityDraft((prev) => ({
+                          ...prev,
+                          themes: [...prev.themes, { month: "НОВЫЙ", title: "Тема" }]
+                        }))
+                      }
+                      className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs"
+                    >
+                      + Тема
+                    </button>
+                  </div>
+
+                  <div className="grid gap-3">
+                    {communityDraft.themes.map((t, idx) => (
+                      <div key={`${t.month}-${idx}`} className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+                        <label className="grid gap-1 md:col-span-2">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                            Месяц
+                          </span>
+                          <input
+                            value={t.month}
+                            onChange={(e) =>
+                              setCommunityDraft((prev) => {
+                                const themes = [...prev.themes];
+                                themes[idx] = { ...themes[idx], month: e.target.value };
+                                return { ...prev, themes };
+                              })
+                            }
+                            className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                          />
+                        </label>
+                        <label className="grid gap-1 md:col-span-3">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                            Тема
+                          </span>
+                          <input
+                            value={t.title}
+                            onChange={(e) =>
+                              setCommunityDraft((prev) => {
+                                const themes = [...prev.themes];
+                                themes[idx] = { ...themes[idx], title: e.target.value };
+                                return { ...prev, themes };
+                              })
+                            }
+                            className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                          />
+                        </label>
+                        <button
+                          onClick={() =>
+                            setCommunityDraft((prev) => {
+                              const themes = [...prev.themes];
+                              themes.splice(idx, 1);
+                              return { ...prev, themes };
+                            })
+                          }
+                          className="rounded-2xl bg-white px-4 py-3 text-xs font-bold text-gray-700 border border-gray-100 hover:bg-gray-50"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid gap-3">
+                  <h3 className="text-sm font-black text-gray-900">Ссылки</h3>
+                  <label className="grid gap-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      Канал клуба
+                    </span>
+                    <input
+                      value={communityDraft.chatUrl}
+                      onChange={(e) =>
+                        setCommunityDraft((prev) => ({ ...prev, chatUrl: e.target.value }))
+                      }
+                      className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                      placeholder="https://t.me/..."
+                    />
+                  </label>
+                  <label className="grid gap-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      Служба заботы
+                    </span>
+                    <input
+                      value={communityDraft.supportUrl}
+                      onChange={(e) =>
+                        setCommunityDraft((prev) => ({ ...prev, supportUrl: e.target.value }))
+                      }
+                      className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                      placeholder="https://t.me/..."
+                    />
+                  </label>
+                  <label className="grid gap-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      Политика конфиденциальности
+                    </span>
+                    <input
+                      value={communityDraft.privacyUrl}
+                      onChange={(e) =>
+                        setCommunityDraft((prev) => ({ ...prev, privacyUrl: e.target.value }))
+                      }
+                      className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                      placeholder="https://..."
+                    />
+                  </label>
+                </div>
+
+                <div className="grid gap-3">
+                  <h3 className="text-sm font-black text-gray-900">Как все устроено</h3>
+                  <label className="grid gap-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      Заголовок
+                    </span>
+                    <input
+                      value={communityDraft.howItWorksTitle}
+                      onChange={(e) =>
+                        setCommunityDraft((prev) => ({ ...prev, howItWorksTitle: e.target.value }))
+                      }
+                      className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                    />
+                  </label>
+                  <label className="grid gap-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      Текст (список: строки начинаются с “- ”)
+                    </span>
+                    <textarea
+                      value={communityDraft.howItWorksText}
+                      onChange={(e) =>
+                        setCommunityDraft((prev) => ({ ...prev, howItWorksText: e.target.value }))
+                      }
+                      rows={12}
+                      className="w-full rounded-[1.5rem] border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
         ) : null}
 
