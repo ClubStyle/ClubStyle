@@ -1856,9 +1856,20 @@ export default function AdminPage() {
                     const file = e.target.files?.[0];
                     if (!file) return;
                     e.target.value = "";
+                    const draftId = draft.id;
                     setBusy(true);
                     uploadFile(file)
-                      .then((url) => setDraft((d) => (d ? { ...d, image: url } : d)))
+                      .then((url) => {
+                        setDraft((d) => (d ? { ...d, image: url } : d));
+                        setMaterials((prev) => {
+                          const idx = prev.findIndex((m) => m.id === draftId);
+                          if (idx < 0) return prev;
+                          const copy = [...prev];
+                          copy[idx] = { ...copy[idx], image: url };
+                          return copy;
+                        });
+                        setStatus("Обложка обновлена. Нажми «Сохранить», чтобы записать в Supabase.");
+                      })
                       .catch((err: unknown) =>
                         setStatus(err instanceof Error ? err.message : "Ошибка загрузки")
                       )
