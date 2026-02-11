@@ -39,6 +39,9 @@ type ServerInfo = {
   ref?: string | null;
   at?: number | null;
   vercel?: boolean;
+  supabaseUrlPresent?: boolean;
+  supabaseKeyPresent?: boolean;
+  uploadsBucket?: string | null;
 };
 
 type BottomNavConfig = {
@@ -1045,6 +1048,14 @@ export default function AdminPage() {
         vercel: typeof (data as { vercel?: unknown })?.vercel === "boolean"
           ? (data as { vercel: boolean }).vercel
           : undefined
+        ,
+        supabaseUrlPresent: typeof (data as { supabaseUrlPresent?: unknown })?.supabaseUrlPresent === "boolean"
+          ? (data as { supabaseUrlPresent: boolean }).supabaseUrlPresent
+          : undefined,
+        supabaseKeyPresent: typeof (data as { supabaseKeyPresent?: unknown })?.supabaseKeyPresent === "boolean"
+          ? (data as { supabaseKeyPresent: boolean }).supabaseKeyPresent
+          : undefined,
+        uploadsBucket: pickStringField(data, "uploadsBucket")
       });
       setMaterialsView("hub");
       setActiveHubCategory(null);
@@ -1193,6 +1204,19 @@ export default function AdminPage() {
                   Сборка: {serverInfo.version.slice(0, 7)}
                   {serverInfo.ref ? ` (${serverInfo.ref})` : ""}
                   {serverInfo.vercel ? " • vercel" : ""}
+                  {typeof serverInfo.supabaseUrlPresent === "boolean" ? (
+                    <>
+                      {" "}
+                      • SUPABASE_URL: {serverInfo.supabaseUrlPresent ? "ok" : "нет"}
+                    </>
+                  ) : null}
+                  {typeof serverInfo.supabaseKeyPresent === "boolean" ? (
+                    <>
+                      {" "}
+                      • ключ: {serverInfo.supabaseKeyPresent ? "ok" : "нет"}
+                    </>
+                  ) : null}
+                  {serverInfo.uploadsBucket ? ` • bucket: ${serverInfo.uploadsBucket}` : ""}
                 </div>
               ) : null}
               {status ? (
@@ -1870,6 +1894,11 @@ export default function AdminPage() {
                 onError={() => setStatus("Обложка не загрузилась. Проверь SUPABASE_URL, ключ и доступ к Storage.")}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+              {status ? (
+                <div className="absolute top-4 left-4 right-4 rounded-2xl bg-black/40 text-white text-xs font-bold px-4 py-2 backdrop-blur-md border border-white/10">
+                  {status}
+                </div>
+              ) : null}
               <label className="absolute bottom-4 left-4 inline-flex cursor-pointer items-center gap-2 rounded-full bg-white/20 text-white px-4 py-2 text-xs font-bold backdrop-blur-md border border-white/20 hover:bg-white/30 transition-colors">
                 <input
                   type="file"
@@ -1904,6 +1933,16 @@ export default function AdminPage() {
                   ? "Загрузить обложку эфира"
                   : "Загрузить обложку"}
               </label>
+              {draft.image && draft.image !== "/ban.png" ? (
+                <a
+                  href={draft.image}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute bottom-4 right-4 inline-flex items-center gap-2 rounded-full bg-white/20 text-white px-4 py-2 text-xs font-bold backdrop-blur-md border border-white/20 hover:bg-white/30 transition-colors"
+                >
+                  Открыть обложку
+                </a>
+              ) : null}
             </div>
 
             <div className="p-6 pt-6">

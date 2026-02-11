@@ -45,8 +45,27 @@ export async function GET(request: Request) {
     (process.env.VERCEL_GIT_COMMIT_REF || "").trim() ||
     (process.env.GIT_BRANCH || "").trim() ||
     null;
+  const supabaseUrlPresent = Boolean((process.env.SUPABASE_URL || "").trim());
+  const supabaseKeyPresent = Boolean(
+    (process.env.SUPABASE_SECRET_KEY || "").trim() ||
+      (process.env.SUPABASE_SECRET_DEFAULT_KEY || "").trim() ||
+      (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim() ||
+      (process.env.SUPABASE_PUBLISHABLE_KEY || "").trim() ||
+      (process.env.SUPABASE_PUBLISHABLE_DEFAULT_KEY || "").trim() ||
+      (process.env.SUPABASE_ANON_KEY || "").trim()
+  );
+  const uploadsBucket = (process.env.SUPABASE_UPLOADS_BUCKET || "uploads").trim() || "uploads";
   return NextResponse.json(
-    { ok: true, version, ref, at: Date.now(), vercel: Boolean(process.env.VERCEL) },
+    {
+      ok: true,
+      version,
+      ref,
+      at: Date.now(),
+      vercel: Boolean(process.env.VERCEL),
+      supabaseUrlPresent,
+      supabaseKeyPresent,
+      uploadsBucket
+    },
     { headers: { "cache-control": "no-store" } }
   );
 }
