@@ -32,6 +32,19 @@ function getSupabase() {
   return createClient<Database, "public">(url, key);
 }
 
+function buildPublicObjectUrl(bucket: string, filePath: string) {
+  const base = (process.env.SUPABASE_URL || "").trim();
+  if (!base) return null;
+  try {
+    const url = new URL(base);
+    const basePath = url.pathname.replace(/\/$/, "");
+    url.pathname = `${basePath}/storage/v1/object/public/${bucket}/${filePath}`;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 function inferImageContentType(filePath: string) {
   const lower = filePath.toLowerCase();
   if (lower.endsWith(".png")) return "image/png";
@@ -64,6 +77,10 @@ export async function GET(request: Request) {
 
   const supabase = getSupabase();
   if (!supabase) {
+    const publicUrl = buildPublicObjectUrl(bucket, filePath);
+    if (publicUrl) {
+      return Response.redirect(publicUrl, 302);
+    }
     return new Response("Supabase is not configured", {
       status: 500,
       headers: { "cache-control": "no-store" }
@@ -72,6 +89,10 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabase.storage.from(bucket).download(filePath);
   if (error || !data) {
+    const publicUrl = buildPublicObjectUrl(bucket, filePath);
+    if (publicUrl) {
+      return Response.redirect(publicUrl, 302);
+    }
     return new Response("Not Found", { status: 404, headers: { "cache-control": "no-store" } });
   }
 
@@ -80,7 +101,7 @@ export async function GET(request: Request) {
   const inferred = inferImageContentType(filePath);
   const contentType = inferred || (data.type && data.type.startsWith("image/") ? data.type : null);
   if (contentType) headers.set("content-type", contentType);
-  headers.set("cache-control", "public, max-age=31536000, immutable");
+  headers.set("cache-control", "public, max-age=3600");
 
   return new Response(body, { status: 200, headers });
 }

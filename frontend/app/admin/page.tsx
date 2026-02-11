@@ -1839,7 +1839,13 @@ export default function AdminPage() {
             </button>
 
             <div className="relative h-64 w-full bg-black">
-              <SafeImage src={draft.image || "/ban.png"} alt={draft.title} fill className="object-cover" />
+              <SafeImage
+                src={draft.image || "/ban.png"}
+                alt={draft.title}
+                fill
+                className="object-cover"
+                onError={() => setStatus("Обложка не загрузилась. Проверь SUPABASE_URL, ключ и доступ к Storage.")}
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
               <label className="absolute bottom-4 left-4 inline-flex cursor-pointer items-center gap-2 rounded-full bg-white/20 text-white px-4 py-2 text-xs font-bold backdrop-blur-md border border-white/20 hover:bg-white/30 transition-colors">
                 <input
