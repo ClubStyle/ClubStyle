@@ -498,7 +498,7 @@ function HomeContent() {
       console.log(`Filtering for category: ${category.name} (query: ${query})`);
       
       if (category.name === "#lookдняЛена") {
-        const allowed = new Set<string>(["#lookднялена", "#вещьдня"]);
+        const allowed = new Set<string>(["#lookднялена"]);
         const related = materials
           .filter((m) => {
             const tagTokens = (m.hashtag || "")
