@@ -498,7 +498,7 @@ function HomeContent() {
       console.log(`Filtering for category: ${category.name} (query: ${query})`);
       
       if (category.name === "#lookдняЛена") {
-        const allowed = new Set<string>(["#lookднялена"]);
+        const allowed = new Set<string>(["#lookднялена", "#вещьдня"]);
         const related = materials
           .filter((m) => {
             const tagTokens = (m.hashtag || "")
@@ -512,9 +512,7 @@ function HomeContent() {
             return allTags.some((t) => allowed.has(t));
           })
           .filter((m) => !m.id.startsWith("edu_"));
-        const items = related.length
-          ? related.sort((a, b) => (b.date || 0) - (a.date || 0)).map((m) => m.id)
-          : LENA_LOOKS.map((m) => m.id);
+        const items = related.sort((a, b) => (b.date || 0) - (a.date || 0)).map((m) => m.id);
         setActiveCategory(category.name);
         setSubCategorySheet({ title: category.name, items });
         return;
