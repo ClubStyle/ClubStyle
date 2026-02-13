@@ -697,6 +697,31 @@ export default function AdminPage() {
     }
   }, [headers, loadMaterials, loadTelegramSync]);
 
+  const restoreTelegramAll = useCallback(async () => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const res = await fetch(`/api/sync/telegram?restore=1&since=0&t=${Date.now()}`, {
+        method: "POST",
+        headers,
+        cache: "no-store"
+      });
+      const data = await readJson<unknown>(res);
+      if (!res.ok) {
+        const message =
+          pickStringField(data, "error") || `Не удалось восстановить всё (${res.status})`;
+        throw new Error(message);
+      }
+      const record = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+      const total = typeof record.total === "number" ? record.total : Number(record.total || 0);
+      const keptNew = typeof record.keptNew === "number" ? record.keptNew : Number(record.keptNew || 0);
+      await loadMaterials();
+      await loadTelegramSync();
+      setStatus(`Восстановлено всё. Всего: ${Number.isFinite(total) ? total : 0}, новых: ${Number.isFinite(keptNew) ? keptNew : 0}`);
+    } finally {
+      setBusy(false);
+    }
+  }, [headers, loadMaterials, loadTelegramSync]);
   const enableTelegramWebhook = useCallback(async () => {
     setBusy(true);
     setStatus(null);
@@ -1450,6 +1475,17 @@ export default function AdminPage() {
                         disabled={busy}
                       >
                         Восстановить
+                      </button>
+                      <button
+                        onClick={() =>
+                          restoreTelegramAll().catch((e: unknown) =>
+                            setStatus(e instanceof Error ? e.message : "Ошибка")
+                          )
+                        }
+                        className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs disabled:opacity-60"
+                        disabled={busy}
+                      >
+                        Восстановить всё
                       </button>
                       <button
                         onClick={() => {
