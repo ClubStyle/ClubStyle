@@ -644,13 +644,19 @@ function HomeContent() {
                 }
                 const normalized = Array.from(uniqById.values()).map((m) => {
                   const fromText = extractImageUrls(m.description);
-                  const baseImages =
-                    Array.isArray(m.images) && m.images.length
-                      ? m.images
-                      : (m.image && m.image !== "/ban.png" ? [m.image] : []);
-                  const images =
-                    baseImages.length ? baseImages : fromText.length ? fromText : [];
-                  const image = images[0] || (m.image !== "/ban.png" ? m.image : "/ban.png");
+                  const candidateImages: string[] = [];
+                  if (m.image && m.image !== "/ban.png") candidateImages.push(m.image);
+                  if (Array.isArray(m.images) && m.images.length) candidateImages.push(...m.images);
+                  if (fromText.length) candidateImages.push(...fromText);
+                  const seen = new Set<string>();
+                  const images = candidateImages.filter((u) => {
+                    const url = (u || "").trim();
+                    if (!url || url === "/ban.png") return false;
+                    if (seen.has(url)) return false;
+                    seen.add(url);
+                    return true;
+                  });
+                  const image = images[0] || "/ban.png";
                   return { ...m, images, image };
                 });
                 setMaterials(normalized.sort((a, b) => (b.date || 0) - (a.date || 0)));
