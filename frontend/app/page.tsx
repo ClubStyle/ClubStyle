@@ -498,11 +498,17 @@ function HomeContent() {
       console.log(`Filtering for category: ${category.name} (query: ${query})`);
       
       if (category.name === "#lookдняЛена") {
+        const related = materials
+          .filter((m) => {
+            const h = (m.hashtag || "").toLowerCase();
+            return h.includes("lookдня") || h.includes("#lookдня");
+          })
+          .filter((m) => !m.id.startsWith("edu_"));
+        const items = related.length
+          ? related.sort((a, b) => (b.date || 0) - (a.date || 0)).map((m) => m.id)
+          : LENA_LOOKS.map((m) => m.id);
         setActiveCategory(category.name);
-        setSubCategorySheet({
-          title: category.name,
-          items: LENA_LOOKS.map((m) => m.id)
-        });
+        setSubCategorySheet({ title: category.name, items });
         return;
       }
 
@@ -1246,9 +1252,8 @@ function HomeContent() {
                         if (!query) return true;
                         
                         const material =
-                          activeCategory === "#lookдняЛена"
-                            ? LENA_LOOKS.find((m) => m.id === item || m.title === item)
-                            : materials.find((m) => m.id === item || m.title === item);
+                          materials.find((m) => m.id === item || m.title === item) ||
+                          LENA_LOOKS.find((m) => m.id === item || m.title === item);
                         const titleMatch = item.toLowerCase().includes(query);
                         const overrideHashtag = SUBCATEGORY_HASHTAG_OVERRIDES[item];
                         const fallbackHashtag = overrideHashtag
@@ -1262,24 +1267,34 @@ function HomeContent() {
                     })
                     .map((item) => {
                          const material =
-                          activeCategory === "#lookдняЛена"
-                            ? LENA_LOOKS.find((m) => m.id === item || m.title === item)
-                            : materials.find((m) => m.id === item || m.title === item);
+                          materials.find((m) => m.id === item || m.title === item) ||
+                          LENA_LOOKS.find((m) => m.id === item || m.title === item);
                          const categoryItem = categories.find(c => c.name === (material?.title || item) && c.subCategories);
 
+                        const baseQuery = SUBCATEGORY_HASHTAG_OVERRIDES[item] || (material?.title || item);
+                        const queries: string[] = [baseQuery].map((q: string) => (q || "").toLowerCase()).filter(Boolean);
+                        const previewMaterial = materials
+                          .filter((m) => {
+                            const h = (m.hashtag || "").toLowerCase();
+                            return queries.some((q) => h.includes(q) || h.includes("#" + q));
+                          })
+                          .sort((a, b) => (b.date || 0) - (a.date || 0))[0];
+                        const preferredImage = previewMaterial
+                          ? (previewMaterial.images?.[0] || previewMaterial.image || "/ban.png")
+                          : (material ? (material.images?.[0] || material.image || "/ban.png") : "/ban.png");
                         const displayImage = activeCategory === "Мои обучения"
-                            ? (TRAINING_IMAGES[item] ?? (material ? (material.images?.[0] || material.image || "/ban.png") : "/ban.png"))
-                            : activeCategory === "Обувь"
-                              ? (FOOTWEAR_IMAGES[item] ?? (material ? (material.images?.[0] || material.image || "/ban.png") : "/ban.png"))
-                              : activeCategory === "Аксессуары"
-                                ? (ACCESSORY_IMAGES[item] ?? (material ? (material.images?.[0] || material.image || "/ban.png") : "/ban.png"))
-                                : activeCategory === "Низы"
-                                  ? (BOTTOM_IMAGES[item] ?? (material ? (material.images?.[0] || material.image || "/ban.png") : "/ban.png"))
-                                  : activeCategory === "Верха"
-                                    ? (TOP_IMAGES[item] ?? (material ? (material.images?.[0] || material.image || "/ban.png") : "/ban.png"))
-                                    : activeCategory === "Сумки"
-                                      ? (BAG_IMAGES[item] ?? (material ? (material.images?.[0] || material.image || "/ban.png") : "/ban.png"))
-                                : (material ? ((material.images?.[0] || material.image || "/ban.png")) : "/ban.png");
+                          ? (TRAINING_IMAGES[item] ?? preferredImage)
+                          : activeCategory === "Обувь"
+                            ? (preferredImage !== "/ban.png" ? preferredImage : (FOOTWEAR_IMAGES[item] ?? "/ban.png"))
+                            : activeCategory === "Аксессуары"
+                              ? (preferredImage !== "/ban.png" ? preferredImage : (ACCESSORY_IMAGES[item] ?? "/ban.png"))
+                              : activeCategory === "Низы"
+                                ? (preferredImage !== "/ban.png" ? preferredImage : (BOTTOM_IMAGES[item] ?? "/ban.png"))
+                                : activeCategory === "Верха"
+                                  ? (preferredImage !== "/ban.png" ? preferredImage : (TOP_IMAGES[item] ?? "/ban.png"))
+                                  : activeCategory === "Сумки"
+                                    ? (preferredImage !== "/ban.png" ? preferredImage : (BAG_IMAGES[item] ?? "/ban.png"))
+                                  : preferredImage;
                         const overrideHashtag = SUBCATEGORY_HASHTAG_OVERRIDES[item];
                         const fallbackHashtag = overrideHashtag
                           ? (overrideHashtag.startsWith("#") ? overrideHashtag : `#${overrideHashtag}`)
@@ -1292,14 +1307,7 @@ function HomeContent() {
                                 openExternalLink(eduLink);
                                 return;
                             }
-                            if (activeCategory === "Советы" && (material?.title || item) === "Советы") {
-                                openExternalLink("https://t.me/c/2055411531/14959");
-                                return;
-                            }
-                            if (activeCategory === "Советы" && (material?.title || item) === "Стилизация") {
-                                openExternalLink("https://t.me/c/2055411531/13835");
-                                return;
-                            }
+                            // Советы и Стилизация: вместо перехода на 1 пост — показываем список всех материалов с тегом
                             if (categoryItem) {
                                 handleCategoryClick(categoryItem);
                                 return;
@@ -1329,7 +1337,7 @@ function HomeContent() {
                                 activeCategory === "Верха" ||
                                 activeCategory === "Сумки";
 
-                            if (isRootSheet && activeCategory === "Советы" && (material?.title || item) === "Советы") {
+                            if (isRootSheet && activeCategory === "Советы" && ((material?.title || item) === "Советы" || (material?.title || item) === "Стилизация")) {
                                 const relatedMaterials = materials
                                   .filter((m) => {
                                     const h = (m.hashtag || "").toLowerCase();
@@ -1337,12 +1345,7 @@ function HomeContent() {
                                   })
                                   .filter(m => !m.id.startsWith('edu_') && !m.hashtag.toLowerCase().includes('#обучение'));
 
-                                if (relatedMaterials.length === 1) {
-                                    handleItemClick(relatedMaterials[0]);
-                                    return;
-                                }
-
-                                if (relatedMaterials.length > 1) {
+                                if (relatedMaterials.length >= 1) {
                                     setSubCategorySheet({
                                         title: material?.title || item,
                                         items: relatedMaterials.map(m => m.id)
