@@ -603,69 +603,18 @@ function HomeContent() {
             console.log("Received materials count:", Array.isArray(data) ? data.length : 0);
             if (Array.isArray(data)) {
                 const items = data as unknown as MaterialItem[];
-                const dayKey = (ts?: number) => ts ? new Date(ts * 1000).toISOString().slice(0, 10) : '';
-                const isChannelPost = (m: MaterialItem) => {
-                    const hasTgLink = typeof m.link === 'string' && /^https?:\/\/t\.me\/c\/2055411531\/\d+/.test(m.link);
-                    const isNumeric = /^\d+$/.test(m.id);
-                    return hasTgLink && isNumeric;
-                };
-                const byDay = new Map<string, MaterialItem[]>();
+                const uniqById = new Map<string, MaterialItem>();
                 for (const m of items) {
-                    const key = dayKey(m.date);
-                    if (!key) continue;
-                    const list = byDay.get(key) || [];
-                    list.push(m);
-                    byDay.set(key, list);
+                  if (!uniqById.has(m.id)) uniqById.set(m.id, m);
                 }
-                const merged: MaterialItem[] = [];
-                const consumed = new Set<string>();
-                const mergedSingles = new Set<string>();
-                for (const list of byDay.values()) {
-                    const anchors = list
-                        .filter(m => (m.description && m.description.trim().length > 0) && isChannelPost(m))
-                        .sort((a, b) => (a.date || 0) - (b.date || 0));
-                    const singles = list
-                        .filter(m => ((!m.description || m.description.trim().length === 0)) && isChannelPost(m))
-                        .sort((a, b) => (a.date || 0) - (b.date || 0));
-                    for (const anchor of anchors) {
-                        const imgs: string[] = [];
-                        if (anchor.images?.length) imgs.push(...anchor.images);
-                        if (anchor.image && anchor.image !== '/ban.png') imgs.push(anchor.image);
-                        const tags = new Set<string>();
-                        (anchor.hashtag || '').split(' ').forEach(t => t && tags.add(t));
-                        const baseTs = anchor.date || 0;
-                        const nearbySingles = singles.filter((s) => {
-                            if (mergedSingles.has(s.id)) return false;
-                            if (Math.abs((s.date || 0) - baseTs) > 120) return false;
-                            const sTags = (s.hashtag || "")
-                              .split(" ")
-                              .map((t) => t.trim())
-                              .filter(Boolean);
-                            return sTags.some((t) => t !== "#новинка" && tags.has(t));
-                        });
-                        for (const s of nearbySingles) {
-                            if (s.image && s.image !== '/ban.png') imgs.push(s.image);
-                            (s.hashtag || '').split(' ').forEach(t => t && tags.add(t));
-                            mergedSingles.add(s.id);
-                        }
-                        const mergedItem: MaterialItem = {
-                            id: anchor.id,
-                            title: anchor.title || "Новый пост",
-                            hashtag: Array.from(tags).join(' ') || '#новинка',
-                            image: imgs[0] || anchor.image,
-                            images: Array.from(new Set(imgs)),
-                            link: anchor.link,
-                            video_link: anchor.video_link,
-                            description: anchor.description,
-                            date: anchor.date
-                        };
-                        merged.push(mergedItem);
-                        consumed.add(anchor.id);
-                    }
-                }
-                const rest = items.filter(m => !consumed.has(m.id))
-                    .filter(m => !(m.title === 'Новый пост' && m.image === '/ban.png' && (!m.description || m.description.trim() === '')));
-                setMaterials([...merged, ...rest].sort((a, b) => (b.date || 0) - (a.date || 0)));
+                const normalized = Array.from(uniqById.values()).map((m) => {
+                  const images = Array.isArray(m.images) && m.images.length
+                    ? m.images
+                    : (m.image && m.image !== "/ban.png" ? [m.image] : []);
+                  const image = images[0] || m.image;
+                  return { ...m, images, image };
+                });
+                setMaterials(normalized.sort((a, b) => (b.date || 0) - (a.date || 0)));
             }
         })
         .catch(err => console.error("Failed to fetch materials:", err));
@@ -1083,7 +1032,7 @@ function HomeContent() {
                 .slice(0, feedCount)
                 .map((item) => (
                     <div
-                        key={item.id}
+                        key={`${item.id}-${item.date || ""}`}
                         onClick={() => setSelectedMaterial(item)}
                         className="block bg-white/90 backdrop-blur-sm rounded-3xl p-5 shadow-lg border border-white/50 transition-transform active:scale-95 cursor-pointer"
                     >
