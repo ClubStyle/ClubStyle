@@ -150,7 +150,7 @@ const QUICK_FILTERS = [
     { label: "находки рф", category: "Покупки по РФ" },
     { label: "находки мир", category: "Покупки по миру" },
     { label: "обувь", category: "Обувь" },
-    { label: "сумки", category: "TGSEARCH:#сумка" },
+    { label: "сумки", category: "#сумка" },
     { label: "верхняя одежда", category: "Верхняя одежда" },
     { label: "верха", category: "Верха" },
     { label: "низы", category: "Низы" },
@@ -221,7 +221,7 @@ const CURATED_TAGS: CuratedGroup[] = [
   {
     group: "Сумки",
     items: [
-      { title: "Сумка", hashtag: "#сумка", link: "", id: "" }
+      { title: "Сумка", hashtag: "#сумка", link: "https://t.me/c/2055411531/15325", id: "15325" }
     ]
   },
   {
@@ -787,6 +787,22 @@ function HomeContent() {
       tg.openTelegramLink(searchUrl);
       return;
     }
+    const q = (rawQuery || "").trim();
+    const tag = q.startsWith("#") ? q : `#${q}`;
+    const preferLocal = !canOpenSearchInApp || !tg?.openTelegramLink;
+    if (preferLocal) {
+      const items = materials
+        .filter((m) => {
+          const h = (m.hashtag || "").toLowerCase();
+          const d = (m.description || "").toLowerCase();
+          return h.includes(tag.toLowerCase()) || d.includes(q.toLowerCase());
+        })
+        .sort((a, b) => (b.date || 0) - (a.date || 0))
+        .map((m) => m.title);
+      setSubCategorySheet({ title: tag, items });
+      setActiveCategory(tag);
+      return;
+    }
     if (searchUrl) openExternalLink(searchUrl);
   };
 
@@ -835,6 +851,8 @@ function HomeContent() {
             .map(sub => ({ sub, parent: cat }))
         )
       : [];
+
+  const [feedCount, setFeedCount] = useState(20);
 
 
   const closeSheet = () => {
@@ -943,6 +961,10 @@ function HomeContent() {
                                     ? CURATED_TAGS.find((g) => g.group === "Сумки")?.items?.[0]?.id
                                     : undefined;
                                 openTelegramChannelSearch(q, fallbackPostId);
+                                return;
+                            }
+                            if (item.category.trim().startsWith("#")) {
+                                handleHashtagClick(item.category.trim());
                                 return;
                             }
                             const cat = categories.find(c => c.name === item.category);
@@ -1058,7 +1080,7 @@ function HomeContent() {
                     return isChannelLink && isNumericId;
                 })
                 .sort((a, b) => Number(b.id) - Number(a.id))
-                .slice(0, 20)
+                .slice(0, feedCount)
                 .map((item) => (
                     <div
                         key={item.id}
@@ -1146,6 +1168,20 @@ function HomeContent() {
                  </div>
             )}
           </div>
+          {materials.filter((m) => {
+            const isChannelLink = typeof m.link === 'string' && /^https?:\/\/t\.me\/c\/2055411531\/\d+/.test(m.link);
+            const isNumericId = /^\d+$/.test(m.id);
+            return isChannelLink && isNumericId;
+          }).length > feedCount && (
+            <div className="mt-4 flex justify-center">
+              <button
+                onClick={() => setFeedCount(feedCount + 20)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-white text-gray-700 border border-gray-100 shadow-sm hover:bg-gray-50 transition-colors"
+              >
+                Показать ещё
+              </button>
+            </div>
+          )}
         </div>
 
       </div>

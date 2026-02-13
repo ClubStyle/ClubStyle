@@ -58,9 +58,156 @@ async function downloadImage(url, filepath) {
     });
 }
 
+function readJsonExport(jsonPath) {
+    try {
+        const raw = fs.readFileSync(jsonPath, 'utf8');
+        const parsed = JSON.parse(raw);
+        return parsed;
+    } catch {
+        return null;
+    }
+}
+
+function flattenText(parts) {
+    if (typeof parts === 'string') return parts;
+    if (!Array.isArray(parts)) return '';
+    const out = [];
+    for (const p of parts) {
+        if (!p) continue;
+        if (typeof p === 'string') {
+            out.push(p);
+            continue;
+        }
+        const type = typeof p.type === 'string' ? p.type : '';
+        if (type === 'text_link' && typeof p.href === 'string' && typeof p.text === 'string') {
+            out.push(p.text);
+            out.push(' ');
+            out.push(p.href);
+            continue;
+        }
+        if (type === 'link' && typeof p.text === 'string') {
+            out.push(p.text);
+            continue;
+        }
+        if (typeof p.text === 'string') out.push(p.text);
+    }
+    return out.join('').trim();
+}
+
+function extractHashtags(text) {
+    const tags = (text.match(/#[a-zA-Zа-яА-Я0-9_]+/g) || []).map((t) => t.trim());
+    const seen = new Set();
+    const uniq = [];
+    for (const t of tags) {
+        const k = t.toLowerCase();
+        if (seen.has(k)) continue;
+        seen.add(k);
+        uniq.push(t);
+    }
+    return uniq.join(' ');
+}
+
+async function importFromExport(jsonPath, photosPath) {
+    console.log('Importing from Telegram export...');
+    const exportData = readJsonExport(jsonPath);
+    if (!exportData) {
+        console.error('Failed to read export JSON');
+        process.exit(1);
+    }
+    const list = Array.isArray(exportData?.chats?.list)
+        ? exportData.chats.list
+        : Array.isArray(exportData?.messages)
+            ? [{ name: exportData?.name || '', type: exportData?.type || '', id: exportData?.id, messages: exportData.messages }]
+            : [];
+    const publicId = String(TARGET_CHAT_ID).replace('-100', '');
+    const channelKey = `channel${publicId}`;
+    let materials = [];
+    if (fs.existsSync(DATA_FILE)) {
+        try {
+            materials = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+        } catch {
+            materials = [];
+        }
+    }
+    const byId = new Map();
+    for (const item of materials) byId.set(item.id, item);
+    const newItems = [];
+    let addedCount = 0;
+
+    for (const chat of list) {
+        const messages = Array.isArray(chat?.messages) ? chat.messages : [];
+        for (const m of messages) {
+            if (m?.type !== 'message') continue;
+            const fromId = typeof m?.from_id === 'string' ? m.from_id : '';
+            const fwdId = typeof m?.forwarded_from_id === 'string' ? m.forwarded_from_id : '';
+            const isTarget =
+                fromId === channelKey ||
+                fwdId === channelKey ||
+                (typeof chat?.id === 'number' && String(chat.id) === publicId);
+            if (!isTarget) continue;
+
+            const id = String(m.id || '');
+            if (!id || byId.has(id)) continue;
+
+            const text = flattenText(m.text || '');
+            if (!text && !m.photo) continue;
+
+            const dateNum = Number(m.date_unixtime || 0) || 0;
+            const link = id ? `https://t.me/c/${publicId}/${id}` : '';
+            const hashtags = extractHashtags(text) || '#клубстильных';
+
+            const images = [];
+            const imagePath = typeof m.photo === 'string' ? m.photo : '';
+            if (imagePath && photosPath) {
+                const base = path.basename(imagePath);
+                const src = path.join(photosPath, base);
+                const ext = (base.includes('.') ? base.split('.').pop() : 'jpg') || 'jpg';
+                const dstName = `${id}.${ext}`;
+                const dst = path.join(UPLOADS_DIR, dstName);
+                try {
+                    if (fs.existsSync(src) && !fs.existsSync(dst)) {
+                        fs.copyFileSync(src, dst);
+                    }
+                    if (fs.existsSync(dst)) {
+                        images.push(`/uploads/${dstName}`);
+                    }
+                } catch {}
+            }
+
+            const image = images.length ? images[0] : '/ban.png';
+            const titleRaw = text.split('\n')[0]?.trim() || '';
+            const title = titleRaw || 'Пост';
+
+            const item = {
+                id,
+                title,
+                hashtag: hashtags,
+                image,
+                images,
+                link,
+                description: text,
+                date: dateNum
+            };
+            newItems.push(item);
+            byId.set(id, item);
+            addedCount++;
+        }
+    }
+
+    const combined = Array.from(byId.values()).sort((a, b) => (b.date || 0) - (a.date || 0));
+    fs.writeFileSync(DATA_FILE, JSON.stringify(combined, null, 2));
+    console.log(`Imported ${addedCount} posts. Total: ${combined.length}.`);
+}
+
 async function sync() {
     console.log('Connecting to Telegram...');
     try {
+        const importJsonPath = (process.env.TELEGRAM_IMPORT_JSON_PATH || '').trim();
+        const importPhotosPath = (process.env.TELEGRAM_IMPORT_PHOTOS_PATH || '').trim();
+        if (importJsonPath) {
+            await importFromExport(importJsonPath, importPhotosPath || '');
+            return;
+        }
         const updates = [];
         let offset;
         while (true) {
