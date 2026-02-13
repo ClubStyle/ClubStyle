@@ -498,10 +498,14 @@ function HomeContent() {
       console.log(`Filtering for category: ${category.name} (query: ${query})`);
       
       if (category.name === "#lookдняЛена") {
+        const allowed = new Set<string>(["#lookдня", "#лукдня", "#lookднялена", "#лукднялена"]);
         const related = materials
           .filter((m) => {
-            const h = (m.hashtag || "").toLowerCase();
-            return h.includes("lookдня") || h.includes("#lookдня");
+            const tags = (m.hashtag || "")
+              .split(/\s+/)
+              .map((t) => t.trim().toLowerCase())
+              .filter(Boolean);
+            return tags.some((t) => allowed.has(t));
           })
           .filter((m) => !m.id.startsWith("edu_"));
         const items = related.length
