@@ -460,7 +460,7 @@ function HomeContent() {
     let material: MaterialItem | undefined;
 
     if (typeof item === 'string') {
-        material = materials.find(m => m.title === item);
+        material = materials.find(m => m.id === item || m.title === item);
     } else {
         material = item;
     }
@@ -1247,8 +1247,8 @@ function HomeContent() {
                         
                         const material =
                           activeCategory === "#lookдняЛена"
-                            ? LENA_LOOKS.find((m) => m.title === item)
-                            : materials.find((m) => m.title === item);
+                            ? LENA_LOOKS.find((m) => m.id === item || m.title === item)
+                            : materials.find((m) => m.id === item || m.title === item);
                         const titleMatch = item.toLowerCase().includes(query);
                         const overrideHashtag = SUBCATEGORY_HASHTAG_OVERRIDES[item];
                         const fallbackHashtag = overrideHashtag
@@ -1263,8 +1263,8 @@ function HomeContent() {
                     .map((item) => {
                          const material =
                           activeCategory === "#lookдняЛена"
-                            ? LENA_LOOKS.find((m) => m.title === item)
-                            : materials.find((m) => m.title === item);
+                            ? LENA_LOOKS.find((m) => m.id === item || m.title === item)
+                            : materials.find((m) => m.id === item || m.title === item);
                          const categoryItem = categories.find(c => c.name === (material?.title || item) && c.subCategories);
 
                         const displayImage = activeCategory === "Мои обучения"
