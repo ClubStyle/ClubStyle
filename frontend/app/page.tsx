@@ -501,7 +501,7 @@ function HomeContent() {
         setActiveCategory(category.name);
         setSubCategorySheet({
           title: category.name,
-          items: LENA_LOOKS.map((m) => m.title)
+          items: LENA_LOOKS.map((m) => m.id)
         });
         return;
       }
@@ -568,7 +568,7 @@ function HomeContent() {
            setActiveCategory(category.name);
            setSubCategorySheet({
                title: category.name,
-               items: sorted.map(m => m.title)
+               items: sorted.map(m => m.id)
            });
            return;
       }
@@ -593,7 +593,30 @@ function HomeContent() {
     }
   }, [categories, searchParams, handleCategoryClick]);
 
-
+  function extractImageUrls(text?: string): string[] {
+    const srcs: string[] = [];
+    const t = (text || "").trim();
+    if (!t) return srcs;
+    const urlRegex =
+      /\bhttps?:\/\/[^\s)'"<>]+?\.(?:jpg|jpeg|png|webp)(?:\?[^\s'"<>]*)?\b/gi;
+    const supabaseRegex = /\/api\/supabase-file\?[^)\s'"<>]+/gi;
+    const tgFileRegex = /\/api\/telegram-file\?fileId=[^)\s'"<>]+/gi;
+    const uploadsRegex = /\/uploads\/[a-zA-Z0-9_\-]+\.(?:jpg|jpeg|png|webp)\b/gi;
+    const imgTagRegex = /<img[^>]+src=["']([^"']+)["']/gi;
+    const push = (u: string) => {
+      const url = u.trim();
+      if (!url || url === "/ban.png") return;
+      if (!srcs.includes(url)) srcs.push(url);
+    };
+    for (const m of t.matchAll(urlRegex)) push(m[0]);
+    for (const m of t.matchAll(supabaseRegex)) push(m[0]);
+    for (const m of t.matchAll(tgFileRegex)) push(m[0]);
+    for (const m of t.matchAll(uploadsRegex)) push(m[0]);
+    for (const m of t.matchAll(imgTagRegex)) push(m[1]);
+    return srcs;
+  }
+ 
+ 
   useEffect(() => {
     // Fetch materials from API
     console.log("Fetching materials...");
@@ -608,10 +631,14 @@ function HomeContent() {
                   if (!uniqById.has(m.id)) uniqById.set(m.id, m);
                 }
                 const normalized = Array.from(uniqById.values()).map((m) => {
-                  const images = Array.isArray(m.images) && m.images.length
-                    ? m.images
-                    : (m.image && m.image !== "/ban.png" ? [m.image] : []);
-                  const image = images[0] || m.image;
+                  const fromText = extractImageUrls(m.description);
+                  const baseImages =
+                    Array.isArray(m.images) && m.images.length
+                      ? m.images
+                      : (m.image && m.image !== "/ban.png" ? [m.image] : []);
+                  const images =
+                    baseImages.length ? baseImages : fromText.length ? fromText : [];
+                  const image = images[0] || (m.image !== "/ban.png" ? m.image : "/ban.png");
                   return { ...m, images, image };
                 });
                 setMaterials(normalized.sort((a, b) => (b.date || 0) - (a.date || 0)));
@@ -747,7 +774,7 @@ function HomeContent() {
           return h.includes(tag.toLowerCase()) || d.includes(q.toLowerCase());
         })
         .sort((a, b) => (b.date || 0) - (a.date || 0))
-        .map((m) => m.title);
+        .map((m) => m.id);
       setSubCategorySheet({ title: tag, items });
       setActiveCategory(tag);
       return;
@@ -778,7 +805,7 @@ function HomeContent() {
         return h.includes(tagLower) || d.includes(tagLower);
       })
       .sort((a, b) => (b.date || 0) - (a.date || 0))
-      .map((m) => m.title);
+      .map((m) => m.id);
     setSubCategorySheet({
         title: tag,
         items: items
@@ -802,6 +829,8 @@ function HomeContent() {
       : [];
 
   const [feedCount, setFeedCount] = useState(20);
+
+ 
 
 
   const closeSheet = () => {
@@ -1236,38 +1265,38 @@ function HomeContent() {
                           activeCategory === "#lookдняЛена"
                             ? LENA_LOOKS.find((m) => m.title === item)
                             : materials.find((m) => m.title === item);
-                         const categoryItem = categories.find(c => c.name === item && c.subCategories);
+                         const categoryItem = categories.find(c => c.name === (material?.title || item) && c.subCategories);
 
                         const displayImage = activeCategory === "Мои обучения"
-                            ? (TRAINING_IMAGES[item] ?? (material ? material.image : "/ban.png"))
+                            ? (TRAINING_IMAGES[item] ?? (material ? (material.images?.[0] || material.image || "/ban.png") : "/ban.png"))
                             : activeCategory === "Обувь"
-                              ? (FOOTWEAR_IMAGES[item] ?? (material ? material.image : "/ban.png"))
+                              ? (FOOTWEAR_IMAGES[item] ?? (material ? (material.images?.[0] || material.image || "/ban.png") : "/ban.png"))
                               : activeCategory === "Аксессуары"
-                                ? (ACCESSORY_IMAGES[item] ?? (material ? material.image : "/ban.png"))
+                                ? (ACCESSORY_IMAGES[item] ?? (material ? (material.images?.[0] || material.image || "/ban.png") : "/ban.png"))
                                 : activeCategory === "Низы"
-                                  ? (BOTTOM_IMAGES[item] ?? (material ? material.image : "/ban.png"))
+                                  ? (BOTTOM_IMAGES[item] ?? (material ? (material.images?.[0] || material.image || "/ban.png") : "/ban.png"))
                                   : activeCategory === "Верха"
-                                    ? (TOP_IMAGES[item] ?? (material ? material.image : "/ban.png"))
+                                    ? (TOP_IMAGES[item] ?? (material ? (material.images?.[0] || material.image || "/ban.png") : "/ban.png"))
                                     : activeCategory === "Сумки"
-                                      ? (BAG_IMAGES[item] ?? (material ? material.image : "/ban.png"))
-                                : (material ? material.image : "/ban.png");
+                                      ? (BAG_IMAGES[item] ?? (material ? (material.images?.[0] || material.image || "/ban.png") : "/ban.png"))
+                                : (material ? ((material.images?.[0] || material.image || "/ban.png")) : "/ban.png");
                         const overrideHashtag = SUBCATEGORY_HASHTAG_OVERRIDES[item];
                         const fallbackHashtag = overrideHashtag
                           ? (overrideHashtag.startsWith("#") ? overrideHashtag : `#${overrideHashtag}`)
-                          : "#" + item.toLowerCase().replace(/\s/g, '');
+                          : "#" + (material?.title || item).toLowerCase().replace(/\s/g, '');
                         const displayHashtag = material ? material.hashtag : fallbackHashtag;
 
                         const handleCardClick = () => {
-                            const eduLink = EDUCATION_LINKS[item];
+                            const eduLink = EDUCATION_LINKS[material?.title || item];
                             if (eduLink) {
                                 openExternalLink(eduLink);
                                 return;
                             }
-                            if (activeCategory === "Советы" && item === "Советы") {
+                            if (activeCategory === "Советы" && (material?.title || item) === "Советы") {
                                 openExternalLink("https://t.me/c/2055411531/14959");
                                 return;
                             }
-                            if (activeCategory === "Советы" && item === "Стилизация") {
+                            if (activeCategory === "Советы" && (material?.title || item) === "Стилизация") {
                                 openExternalLink("https://t.me/c/2055411531/13835");
                                 return;
                             }
@@ -1286,7 +1315,7 @@ function HomeContent() {
 
                             const resolvedHashtag = overrideHashtag
                               ? (overrideHashtag.startsWith("#") ? overrideHashtag : `#${overrideHashtag}`)
-                              : "#" + item.toLowerCase().replace(/\s/g, '');
+                              : "#" + (material?.title || item).toLowerCase().replace(/\s/g, '');
                             const baseQuery = resolvedHashtag.slice(1).toLowerCase();
                             const queries = (SUBCATEGORY_QUERY_OVERRIDES[item] && SUBCATEGORY_QUERY_OVERRIDES[item].length
                               ? SUBCATEGORY_QUERY_OVERRIDES[item]
@@ -1300,7 +1329,7 @@ function HomeContent() {
                                 activeCategory === "Верха" ||
                                 activeCategory === "Сумки";
 
-                            if (isRootSheet && activeCategory === "Советы" && item === "Советы") {
+                            if (isRootSheet && activeCategory === "Советы" && (material?.title || item) === "Советы") {
                                 const relatedMaterials = materials
                                   .filter((m) => {
                                     const h = (m.hashtag || "").toLowerCase();
@@ -1315,8 +1344,8 @@ function HomeContent() {
 
                                 if (relatedMaterials.length > 1) {
                                     setSubCategorySheet({
-                                        title: item,
-                                        items: relatedMaterials.map(m => m.title)
+                                        title: material?.title || item,
+                                        items: relatedMaterials.map(m => m.id)
                                     });
                                     return;
                                 }
@@ -1337,8 +1366,8 @@ function HomeContent() {
 
                                 if (relatedMaterials.length > 1) {
                                     setSubCategorySheet({
-                                        title: item,
-                                        items: relatedMaterials.map(m => m.title)
+                                        title: material?.title || item,
+                                        items: relatedMaterials.map(m => m.id)
                                     });
                                     return;
                                 }
@@ -1368,14 +1397,14 @@ function HomeContent() {
                                  }
 
                                  if (relatedMaterials.length > 1) {
-                                      setSubCategorySheet({
-                                          title: item, // Keep title same as item name to prevent re-opening on click
-                                          items: relatedMaterials.map(m => m.title)
-                                      });
+                                       setSubCategorySheet({
+                                          title: material?.title || item,
+                                          items: relatedMaterials.map(m => m.id)
+                                       });
                                       return;
                                  }
                             }
-                            handleItemClick(item);
+                            handleItemClick(material || item);
                          };
 
                         if (material?.type === 'text') {
@@ -1396,7 +1425,7 @@ function HomeContent() {
                                          ))}
                                      </div>
                                      <h3 className="text-xl font-black text-gray-900 mb-4 leading-tight">
-                                         {item}
+                                         {material?.title || item}
                                      </h3>
                                      <div className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap font-medium">
                                          {material?.description?.replace(/(?:^|\s)(#[a-zA-Zа-яА-Я0-9_]+)/g, '').trim()}
@@ -1411,7 +1440,7 @@ function HomeContent() {
                              <div className="relative h-48 w-full bg-white flex items-center justify-center">
                                  <SafeImage
                                      src={displayImage}
-                                     alt={item}
+                                     alt={material?.title || item}
                                      fill
                                     className={`object-contain ${material?.image_position || "object-center"}`}
                                 />
@@ -1448,7 +1477,7 @@ function HomeContent() {
                                      ))}
                                  </div>
                                  <h3 className="text-lg font-bold text-gray-900 mb-2 leading-tight">
-                                     {item}
+                                     {material?.title || item}
                                  </h3>
                                  {(() => {
                                   if (activeCategory === "Мои обучения" || activeCategory === "Гайды и чек-листы" || activeCategory === "Мастер-классы") {
