@@ -649,7 +649,9 @@ async function handleTelegramWebhook(request: Request) {
       id,
       title: currentTitle && currentTitle !== "Новый пост" ? currentTitle : title,
       hashtag:
-        currentHashtag && currentHashtag !== "#новинка" ? currentHashtag : hashtags || "#новинка",
+        existingItem && typeof existingItem.hashtag === "string" && currentHashtag !== "#новинка"
+          ? currentHashtag
+          : hashtags || "#новинка",
       image: existingItem?.image || image,
       images: Array.isArray(existingItem?.images) ? existingItem?.images : images,
       link,
@@ -1269,7 +1271,10 @@ async function syncTelegram(request?: Request) {
                     ? currentTitle
                     : title,
                 hashtag:
-                  preserveExisting && currentHashtag && currentHashtag !== "#новинка"
+                  preserveExisting &&
+                  existingItem &&
+                  typeof existingItem.hashtag === "string" &&
+                  currentHashtag !== "#новинка"
                     ? currentHashtag
                     : feed
                       ? ensureTag(hashtags || "#вленту", "#вленту")
