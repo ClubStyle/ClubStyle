@@ -378,7 +378,10 @@ function isAdminAuthorized(request: Request) {
 export async function GET(request: Request) {
   const isCron = request.headers.get("x-vercel-cron") === "1";
   if (!isCron) {
-    return new Response("Forbidden", { status: 403 });
+    return Response.json(
+      { error: "Forbidden" },
+      { status: 403, headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+    );
   }
   return syncTelegram(request);
 }
@@ -391,7 +394,10 @@ export async function POST(request: Request) {
     return handleTelegramWebhook(request);
   }
   if (!isCron && !isAuthorized(request) && !isAdminAuthorized(request)) {
-    return new Response("Forbidden", { status: 403 });
+    return Response.json(
+      { error: "Forbidden" },
+      { status: 403, headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+    );
   }
   return syncTelegram(request);
 }

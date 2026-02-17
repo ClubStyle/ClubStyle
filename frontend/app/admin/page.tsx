@@ -69,8 +69,19 @@ type CommunityConfig = {
 };
 
 async function readJson<T>(res: Response): Promise<T> {
+  const contentType = (res.headers.get("content-type") || "").toLowerCase();
   const text = await res.text();
-  return (text ? JSON.parse(text) : null) as T;
+  if (!text) return null as T;
+  const looksLikeJson = contentType.includes("application/json") || /^[\s\r\n\t]*[\[{]/.test(text);
+  if (looksLikeJson) {
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      // fall through
+    }
+  }
+  const snippet = text.replace(/\s+/g, " ").trim().slice(0, 400);
+  return ({ error: snippet || `Non-JSON response (${res.status})` } as unknown) as T;
 }
 
 function SafeImage({
