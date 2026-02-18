@@ -61,14 +61,15 @@ export async function GET(request: Request) {
   const filePath = (url.searchParams.get("path") || "").trim();
 
   if (!bucket || bucket.length > 128) {
-    return new Response("Bad Request", { status: 400 });
+    return new Response("Bad Request", { status: 400, headers: { "cache-control": "no-store" } });
   }
   if (!filePath || filePath.length > 1024) {
-    return new Response("Bad Request", { status: 400 });
+    return new Response("Bad Request", { status: 400, headers: { "cache-control": "no-store" } });
   }
 
   const expectedBucket = (process.env.SUPABASE_UPLOADS_BUCKET || "uploads").trim() || "uploads";
-  if (bucket !== expectedBucket) {
+  const allowedBuckets = new Set([expectedBucket, "uploads"]);
+  if (!allowedBuckets.has(bucket)) {
     return new Response("Forbidden", { status: 403, headers: { "cache-control": "no-store" } });
   }
   if (!filePath.startsWith("materials/")) {
@@ -81,7 +82,7 @@ export async function GET(request: Request) {
     if (publicUrl) {
       return Response.redirect(publicUrl, 302);
     }
-    return new Response("Supabase is not configured", {
+    return new Response("Supabase is not configured (missing SUPABASE_URL or a secret key)", {
       status: 500,
       headers: { "cache-control": "no-store" }
     });
@@ -93,7 +94,8 @@ export async function GET(request: Request) {
     if (publicUrl) {
       return Response.redirect(publicUrl, 302);
     }
-    return new Response("Not Found", { status: 404, headers: { "cache-control": "no-store" } });
+    const msg = error?.message ? `Not Found (${error.message})` : "Not Found";
+    return new Response(msg, { status: 404, headers: { "cache-control": "no-store" } });
   }
 
   const body = Buffer.from(await data.arrayBuffer());
