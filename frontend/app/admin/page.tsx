@@ -290,6 +290,14 @@ function hashtagFromUi(raw: string) {
   return parts.join(" ").trim();
 }
 
+function splitHashtags(raw: string) {
+  return (raw || "")
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .map((t) => (t.startsWith("#") ? t : `#${t}`));
+}
+
 function parseTelegramPostInput(raw: string) {
   const input = (raw || "").trim();
   if (!input) return null;
@@ -2098,6 +2106,45 @@ export default function AdminPage() {
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                         Подразделы (по строкам или через запятую)
                       </span>
+                      {(cat.subCategories || []).length ? (
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {(cat.subCategories || []).map((sub, subIdx) => (
+                            <button
+                              key={`${sub}-${subIdx}`}
+                              type="button"
+                              onClick={() =>
+                                setCategoriesDraft((prev) => {
+                                  const next = [...prev];
+                                  const current = next[idx];
+                                  const list = Array.isArray(current.subCategories)
+                                    ? [...current.subCategories]
+                                    : [];
+                                  list.splice(subIdx, 1);
+                                  next[idx] = { ...current, subCategories: list };
+                                  return next;
+                                })
+                              }
+                              className="inline-flex items-center gap-1 rounded-full bg-white text-gray-700 px-3 py-1 text-[10px] font-bold uppercase tracking-wider border border-gray-100 hover:bg-gray-50 transition-colors"
+                            >
+                              {sub}
+                              <X size={14} />
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCategoriesDraft((prev) => {
+                                const next = [...prev];
+                                next[idx] = { ...next[idx], subCategories: [] };
+                                return next;
+                              })
+                            }
+                            className="inline-flex items-center gap-1 rounded-full bg-white text-gray-700 px-3 py-1 text-[10px] font-bold uppercase tracking-wider border border-gray-100 hover:bg-gray-50 transition-colors"
+                          >
+                            Очистить
+                          </button>
+                        </div>
+                      ) : null}
                       <textarea
                         value={(cat.subCategories || []).join("\n")}
                         onChange={(e) =>
@@ -2329,6 +2376,30 @@ export default function AdminPage() {
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                     Категории
                   </span>
+                  {splitHashtags(draft.hashtag).length ? (
+                    <div className="flex flex-wrap gap-2 mb-1">
+                      {splitHashtags(draft.hashtag).map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() =>
+                            setDraft({ ...draft, hashtag: removeHashtag(draft.hashtag || "", tag) })
+                          }
+                          className="inline-flex items-center gap-1 rounded-full bg-pink-50 text-pink-600 px-3 py-1 text-[10px] font-bold uppercase tracking-wider hover:bg-pink-100 transition-colors"
+                        >
+                          {hashtagToUi(tag)}
+                          <X size={14} />
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setDraft({ ...draft, hashtag: "" })}
+                        className="inline-flex items-center gap-1 rounded-full bg-white text-gray-700 px-3 py-1 text-[10px] font-bold uppercase tracking-wider border border-gray-100 hover:bg-gray-50 transition-colors"
+                      >
+                        Очистить
+                      </button>
+                    </div>
+                  ) : null}
                   <input
                     value={hashtagToUi(draft.hashtag)}
                     onChange={(e) => setDraft({ ...draft, hashtag: hashtagFromUi(e.target.value) })}
