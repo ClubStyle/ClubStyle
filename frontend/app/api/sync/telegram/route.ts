@@ -174,6 +174,11 @@ function asArray(value: unknown): MaterialItem[] {
   return Array.isArray(value) ? (value as MaterialItem[]) : [];
 }
 
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((v) => (typeof v === "string" ? v.trim() : "")).filter(Boolean);
+}
+
 function makeImageUrl(fileId: string) {
   return `/api/telegram-file?fileId=${encodeURIComponent(fileId)}`;
 }
@@ -613,6 +618,10 @@ async function handleTelegramWebhook(request: Request) {
     for (const item of asArray(await readKv(supabase.client, supabase.table, "materials"))) {
       byId.set(item.id, item);
     }
+    const deletedIds = new Set(
+      asStringArray(await safeReadKv(supabase.client, supabase.table, "materials_deleted_ids"))
+    );
+    for (const deleted of deletedIds) byId.delete(deleted);
 
     const existingItem = byId.get(id);
     const title = groupState.text.split("\n")[0].substring(0, 100) || "Новый пост";
@@ -623,6 +632,28 @@ async function handleTelegramWebhook(request: Request) {
     const image = images.length ? images[0] : "/ban.png";
     const extractedLinks = extractUrls(groupState.text, groupState.entities);
     const descriptionFromTg = appendMissingLinks(groupState.text, extractedLinks);
+
+    if (deletedIds.has(id)) {
+      byId.delete(id);
+      const combined = Array.from(byId.values()).sort((a, b) => (b.date || 0) - (a.date || 0));
+      await writeKv(supabase.client, supabase.table, "materials", combined);
+      if (maxUpdateId > 0) {
+        await writeKv(supabase.client, supabase.table, "telegram_last_update_id", maxUpdateId);
+      }
+      await writeKv(supabase.client, supabase.table, "telegram_last_sync", {
+        ok: true,
+        at: Date.now(),
+        skippedDeleted: true,
+        id,
+        maxUpdateId,
+        total: combined.length,
+        source: "webhook"
+      });
+      return Response.json(
+        { ok: true, skippedDeleted: true, total: combined.length, maxUpdateId },
+        { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
+      );
+    }
 
     const existingImage =
       existingItem && typeof existingItem.image === "string" ? existingItem.image.trim() : "";
@@ -1104,6 +1135,8 @@ async function syncTelegram(request?: Request) {
         for (const item of await readMaterials()) {
           byId.set(item.id, item);
         }
+        const deletedIds = new Set(asStringArray(await readKey("materials_deleted_ids")));
+        for (const deleted of deletedIds) byId.delete(deleted);
 
         if (reset) {
           await writeKey("telegram_last_update_id", 0);
@@ -1239,6 +1272,10 @@ async function syncTelegram(request?: Request) {
               const minId = g.ids.length ? Math.min(...g.ids) : undefined;
               if (!minId) continue;
               const id = String(minId);
+              if (deletedIds.has(id)) {
+                byId.delete(id);
+                continue;
+              }
               const existingItem = byId.get(id);
 
               const title = g.text.split("\n")[0].substring(0, 100) || "Новый пост";
@@ -1250,11 +1287,27 @@ async function syncTelegram(request?: Request) {
               const extractedLinks = extractUrls(g.text, g.entities);
               const descriptionFromTg = appendMissingLinks(g.text, extractedLinks);
 
-              const shouldUpdateImages =
+              const existingImage =
+                existingItem && typeof existingItem.image === "string" ? existingItem.image.trim() : "";
+              const hasManualCover =
+                Boolean(existingImage) &&
+                existingImage !== "/ban.png" &&
+                !existingImage.startsWith("/api/telegram-file?");
+              const existingImages = Array.isArray(existingItem?.images) ? existingItem!.images : [];
+              const hasManualImages = existingImages.some((img) => {
+                const v = typeof img === "string" ? img.trim() : "";
+                if (!v || v === "/ban.png") return false;
+                return !v.startsWith("/api/telegram-file?");
+              });
+              const shouldUpdateCover =
+                !preserveExisting ||
                 !existingItem ||
-                existingItem.image === "/ban.png" ||
-                !Array.isArray(existingItem.images) ||
-                existingItem.images.length === 0;
+                (!hasManualCover &&
+                  (!existingImage ||
+                    existingImage === "/ban.png" ||
+                    existingImage.startsWith("/api/telegram-file?")));
+              const shouldUpdateImages =
+                !preserveExisting || !existingItem || (!hasManualImages && existingImages.length === 0);
 
               const currentTitle =
                 existingItem && typeof existingItem.title === "string" ? existingItem.title.trim() : "";
@@ -1280,7 +1333,11 @@ async function syncTelegram(request?: Request) {
                       ? ensureTag(hashtags || "#вленту", "#вленту")
                       : hashtags || "#новинка",
                 image: preserveExisting ? (existingItem?.image || image) : image,
-                images: preserveExisting ? (Array.isArray(existingItem?.images) ? existingItem!.images : images) : images,
+                images: preserveExisting
+                  ? existingImages.length
+                    ? existingImages
+                    : images
+                  : images,
                 link: preserveExisting && existingItem?.link ? existingItem.link : link,
                 description:
                   preserveExisting && currentDescription.trim().length
@@ -1289,8 +1346,10 @@ async function syncTelegram(request?: Request) {
                 date: Math.max(existingItem?.date || 0, g.date || 0) || g.date
               };
 
-              if (!preserveExisting || shouldUpdateImages) {
+              if (shouldUpdateCover) {
                 next.image = image;
+              }
+              if (shouldUpdateImages) {
                 next.images = images;
               }
 
@@ -1305,12 +1364,14 @@ async function syncTelegram(request?: Request) {
           const seedItems = await readSeedFromLocalFile(seedCount, sinceTs);
           if (forceSeed) {
             for (const it of seedItems) {
+              if (deletedIds.has(it.id)) continue;
               if (byId.has(it.id)) continue;
               byId.set(it.id, feed ? { ...it, hashtag: ensureTag(it.hashtag || "#вленту", "#вленту") } : it);
               seeded++;
             }
           } else if (byId.size < seedCount) {
             for (const it of seedItems) {
+              if (deletedIds.has(it.id)) continue;
               if (byId.has(it.id)) continue;
               byId.set(it.id, feed ? { ...it, hashtag: ensureTag(it.hashtag || "#вленту", "#вленту") } : it);
               seeded++;
@@ -1358,6 +1419,9 @@ async function syncTelegram(request?: Request) {
     if (restore && isAdmin) {
       const base = asArray(await readLocalMaterials());
       const current = asArray(await readKv(supabase.client, supabase.table, "materials"));
+      const deletedIds = new Set(
+        asStringArray(await safeReadKv(supabase.client, supabase.table, "materials_deleted_ids"))
+      );
       const publicChatId = chatId.toString().replace("-100", "");
       const linkPrefix = `https://t.me/c/${publicChatId}/`;
       const isTelegramPost = (m: MaterialItem) =>
@@ -1371,14 +1435,33 @@ async function syncTelegram(request?: Request) {
             ((typeof m.image === "string" && m.image !== "/ban.png") ||
               (Array.isArray(m.images) && m.images.length > 0))
         );
+      const looksManualCover = (m: MaterialItem | undefined | null) => {
+        const img = m && typeof m.image === "string" ? m.image.trim() : "";
+        return Boolean(img) && img !== "/ban.png" && !img.startsWith("/api/telegram-file?");
+      };
+      const looksManualImages = (m: MaterialItem | undefined | null) => {
+        const images = m && Array.isArray(m.images) ? m.images : [];
+        return images.some((img) => {
+          const v = typeof img === "string" ? img.trim() : "";
+          if (!v || v === "/ban.png") return false;
+          return !v.startsWith("/api/telegram-file?");
+        });
+      };
 
       const byId = new Map<string, MaterialItem>();
-      for (const it of base) byId.set(it.id, it);
+      for (const it of base) {
+        if (deletedIds.has(it.id)) continue;
+        byId.set(it.id, it);
+      }
 
       let keptNew = 0;
       let keptCustom = 0;
       for (const it of current) {
         if (!it || typeof it !== "object" || typeof it.id !== "string") continue;
+        if (deletedIds.has(it.id)) {
+          byId.delete(it.id);
+          continue;
+        }
         if (!isTelegramPost(it)) {
           byId.set(it.id, it);
           keptCustom++;
@@ -1391,11 +1474,18 @@ async function syncTelegram(request?: Request) {
           keptNew++;
           continue;
         }
+        const prevManualCover = looksManualCover(prev);
+        const prevManualImages = looksManualImages(prev);
+        const itManualCover = looksManualCover(it);
         const merged: MaterialItem = {
           ...prev,
           ...it,
-          image: looksLikeHasImages(it) ? it.image : prev.image,
-          images: looksLikeHasImages(it) ? (Array.isArray(it.images) ? it.images : prev.images) : prev.images
+          image: prevManualCover ? prev.image : (itManualCover || looksLikeHasImages(it) ? it.image : prev.image),
+          images: prevManualImages
+            ? prev.images
+            : looksLikeHasImages(it)
+              ? (Array.isArray(it.images) ? it.images : prev.images)
+              : prev.images
         };
         byId.set(it.id, merged);
         keptNew++;
@@ -1448,6 +1538,10 @@ async function syncTelegram(request?: Request) {
     for (const item of asArray(await readKv(supabase.client, supabase.table, "materials"))) {
       byId.set(item.id, item);
     }
+    const deletedIds = new Set(
+      asStringArray(await safeReadKv(supabase.client, supabase.table, "materials_deleted_ids"))
+    );
+    for (const deleted of deletedIds) byId.delete(deleted);
 
     if (reset) {
       await writeKv(supabase.client, supabase.table, "telegram_last_update_id", 0);
@@ -1611,6 +1705,10 @@ async function syncTelegram(request?: Request) {
           const minId = g.ids.length ? Math.min(...g.ids) : undefined;
           if (!minId) continue;
           const id = String(minId);
+          if (deletedIds.has(id)) {
+            byId.delete(id);
+            continue;
+          }
           const existingItem = byId.get(id);
 
           const title = g.text.split("\n")[0].substring(0, 100) || "Новый пост";
@@ -1622,11 +1720,27 @@ async function syncTelegram(request?: Request) {
           const extractedLinks = extractUrls(g.text, g.entities);
           const descriptionFromTg = appendMissingLinks(g.text, extractedLinks);
 
-          const shouldUpdateImages =
+          const existingImage =
+            existingItem && typeof existingItem.image === "string" ? existingItem.image.trim() : "";
+          const hasManualCover =
+            Boolean(existingImage) &&
+            existingImage !== "/ban.png" &&
+            !existingImage.startsWith("/api/telegram-file?");
+          const existingImages = Array.isArray(existingItem?.images) ? existingItem!.images : [];
+          const hasManualImages = existingImages.some((img) => {
+            const v = typeof img === "string" ? img.trim() : "";
+            if (!v || v === "/ban.png") return false;
+            return !v.startsWith("/api/telegram-file?");
+          });
+          const shouldUpdateCover =
+            !preserveExisting ||
             !existingItem ||
-            existingItem.image === "/ban.png" ||
-            !Array.isArray(existingItem.images) ||
-            existingItem.images.length === 0;
+            (!hasManualCover &&
+              (!existingImage ||
+                existingImage === "/ban.png" ||
+                existingImage.startsWith("/api/telegram-file?")));
+          const shouldUpdateImages =
+            !preserveExisting || !existingItem || (!hasManualImages && existingImages.length === 0);
 
           const currentTitle =
             existingItem && typeof existingItem.title === "string" ? existingItem.title.trim() : "";
@@ -1651,7 +1765,11 @@ async function syncTelegram(request?: Request) {
                   ? ensureTag(hashtags || "#вленту", "#вленту")
                   : hashtags || "#новинка",
             image: preserveExisting ? (existingItem?.image || image) : image,
-            images: preserveExisting ? (Array.isArray(existingItem?.images) ? existingItem!.images : images) : images,
+            images: preserveExisting
+              ? existingImages.length
+                ? existingImages
+                : images
+              : images,
             link: preserveExisting && existingItem?.link ? existingItem.link : link,
             description:
               preserveExisting && currentDescription.trim().length
@@ -1660,8 +1778,10 @@ async function syncTelegram(request?: Request) {
             date: Math.max(existingItem?.date || 0, g.date || 0) || g.date
           };
 
-          if (!preserveExisting || shouldUpdateImages) {
+          if (shouldUpdateCover) {
             next.image = image;
+          }
+          if (shouldUpdateImages) {
             next.images = images;
           }
 
@@ -1676,12 +1796,14 @@ async function syncTelegram(request?: Request) {
       const seedItems = await readSeedFromLocalFile(seedCount, sinceTs);
       if (forceSeed) {
         for (const it of seedItems) {
+          if (deletedIds.has(it.id)) continue;
           if (byId.has(it.id)) continue;
           byId.set(it.id, feed ? { ...it, hashtag: ensureTag(it.hashtag || "#вленту", "#вленту") } : it);
           seeded++;
         }
       } else if (byId.size < seedCount) {
         for (const it of seedItems) {
+          if (deletedIds.has(it.id)) continue;
           if (byId.has(it.id)) continue;
           byId.set(it.id, feed ? { ...it, hashtag: ensureTag(it.hashtag || "#вленту", "#вленту") } : it);
           seeded++;

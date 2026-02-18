@@ -926,7 +926,36 @@ export default function AdminPage() {
           pickStringField(data, "error") || `Не удалось сохранить (${res.status})`;
         throw new Error(message);
       }
-      setStatus("Сохранено");
+      let tombstoneError: string | null = null;
+      try {
+        const key = "materials_deleted_ids";
+        const getRes = await fetch(`/api/materials?key=${encodeURIComponent(key)}&t=${Date.now()}`, {
+          headers,
+          cache: "no-store"
+        });
+        const currentDeletedRaw = await readJson<unknown>(getRes);
+        const currentDeleted = Array.isArray(currentDeletedRaw)
+          ? currentDeletedRaw.map((v) => (typeof v === "string" ? v.trim() : "")).filter(Boolean)
+          : [];
+        const nextDeleted = Array.from(new Set([...currentDeleted, current.id]));
+        const putRes = await fetch(`/api/materials?key=${encodeURIComponent(key)}`, {
+          method: "POST",
+          headers: { "content-type": "application/json", ...headers },
+          body: JSON.stringify(nextDeleted)
+        });
+        if (!putRes.ok) {
+          const putData = await readJson<unknown>(putRes);
+          const message =
+            pickStringField(putData, "error") || `Не удалось сохранить блокировку (${putRes.status})`;
+          throw new Error(message);
+        }
+      } catch (e: unknown) {
+        tombstoneError =
+          e instanceof Error
+            ? `Удалено, но блокировка пересинковки не сохранилась: ${e.message}`
+            : "Удалено, но блокировка пересинковки не сохранилась";
+      }
+      setStatus(tombstoneError || "Сохранено");
       await loadMaterials();
     } finally {
       setBusy(false);

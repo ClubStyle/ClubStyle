@@ -77,6 +77,7 @@ function isAdminAuthorized(request: Request) {
 export async function GET(request: Request) {
   try {
     const key = new URL(request.url).searchParams.get('key')?.trim() || 'materials';
+    const isVercel = Boolean(process.env.VERCEL);
     const noStoreHeaders = {
       'cache-control': 'no-store, no-cache, must-revalidate, max-age=0',
       pragma: 'no-cache',
@@ -102,6 +103,12 @@ export async function GET(request: Request) {
           }
         }
       } catch {}
+    }
+    if (supabase && isVercel) {
+      if (key === 'materials') {
+        return NextResponse.json([], { headers: withSource("supabase") });
+      }
+      return NextResponse.json(null, { headers: withSource("supabase") });
     }
 
     if (key !== 'materials') {
