@@ -1759,7 +1759,10 @@ async function syncTelegram(request?: Request) {
                 ? currentTitle
                 : title,
             hashtag:
-              preserveExisting && currentHashtag && currentHashtag !== "#новинка"
+              preserveExisting &&
+              existingItem &&
+              typeof existingItem.hashtag === "string" &&
+              currentHashtag !== "#новинка"
                 ? currentHashtag
                 : feed
                   ? ensureTag(hashtags || "#вленту", "#вленту")

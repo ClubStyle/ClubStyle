@@ -10,6 +10,8 @@ export const runtime = "nodejs";
 const dataPath = path.join(process.cwd(), 'data', 'materials.json');
 const uiPath = path.join(process.cwd(), 'data', 'ui.json');
 
+const ALWAYS_HIDDEN_MATERIAL_IDS = new Set(['look_1', 'look_2', 'look_3', 'look_4', 'look_5']);
+
 type Database = {
   public: {
     Tables: {
@@ -38,6 +40,50 @@ function getSupabase() {
     process.env.SUPABASE_ANON_KEY;
   if (!url || !key) return null;
   return { client: createClient<Database, 'public'>(url, key), table: 'app_kv' as const };
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((v) => (typeof v === 'string' ? v.trim() : '')).filter(Boolean);
+}
+
+async function readKvValue(
+  supabase: NonNullable<ReturnType<typeof getSupabase>>,
+  key: string
+): Promise<unknown> {
+  const { data, error } = await supabase.client
+    .from(supabase.table)
+    .select('key,value')
+    .eq('key', key)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as { value?: unknown } | null)?.value;
+}
+
+async function getHiddenMaterialIds(
+  supabase: ReturnType<typeof getSupabase>
+): Promise<Set<string>> {
+  const out = new Set<string>(ALWAYS_HIDDEN_MATERIAL_IDS);
+  const deletedKey = 'materials_deleted_ids';
+  if (supabase) {
+    try {
+      const value = await readKvValue(supabase, deletedKey);
+      for (const id of asStringArray(value)) out.add(id);
+    } catch {}
+    return out;
+  }
+  const ui = await readUiFile();
+  for (const id of asStringArray(ui[deletedKey])) out.add(id);
+  return out;
+}
+
+function filterMaterials(value: unknown, hidden: Set<string>) {
+  if (!Array.isArray(value)) return [];
+  return value.filter((m) => {
+    if (!m || typeof m !== 'object') return false;
+    const id = (m as { id?: unknown }).id;
+    return typeof id === 'string' && id.trim() && !hidden.has(id.trim());
+  });
 }
 
 async function readUiFile(): Promise<Record<string, unknown>> {
@@ -96,7 +142,8 @@ export async function GET(request: Request) {
         if (!error && data?.value != null) {
           if (key === 'materials') {
             if (Array.isArray(data.value)) {
-              return NextResponse.json(data.value, { headers: withSource("supabase") });
+              const hidden = await getHiddenMaterialIds(supabase);
+              return NextResponse.json(filterMaterials(data.value, hidden), { headers: withSource("supabase") });
             }
           } else {
             return NextResponse.json(data.value, { headers: withSource("supabase") });
@@ -122,7 +169,8 @@ export async function GET(request: Request) {
 
     const fileContents = await fs.promises.readFile(dataPath, 'utf8');
     const data = JSON.parse(fileContents);
-    return NextResponse.json(data, { headers: withSource("file") });
+    const hidden = await getHiddenMaterialIds(supabase);
+    return NextResponse.json(filterMaterials(data, hidden), { headers: withSource("file") });
   } catch (error) {
     console.error("Error reading materials data:", error);
     return NextResponse.json(
