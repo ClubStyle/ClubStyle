@@ -1262,9 +1262,12 @@ export default function AdminPage() {
   }, [headers]);
 
   const uploadFile = useCallback(
-    async (file: File) => {
+    async (file: File, materialId?: string) => {
       const formData = new FormData();
       formData.append("file", file);
+      if (typeof materialId === "string" && materialId.trim()) {
+        formData.append("materialId", materialId.trim());
+      }
       const res = await fetch("/api/upload", {
         method: "POST",
         headers,
@@ -2331,7 +2334,7 @@ export default function AdminPage() {
                     const draftId = draft.id;
                     setStatus(`Загружаю: ${file.name}`);
                     setBusy(true);
-                    uploadFile(file)
+                    uploadFile(file, draftId)
                       .then((url) => {
                         setDraft((d) => (d ? { ...d, image: url } : d));
                         setMaterials((prev) => {

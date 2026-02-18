@@ -38,6 +38,27 @@ function sanitizeFilename(name: string) {
   return cleaned.length ? cleaned : "file";
 }
 
+function sanitizeMaterialId(value: string) {
+  const v = (value || "").trim();
+  if (!v) return null;
+  if (v.length > 128) return null;
+  if (!/^[a-zA-Z0-9_-]+$/.test(v)) return null;
+  return v;
+}
+
+function inferExt(originalName: string, contentType: string) {
+  const lower = (originalName || "").toLowerCase();
+  const fromName = lower.includes(".") ? lower.split(".").pop() || "" : "";
+  if (fromName && /^[a-z0-9]{1,8}$/.test(fromName)) return fromName;
+  const ct = (contentType || "").toLowerCase();
+  if (ct === "image/png") return "png";
+  if (ct === "image/jpeg") return "jpg";
+  if (ct === "image/webp") return "webp";
+  if (ct === "image/gif") return "gif";
+  if (ct === "image/svg+xml") return "svg";
+  return "bin";
+}
+
 async function ensureBucket(
   supabase: NonNullable<ReturnType<typeof getSupabase>>,
   bucket: string
@@ -83,10 +104,14 @@ export async function POST(request: Request) {
 
   const bucket = (process.env.SUPABASE_UPLOADS_BUCKET || "uploads").trim() || "uploads";
   const originalName = sanitizeFilename(file.name || "file");
-  const key = `materials/${Date.now()}-${crypto.randomUUID()}-${originalName}`;
+  const contentType = file.type || "application/octet-stream";
+  const materialId = sanitizeMaterialId(String(formData.get("materialId") || ""));
+  const ext = inferExt(originalName, contentType);
+  const key = materialId
+    ? `materials/${materialId}.${ext}`
+    : `materials/${Date.now()}-${crypto.randomUUID()}-${originalName}`;
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  const contentType = file.type || "application/octet-stream";
 
   const bucketReady = await ensureBucket(supabase, bucket);
   if (!bucketReady.ok) {
@@ -104,7 +129,7 @@ export async function POST(request: Request) {
 
   const { error: uploadError } = await supabase.storage.from(bucket).upload(key, bytes, {
     contentType,
-    upsert: false
+    upsert: Boolean(materialId)
   });
 
   if (uploadError) {
