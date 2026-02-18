@@ -90,12 +90,16 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabase.storage.from(bucket).download(filePath);
   if (error || !data) {
-    const publicUrl = buildPublicObjectUrl(bucket, filePath);
-    if (publicUrl) {
-      return Response.redirect(publicUrl, 302);
-    }
-    const msg = error?.message ? `Not Found (${error.message})` : "Not Found";
-    return new Response(msg, { status: 404, headers: { "cache-control": "no-store" } });
+    return Response.json(
+      {
+        error: error?.message || "Object not found",
+        bucket,
+        path: filePath,
+        hint:
+          "Файл отсутствует в Storage по этому пути или нет прав на чтение. Проверь bucket, путь materials/..., и что ключ имеет доступ к Storage."
+      },
+      { status: 404, headers: { "cache-control": "no-store" } }
+    );
   }
 
   const body = Buffer.from(await data.arrayBuffer());
