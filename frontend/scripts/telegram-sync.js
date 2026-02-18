@@ -280,7 +280,6 @@ async function sync() {
             const minId = g.ids.length ? Math.min(...g.ids) : undefined;
             if (!minId) continue;
             const id = String(minId);
-            if (materials.find(m => m.id === id) || newItems.find(m => m.id === id)) continue;
 
             const title = g.text.split('\n')[0].substring(0, 100) || 'Новый пост';
             const hashtags = (g.text.match(/#[a-zа-я0-9_]+/gi) || []).join(' ');
@@ -289,19 +288,33 @@ async function sync() {
             const images = g.photos;
             const image = images.length ? images[0] : '/ban.png';
 
-            const newItem = {
+            const existingItem = materials.find(m => m.id === id) || null;
+            const existingHashtag = existingItem && typeof existingItem.hashtag === 'string' ? existingItem.hashtag.trim() : '';
+            const nextHashtag = existingItem && typeof existingItem.hashtag === 'string' && existingHashtag !== '#новинка'
+              ? existingHashtag
+              : (hashtags || '#новинка');
+
+            const existingImage = existingItem && typeof existingItem.image === 'string' ? existingItem.image : '/ban.png';
+            const existingImages = existingItem && Array.isArray(existingItem.images) ? existingItem.images : [];
+            const hasManualCover = Boolean(existingImage) && existingImage !== '/ban.png' && String(existingImage).startsWith('/uploads/');
+            const shouldUpdateImages = !existingItem || (!hasManualCover && existingImage === '/ban.png') || !existingImages.length;
+
+            const nextItem = {
+                ...(existingItem || {}),
                 id,
-                title,
-                hashtag: hashtags || '#новинка',
-                image,
-                images,
-                link,
-                description: g.text,
-                date: g.date
+                title: existingItem && typeof existingItem.title === 'string' && existingItem.title.trim() && existingItem.title !== 'Новый пост' && existingItem.title !== 'Пост'
+                  ? existingItem.title
+                  : title,
+                hashtag: nextHashtag,
+                image: shouldUpdateImages ? image : existingImage,
+                images: shouldUpdateImages ? images : existingImages,
+                link: existingItem && typeof existingItem.link === 'string' && existingItem.link.trim() ? existingItem.link : link,
+                description: existingItem && typeof existingItem.description === 'string' && existingItem.description.trim().length ? existingItem.description : g.text,
+                date: Math.max(Number(existingItem?.date || 0), Number(g.date || 0)) || g.date
             };
 
-            newItems.unshift(newItem); // Add to top
-            addedCount++;
+            if (!existingItem) addedCount++;
+            newItems.unshift(nextItem); // Add to top
         }
 
         // Preserve ALL existing items (manual content, бренды, гайды, эфиры) and prepend new channel posts
