@@ -155,6 +155,14 @@ export async function POST(request: Request) {
           if (error) {
             return NextResponse.json({ error: 'Failed to save data' }, { status: 500 });
           }
+          if (!isVercel) {
+            if (key === 'materials') {
+              await fs.promises.writeFile(dataPath, JSON.stringify(body, null, 2));
+            } else {
+              const ui = await readUiFile();
+              await writeUiFile({ ...ui, [key]: body });
+            }
+          }
         } else {
           if (key === 'materials') {
             await fs.promises.writeFile(dataPath, JSON.stringify(body, null, 2));

@@ -505,11 +505,7 @@ function HomeContent() {
               .split(/\s+/)
               .map((t) => t.trim().toLowerCase())
               .filter(Boolean);
-            const textTags = Array.from(
-              (m.description || "").toLowerCase().match(/#[\p{L}0-9_]+/gu) || []
-            );
-            const allTags = [...tagTokens, ...textTags];
-            return allTags.some((t) => allowed.has(t));
+            return tagTokens.some((t) => allowed.has(t));
           })
           .filter((m) => !m.id.startsWith("edu_"));
         const items = related.sort((a, b) => (b.date || 0) - (a.date || 0)).map((m) => m.id);
@@ -788,8 +784,7 @@ function HomeContent() {
       const items = materials
         .filter((m) => {
           const h = (m.hashtag || "").toLowerCase();
-          const d = (m.description || "").toLowerCase();
-          return h.includes(tag.toLowerCase()) || d.includes(q.toLowerCase());
+          return h.includes(tag.toLowerCase());
         })
         .sort((a, b) => (b.date || 0) - (a.date || 0))
         .map((m) => m.id);
@@ -819,8 +814,7 @@ function HomeContent() {
     const items = materials
       .filter((m) => {
         const h = (m.hashtag || "").toLowerCase();
-        const d = (m.description || "").toLowerCase();
-        return h.includes(tagLower) || d.includes(tagLower);
+        return h.includes(tagLower);
       })
       .sort((a, b) => (b.date || 0) - (a.date || 0))
       .map((m) => m.id);

@@ -892,19 +892,6 @@ export default function AdminPage() {
     return draft;
   }, [draft]);
 
-  const upsertDraft = useCallback(() => {
-    if (!draft) return;
-    setMaterials((prev) => {
-      const idx = prev.findIndex((m) => m.id === draft.id);
-      if (idx >= 0) {
-        const copy = [...prev];
-        copy[idx] = draft;
-        return copy;
-      }
-      return [draft, ...prev];
-    });
-  }, [draft]);
-
   const applyDraftToList = useCallback(
     (list: MaterialItem[]) => {
       if (!draft) return list;
@@ -919,12 +906,32 @@ export default function AdminPage() {
     [draft]
   );
 
-  const removeItem = useCallback(() => {
+  const removeItemAndSave = useCallback(async () => {
     const current = ensureDraft();
-    setMaterials((prev) => prev.filter((m) => m.id !== current.id));
-    setSelectedId(null);
-    setDraft(null);
-  }, [ensureDraft]);
+    const nextList = materials.filter((m) => m.id !== current.id);
+    setBusy(true);
+    setStatus(null);
+    try {
+      setMaterials(nextList);
+      setSelectedId(null);
+      setDraft(null);
+      const res = await fetch("/api/materials", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...headers },
+        body: JSON.stringify(nextList)
+      });
+      const data = await readJson<unknown>(res);
+      if (!res.ok) {
+        const message =
+          pickStringField(data, "error") || `Не удалось сохранить (${res.status})`;
+        throw new Error(message);
+      }
+      setStatus("Сохранено");
+      await loadMaterials();
+    } finally {
+      setBusy(false);
+    }
+  }, [ensureDraft, headers, loadMaterials, materials]);
 
   const addNew = useCallback(() => {
     const id = `custom_${Date.now()}`;
@@ -2522,8 +2529,9 @@ export default function AdminPage() {
                 <div className="grid gap-2 mt-2">
                   <button
                     onClick={() => {
-                      upsertDraft();
-                      setStatus("Изменения применены. Нажми «Сохранить», чтобы записать в Supabase.");
+                      saveAll().catch((e: unknown) =>
+                        setStatus(e instanceof Error ? e.message : "Ошибка")
+                      );
                     }}
                     className="w-full bg-pink-500 text-white font-bold py-3 rounded-xl hover:bg-pink-600 transition-colors text-sm disabled:opacity-60"
                     disabled={busy}
@@ -2532,8 +2540,9 @@ export default function AdminPage() {
                   </button>
                   <button
                     onClick={() => {
-                      removeItem();
-                      setStatus("Удалено. Нажми «Сохранить», чтобы записать в Supabase.");
+                      removeItemAndSave().catch((e: unknown) =>
+                        setStatus(e instanceof Error ? e.message : "Ошибка")
+                      );
                     }}
                     className="w-full bg-white text-red-600 font-bold py-3 rounded-xl border border-red-200 hover:bg-red-50 transition-colors text-sm"
                     disabled={busy}
