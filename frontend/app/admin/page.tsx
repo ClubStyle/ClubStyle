@@ -2307,7 +2307,11 @@ export default function AdminPage() {
                 alt={draft.title}
                 fill
                 className="object-cover"
-                onError={() => setStatus("Обложка не загрузилась. Проверь SUPABASE_URL, ключ и доступ к Storage.")}
+                onError={() =>
+                  setStatus(
+                    "Обложка не загрузилась. Если ссылка вида /api/supabase-file — проверь SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY (sb_secret_...), а также доступ к Storage/bucket uploads."
+                  )
+                }
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
               {status ? (

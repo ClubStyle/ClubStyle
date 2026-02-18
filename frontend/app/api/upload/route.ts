@@ -27,10 +27,7 @@ function getSupabase() {
   const key =
     process.env.SUPABASE_SECRET_KEY ||
     process.env.SUPABASE_SECRET_DEFAULT_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_PUBLISHABLE_KEY ||
-    process.env.SUPABASE_PUBLISHABLE_DEFAULT_KEY ||
-    process.env.SUPABASE_ANON_KEY;
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
   return createClient(url, key);
 }
@@ -69,7 +66,7 @@ export async function POST(request: Request) {
     return Response.json(
       {
         error:
-          "SUPABASE_URL и ключ Supabase обязательны (SUPABASE_SECRET_KEY / SUPABASE_SERVICE_ROLE_KEY / SUPABASE_PUBLISHABLE_KEY)"
+          "Для загрузки в Storage нужны SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY (sb_secret_...) или SUPABASE_SECRET_KEY"
       },
       { status: 500, headers: { "cache-control": "no-store" } }
     );
