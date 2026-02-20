@@ -12,6 +12,15 @@ function normalizeToken(value: string) {
   return v;
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function isAdminAuthorized(request: Request) {
   const secrets = [
     (process.env.ADMIN_SECRET || "").trim(),
@@ -98,19 +107,29 @@ export async function POST(request: Request) {
 
   const isTelegramDeepLink = parsed.hostname === "t.me" || parsed.hostname.endsWith(".t.me");
   const useUrlButton = isTelegramDeepLink || (typeof chatId === "number" && chatId < 0);
+  const isChannel = typeof chatId === "number" && chatId < 0;
 
   const bot = new TelegramBot(cfg.token, { polling: false });
-  const msg = await bot.sendMessage(chatId as never, text, {
+  const msgText =
+    isChannel && isTelegramDeepLink
+      ? `${escapeHtml(text)}\n\n<a href="${escapeHtml(webAppUrl)}">${escapeHtml(buttonText)}</a>`
+      : text;
+
+  const msg = await bot.sendMessage(chatId as never, msgText, {
     disable_web_page_preview: true,
-    reply_markup: {
-      inline_keyboard: [
-        [
-          useUrlButton
-            ? { text: buttonText, url: webAppUrl }
-            : { text: buttonText, web_app: { url: webAppUrl } }
-        ]
-      ]
-    }
+    parse_mode: isChannel && isTelegramDeepLink ? "HTML" : undefined,
+    reply_markup:
+      isChannel && isTelegramDeepLink
+        ? undefined
+        : {
+            inline_keyboard: [
+              [
+                useUrlButton
+                  ? { text: buttonText, url: webAppUrl }
+                  : { text: buttonText, web_app: { url: webAppUrl } }
+              ]
+            ]
+          }
   });
 
   if (pin) {
