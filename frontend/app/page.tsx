@@ -361,6 +361,14 @@ const BOTTOM_IMAGES: Record<string, string> = {
   "Платье": "/plate.png"
 };
 
+const BODY_TYPE_IMAGES: Record<string, string> = {
+  "Песочные часы": "/1pes.jpg",
+  "Перевернутый треугольник": "/pertreug.jpg",
+  "Яблоко": "/yabloko.jpg",
+  "Груша": "/grusha.jpg",
+  "Прямоугольник": "/pryamougolnik.jpg"
+};
+
 const TOP_IMAGES: Record<string, string> = {
   "Топ": "/top.png",
   "Футболка": "/futbolka.png",
@@ -1290,17 +1298,28 @@ function HomeContent() {
                         <ChevronLeft size={24} />
                     </button>
                     <h3 className="text-xl font-black uppercase tracking-wide flex-1">{subCategorySheet.title}</h3>
-                    {subCategorySheet.title?.trim().startsWith("#") && (
-                      <button
-                        onClick={() => {
-                          openTelegramChannelSearch(subCategorySheet.title);
-                        }}
-                        className="text-[10px] font-bold text-pink-500 bg-pink-50 px-3 py-1 rounded-lg hover:bg-pink-100 transition-colors flex items-center gap-1"
-                      >
-                        <Search size={14} />
-                        TG поиск
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {subCategorySheet.title?.trim().startsWith("#") && (
+                        <button
+                          onClick={() => {
+                            openTelegramChannelSearch(subCategorySheet.title);
+                          }}
+                          className="text-[10px] font-bold text-pink-500 bg-pink-50 px-3 py-1 rounded-lg hover:bg-pink-100 transition-colors flex items-center gap-1"
+                        >
+                          <Search size={14} />
+                          TG поиск
+                        </button>
+                      )}
+                      <div className="w-9 h-9 rounded-full bg-gray-200 overflow-hidden border border-white shadow-sm relative">
+                        {tgUser?.photo_url ? (
+                          <Image src={tgUser.photo_url} alt="Avatar" fill unoptimized className="object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-gray-300 flex items-center justify-center text-[10px] text-gray-600">
+                            {tgUser?.first_name?.[0] || "AV"}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                  </div>
                  
                 <div className="p-6 space-y-6 pb-24">
@@ -1394,17 +1413,19 @@ function HomeContent() {
                           : (material ? (material.images?.[0] || material.image || "/ban.png") : "/ban.png");
                         const displayImage = activeCategory === "Мои обучения"
                           ? (TRAINING_IMAGES[item] ?? preferredImage)
-                          : activeCategory === "Обувь"
-                            ? (preferredImage !== "/ban.png" ? preferredImage : (FOOTWEAR_IMAGES[item] ?? "/ban.png"))
-                            : activeCategory === "Аксессуары"
-                              ? (preferredImage !== "/ban.png" ? preferredImage : (ACCESSORY_IMAGES[item] ?? "/ban.png"))
-                              : activeCategory === "Низы"
-                                ? (preferredImage !== "/ban.png" ? preferredImage : (BOTTOM_IMAGES[item] ?? "/ban.png"))
-                                : activeCategory === "Верха"
-                                  ? (preferredImage !== "/ban.png" ? preferredImage : (TOP_IMAGES[item] ?? "/ban.png"))
-                                  : activeCategory === "Сумки"
-                                    ? (preferredImage !== "/ban.png" ? preferredImage : (BAG_IMAGES[item] ?? "/ban.png"))
-                                  : preferredImage;
+                          : activeCategory === "Типы фигуры"
+                            ? (BODY_TYPE_IMAGES[item] ?? preferredImage)
+                            : activeCategory === "Обувь"
+                              ? (preferredImage !== "/ban.png" ? preferredImage : (FOOTWEAR_IMAGES[item] ?? "/ban.png"))
+                              : activeCategory === "Аксессуары"
+                                ? (preferredImage !== "/ban.png" ? preferredImage : (ACCESSORY_IMAGES[item] ?? "/ban.png"))
+                                : activeCategory === "Низы"
+                                  ? (preferredImage !== "/ban.png" ? preferredImage : (BOTTOM_IMAGES[item] ?? "/ban.png"))
+                                  : activeCategory === "Верха"
+                                    ? (preferredImage !== "/ban.png" ? preferredImage : (TOP_IMAGES[item] ?? "/ban.png"))
+                                    : activeCategory === "Сумки"
+                                      ? (preferredImage !== "/ban.png" ? preferredImage : (BAG_IMAGES[item] ?? "/ban.png"))
+                                      : preferredImage;
                         const overrideHashtag = SUBCATEGORY_HASHTAG_OVERRIDES[item];
                         const fallbackHashtag = overrideHashtag
                           ? (overrideHashtag.startsWith("#") ? overrideHashtag : `#${overrideHashtag}`)

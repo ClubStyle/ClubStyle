@@ -27,12 +27,12 @@ export async function GET(request: Request) {
     return new Response("Bad Request", { status: 400 });
   }
 
+  const fallback = () =>
+    Response.redirect(new URL("/ban.png", request.url), 302);
+
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
-    return new Response("TELEGRAM_BOT_TOKEN is not set", {
-      status: 500,
-      headers: { "cache-control": "no-store" }
-    });
+    return fallback();
   }
 
   let fileLink = "";
@@ -40,17 +40,17 @@ export async function GET(request: Request) {
     const bot = new TelegramBot(token, { polling: false });
     fileLink = await bot.getFileLink(fileId);
   } catch {
-    return new Response("Upstream error", { status: 502, headers: { "cache-control": "no-store" } });
+    return fallback();
   }
 
   let upstream: Response | null = null;
   try {
     upstream = await fetch(fileLink, { cache: "no-store" });
   } catch {
-    return new Response("Upstream error", { status: 502, headers: { "cache-control": "no-store" } });
+    return fallback();
   }
   if (!upstream.ok || !upstream.body) {
-    return new Response("Upstream error", { status: 502, headers: { "cache-control": "no-store" } });
+    return fallback();
   }
 
   const headers = new Headers();

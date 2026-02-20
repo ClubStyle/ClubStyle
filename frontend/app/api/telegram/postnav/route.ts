@@ -48,6 +48,29 @@ function getTelegramConfig() {
   };
 }
 
+function normalizeTmeWebAppUrl(input: string) {
+  const raw = (input || "").trim();
+  if (!raw) return "";
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return raw;
+  }
+  const host = (u.hostname || "").toLowerCase();
+  if (u.protocol !== "https:" || (host !== "t.me" && !host.endsWith(".t.me"))) return raw;
+  const parts = u.pathname.split("/").filter(Boolean);
+  const username = parts[0] || "";
+  if (!username) return raw;
+  const startapp = (u.searchParams.get("startapp") || "").trim();
+  if (parts.length === 1 && startapp) {
+    const out = new URL(`https://t.me/${username}/${encodeURIComponent(startapp)}`);
+    out.searchParams.set("startapp", startapp);
+    return out.toString();
+  }
+  return raw;
+}
+
 export async function POST(request: Request) {
   if (!isAdminAuthorized(request)) {
     return Response.json({ ok: false, error: "Forbidden" }, { status: 403 });
@@ -69,7 +92,11 @@ export async function POST(request: Request) {
 
   const chatId =
     typeof body?.chatId === "string" && body.chatId.trim().length
-      ? body.chatId.trim()
+      ? (() => {
+          const trimmed = body.chatId.trim();
+          const asNumber = Number(trimmed);
+          return Number.isFinite(asNumber) && asNumber !== 0 ? asNumber : trimmed;
+        })()
       : typeof body?.chatId === "number" && Number.isFinite(body.chatId) && body.chatId !== 0
         ? body.chatId
         : cfg.chatId;
@@ -97,26 +124,21 @@ export async function POST(request: Request) {
   }
 
   const isTelegramDeepLink = parsed.hostname === "t.me" || parsed.hostname.endsWith(".t.me");
-  const useUrlButton = isTelegramDeepLink || (typeof chatId === "number" && chatId < 0);
   const isChannel = typeof chatId === "number" && chatId < 0;
+  const normalizedTmeUrl = isTelegramDeepLink ? normalizeTmeWebAppUrl(webAppUrl) : "";
 
   const bot = new TelegramBot(cfg.token, { polling: false });
-  const channelLink = (() => {
-    if (!(isChannel && isTelegramDeepLink)) return null;
-    const u = new URL(webAppUrl);
-    if (!u.searchParams.has("mode")) u.searchParams.set("mode", "compact");
-    return u.toString();
-  })();
+  const channelUrl = (isChannel && isTelegramDeepLink ? normalizedTmeUrl : "") || webAppUrl;
 
   const msg = await bot.sendMessage(chatId as never, text, {
     disable_web_page_preview: true,
     reply_markup: {
       inline_keyboard: [
         [
-          isChannel && isTelegramDeepLink
-            ? { text: buttonText, url: channelLink || webAppUrl }
-            : useUrlButton
-              ? { text: buttonText, url: webAppUrl }
+          isChannel
+            ? { text: buttonText, url: channelUrl }
+            : isTelegramDeepLink
+              ? { text: buttonText, url: normalizedTmeUrl || webAppUrl }
               : { text: buttonText, web_app: { url: webAppUrl } }
         ]
       ]
