@@ -12,15 +12,6 @@ function normalizeToken(value: string) {
   return v;
 }
 
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
 function isAdminAuthorized(request: Request) {
   const secrets = [
     (process.env.ADMIN_SECRET || "").trim(),
@@ -116,26 +107,20 @@ export async function POST(request: Request) {
     if (!u.searchParams.has("mode")) u.searchParams.set("mode", "compact");
     return u.toString();
   })();
-  const msgText =
-    isChannel && isTelegramDeepLink
-      ? `${escapeHtml(text)}\n\n<a href="${escapeHtml(channelLink || webAppUrl)}">${escapeHtml(buttonText)}</a>`
-      : text;
 
-  const msg = await bot.sendMessage(chatId as never, msgText, {
+  const msg = await bot.sendMessage(chatId as never, text, {
     disable_web_page_preview: true,
-    parse_mode: isChannel && isTelegramDeepLink ? "HTML" : undefined,
-    reply_markup:
-      isChannel && isTelegramDeepLink
-        ? undefined
-        : {
-            inline_keyboard: [
-              [
-                useUrlButton
-                  ? { text: buttonText, url: webAppUrl }
-                  : { text: buttonText, web_app: { url: webAppUrl } }
-              ]
-            ]
-          }
+    reply_markup: {
+      inline_keyboard: [
+        [
+          isChannel && isTelegramDeepLink
+            ? { text: buttonText, url: channelLink || webAppUrl }
+            : useUrlButton
+              ? { text: buttonText, url: webAppUrl }
+              : { text: buttonText, web_app: { url: webAppUrl } }
+        ]
+      ]
+    }
   });
 
   if (pin) {
