@@ -23,6 +23,19 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "upload.wikimedia.org" },
       { protocol: "https", hostname: "taesieuwalagnplgalhj.supabase.co" }
     ]
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org;"
+          }
+        ]
+      }
+    ];
   }
 };
 

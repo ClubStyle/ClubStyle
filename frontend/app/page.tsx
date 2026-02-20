@@ -3,7 +3,7 @@
 import Image, { type ImageProps } from "next/image";
 import { Search, BookOpen, Heart, PlayCircle, ChevronLeft, ExternalLink } from "lucide-react";
 import BottomNav from "../components/BottomNav";
-import { useState, useEffect, Suspense, useCallback } from "react";
+import { useState, useEffect, Suspense, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
 // Types
@@ -452,6 +452,27 @@ function HomeContent() {
     }
   });
   const [tgUser, setTgUser] = useState<{first_name: string, photo_url?: string} | null>(null);
+  const tgRef = useRef<{
+    ready?: () => void;
+    expand?: () => void;
+    initData?: string;
+    initDataUnsafe?: { user?: { first_name?: string; photo_url?: string } };
+    onEvent?: (eventType: string, handler: () => void) => void;
+    offEvent?: (eventType: string, handler: () => void) => void;
+    MainButton?: {
+      show?: () => void;
+      hide?: () => void;
+      setText?: (text: string) => void;
+      onClick?: (handler: () => void) => void;
+      offClick?: (handler: () => void) => void;
+    };
+    BackButton?: {
+      show?: () => void;
+      hide?: () => void;
+      onClick?: (handler: () => void) => void;
+      offClick?: (handler: () => void) => void;
+    };
+  } | null>(null);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -692,15 +713,57 @@ function HomeContent() {
         Telegram?: {
             WebApp?: {
                 ready: () => void;
+                expand?: () => void;
+                initData?: string;
                 initDataUnsafe?: { user?: { first_name: string; photo_url?: string } };
+                onEvent?: (eventType: string, handler: () => void) => void;
+                offEvent?: (eventType: string, handler: () => void) => void;
+                MainButton?: {
+                  show?: () => void;
+                  hide?: () => void;
+                  setText?: (text: string) => void;
+                };
+                BackButton?: {
+                  show?: () => void;
+                  hide?: () => void;
+                };
             };
         };
     };
     if (typeof window !== 'undefined' && (window as unknown as TgWindow).Telegram?.WebApp) {
         const tg = (window as unknown as TgWindow).Telegram!.WebApp!;
+        tgRef.current = tg;
         tg.ready();
+        tg.expand?.();
         if (tg.initDataUnsafe?.user) {
             setTimeout(() => setTgUser(tg.initDataUnsafe!.user!), 0);
+        }
+        const initData = (tg.initData || "").trim();
+        if (initData) {
+          fetch("/api/telegram/verify", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ initData })
+          })
+            .then(async (res) => {
+              if (!res.ok) return null;
+              return (await res.json()) as unknown;
+            })
+            .then((data) => {
+              if (!data || typeof data !== "object") return;
+              const user = (data as { user?: unknown }).user;
+              if (!user || typeof user !== "object") return;
+              const first_name =
+                typeof (user as { first_name?: unknown }).first_name === "string"
+                  ? ((user as { first_name?: unknown }).first_name as string)
+                  : "";
+              const photo_url =
+                typeof (user as { photo_url?: unknown }).photo_url === "string"
+                  ? ((user as { photo_url?: unknown }).photo_url as string)
+                  : undefined;
+              if (first_name) setTgUser({ first_name, photo_url });
+            })
+            .catch(() => {});
         }
     }
   }, []);
@@ -845,15 +908,56 @@ function HomeContent() {
  
 
 
-  const closeSheet = () => {
+  const closeSheet = useCallback(() => {
     const fromParam = searchParams.get('from');
     if (fromParam === 'community') {
-        router.push('/community');
-        return;
+      router.push('/community');
+      return;
     }
     setSubCategorySheet(null);
     setActiveCategory(null); // Optional: clear selection on close
-  };
+  }, [router, searchParams]);
+
+  useEffect(() => {
+    const tg = tgRef.current;
+    if (!tg) return;
+
+    const handleBack = () => {
+      if (selectedMaterial) {
+        setSelectedMaterial(null);
+        return;
+      }
+      if (subCategorySheet) {
+        closeSheet();
+      }
+    };
+
+    const handleMain = () => {
+      if (selectedMaterial) {
+        setSelectedMaterial(null);
+      }
+    };
+
+    if (subCategorySheet || selectedMaterial) {
+      tg.BackButton?.show?.();
+    } else {
+      tg.BackButton?.hide?.();
+    }
+
+    if (selectedMaterial) {
+      tg.MainButton?.setText?.("Закрыть");
+      tg.MainButton?.show?.();
+    } else {
+      tg.MainButton?.hide?.();
+    }
+
+    tg.onEvent?.("backButtonClicked", handleBack);
+    tg.onEvent?.("mainButtonClicked", handleMain);
+    return () => {
+      tg.offEvent?.("backButtonClicked", handleBack);
+      tg.offEvent?.("mainButtonClicked", handleMain);
+    };
+  }, [closeSheet, selectedMaterial, subCategorySheet]);
 
   return (
     <div className="min-h-screen pb-24 font-sans relative overflow-hidden">
@@ -863,13 +967,12 @@ function HomeContent() {
         <div className="flex justify-between items-start mb-6">
           <div>
             <h1 className="text-2xl font-black text-black">
-              Привет, {tgUser?.first_name || "Анна"}!
+              Твой стиль — это ты.
             </h1>
-            <p className="text-sm text-gray-500">Твой стиль — это ты.</p>
           </div>
           <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden border border-white shadow-sm relative">
              {tgUser?.photo_url ? (
-                <Image src={tgUser.photo_url} alt="Avatar" fill className="object-cover" />
+                <Image src={tgUser.photo_url} alt="Avatar" fill unoptimized className="object-cover" />
              ) : (
                 <div className="w-full h-full bg-gray-300 flex items-center justify-center text-xs text-gray-600">
                     {tgUser?.first_name?.[0] || "AV"}
