@@ -4,14 +4,22 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+function normalizeToken(value: string) {
+  const v = (value || "").trim();
+  if (v.startsWith("<") && v.endsWith(">") && v.length >= 2) {
+    return v.slice(1, -1).trim();
+  }
+  return v;
+}
+
 function isAdminAuthorized(request: Request) {
   const secret =
     (process.env.ADMIN_SECRET || "").trim() || (process.env.SYNC_TELEGRAM_SECRET || "").trim();
   const auth = (request.headers.get("authorization") || "").trim();
   if (secret) {
-    if (auth === secret) return true;
+    if (normalizeToken(auth) === secret) return true;
     if (auth.toLowerCase().startsWith("bearer ")) {
-      const token = auth.slice("bearer ".length).trim();
+      const token = normalizeToken(auth.slice("bearer ".length));
       if (token === secret) return true;
     }
   }
