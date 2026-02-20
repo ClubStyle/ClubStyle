@@ -13,14 +13,16 @@ function normalizeToken(value: string) {
 }
 
 function isAdminAuthorized(request: Request) {
-  const secret =
-    (process.env.ADMIN_SECRET || "").trim() || (process.env.SYNC_TELEGRAM_SECRET || "").trim();
+  const secrets = [
+    (process.env.ADMIN_SECRET || "").trim(),
+    (process.env.SYNC_TELEGRAM_SECRET || "").trim()
+  ].filter(Boolean);
   const auth = (request.headers.get("authorization") || "").trim();
-  if (secret) {
-    if (normalizeToken(auth) === secret) return true;
+  if (secrets.length) {
+    if (secrets.includes(normalizeToken(auth))) return true;
     if (auth.toLowerCase().startsWith("bearer ")) {
       const token = normalizeToken(auth.slice("bearer ".length));
-      if (token === secret) return true;
+      if (secrets.includes(token)) return true;
     }
   }
 
