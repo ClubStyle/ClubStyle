@@ -39,10 +39,12 @@ function getTelegramConfig() {
   const rawChatId = (process.env.TELEGRAM_TARGET_CHAT_ID || "").trim();
   const chatId = rawChatId ? Number(rawChatId) : -1002055411531;
   const webAppUrl = (process.env.TELEGRAM_WEBAPP_URL || "").trim();
+  const webAppTmeUrl = (process.env.TELEGRAM_WEBAPP_TME_URL || "").trim();
   return {
     token,
     chatId: Number.isFinite(chatId) && chatId !== 0 ? chatId : -1002055411531,
-    webAppUrl
+    webAppUrl,
+    webAppTmeUrl
   };
 }
 
@@ -54,19 +56,6 @@ export async function POST(request: Request) {
   const cfg = getTelegramConfig();
   if (!cfg.token) {
     return Response.json({ ok: false, error: "TELEGRAM_BOT_TOKEN is required" }, { status: 500 });
-  }
-  if (!cfg.webAppUrl) {
-    return Response.json({ ok: false, error: "TELEGRAM_WEBAPP_URL is required" }, { status: 500 });
-  }
-
-  let parsed: URL;
-  try {
-    parsed = new URL(cfg.webAppUrl);
-  } catch {
-    return Response.json({ ok: false, error: "TELEGRAM_WEBAPP_URL must be a valid URL" }, { status: 500 });
-  }
-  if (parsed.protocol !== "https:") {
-    return Response.json({ ok: false, error: "TELEGRAM_WEBAPP_URL must be https" }, { status: 500 });
   }
 
   const body = (await request.json().catch(() => null)) as
@@ -86,13 +75,41 @@ export async function POST(request: Request) {
         : cfg.chatId;
 
   const webAppUrl =
-    typeof body?.webAppUrl === "string" && body.webAppUrl.trim().length ? body.webAppUrl.trim() : cfg.webAppUrl;
+    typeof body?.webAppUrl === "string" && body.webAppUrl.trim().length
+      ? body.webAppUrl.trim()
+      : cfg.webAppTmeUrl || cfg.webAppUrl;
+
+  if (!webAppUrl) {
+    return Response.json(
+      { ok: false, error: "TELEGRAM_WEBAPP_TME_URL or TELEGRAM_WEBAPP_URL is required" },
+      { status: 500 }
+    );
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(webAppUrl);
+  } catch {
+    return Response.json({ ok: false, error: "webAppUrl must be a valid URL" }, { status: 500 });
+  }
+  if (parsed.protocol !== "https:") {
+    return Response.json({ ok: false, error: "webAppUrl must be https" }, { status: 500 });
+  }
+
+  const isTelegramDeepLink = parsed.hostname === "t.me" || parsed.hostname.endsWith(".t.me");
+  const useUrlButton = isTelegramDeepLink || (typeof chatId === "number" && chatId < 0);
 
   const bot = new TelegramBot(cfg.token, { polling: false });
   const msg = await bot.sendMessage(chatId as never, text, {
     disable_web_page_preview: true,
     reply_markup: {
-      inline_keyboard: [[{ text: buttonText, web_app: { url: webAppUrl } }]]
+      inline_keyboard: [
+        [
+          useUrlButton
+            ? { text: buttonText, url: webAppUrl }
+            : { text: buttonText, web_app: { url: webAppUrl } }
+        ]
+      ]
     }
   });
 
