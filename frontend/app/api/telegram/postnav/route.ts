@@ -110,9 +110,15 @@ export async function POST(request: Request) {
   const isChannel = typeof chatId === "number" && chatId < 0;
 
   const bot = new TelegramBot(cfg.token, { polling: false });
+  const channelLink = (() => {
+    if (!(isChannel && isTelegramDeepLink)) return null;
+    const u = new URL(webAppUrl);
+    if (!u.searchParams.has("mode")) u.searchParams.set("mode", "compact");
+    return u.toString();
+  })();
   const msgText =
     isChannel && isTelegramDeepLink
-      ? `${escapeHtml(text)}\n\n<a href="${escapeHtml(webAppUrl)}">${escapeHtml(buttonText)}</a>`
+      ? `${escapeHtml(text)}\n\n<a href="${escapeHtml(channelLink || webAppUrl)}">${escapeHtml(buttonText)}</a>`
       : text;
 
   const msg = await bot.sendMessage(chatId as never, msgText, {
