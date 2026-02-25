@@ -883,6 +883,20 @@ export default function AdminPage() {
       setSelectedId(id);
       setDraft(item ? JSON.parse(JSON.stringify(item)) : null);
       setStatus(null);
+      void (async () => {
+        setBusy(true);
+        try {
+          const res = await fetch(`/api/materials?id=${encodeURIComponent(id)}&t=${Date.now()}`, {
+            cache: "no-store"
+          });
+          const data = await readJson<unknown>(res);
+          if (!res.ok) return;
+          if (!data || typeof data !== "object") return;
+          setDraft(JSON.parse(JSON.stringify(data)));
+        } finally {
+          setBusy(false);
+        }
+      })();
     },
     [materials]
   );
@@ -915,10 +929,10 @@ export default function AdminPage() {
       setMaterials(nextList);
       setSelectedId(null);
       setDraft(null);
-      const res = await fetch("/api/materials", {
+      const res = await fetch("/api/materials?op=deleteOne", {
         method: "POST",
         headers: { "content-type": "application/json", ...headers },
-        body: JSON.stringify(nextList)
+        body: JSON.stringify({ id: current.id })
       });
       const data = await readJson<unknown>(res);
       if (!res.ok) {
@@ -1082,11 +1096,13 @@ export default function AdminPage() {
     try {
       const toSave = applyDraftToList(materials);
       setMaterials(toSave);
-      const res = await fetch("/api/materials", {
-        method: "POST",
-        headers: { "content-type": "application/json", ...headers },
-        body: JSON.stringify(toSave)
-      });
+      const target = draft ? "/api/materials?op=upsertOne" : "/api/materials";
+      const payload = draft ? draft : toSave;
+      const res = await fetch(target, {
+          method: "POST",
+          headers: { "content-type": "application/json", ...headers },
+          body: JSON.stringify(payload)
+        });
       const data = await readJson<unknown>(res);
       if (!res.ok) {
         const message =
@@ -1098,7 +1114,7 @@ export default function AdminPage() {
     } finally {
       setBusy(false);
     }
-  }, [applyDraftToList, headers, loadMaterials, materials]);
+  }, [applyDraftToList, draft, headers, loadMaterials, materials]);
 
   const saveBottomNav = useCallback(async () => {
     setBusy(true);
@@ -1263,8 +1279,41 @@ export default function AdminPage() {
 
   const uploadFile = useCallback(
     async (file: File, materialId?: string) => {
+      const maxBytes = 3.5 * 1024 * 1024;
+      const prepare = async (input: File) => {
+        if (!input.type.startsWith("image/")) return input;
+        if (input.size <= maxBytes) return input;
+        try {
+          const bitmap = await createImageBitmap(input);
+          const maxDim = 1600;
+          const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+          canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return input;
+          ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+          const blob = await new Promise<Blob>((resolve, reject) => {
+            canvas.toBlob(
+              (b) => (b ? resolve(b) : reject(new Error("Не удалось обработать изображение"))),
+              "image/jpeg",
+              0.82
+            );
+          });
+          const base = (input.name || "image").replace(/\.[^/.]+$/, "");
+          return new File([blob], `${base}.jpg`, { type: "image/jpeg" });
+        } catch {
+          return input;
+        }
+      };
+
+      const prepared = await prepare(file);
+      if (prepared.size > maxBytes) {
+        throw new Error("Файл слишком большой. Сожми изображение и попробуй снова.");
+      }
+
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", prepared);
       if (typeof materialId === "string" && materialId.trim()) {
         formData.append("materialId", materialId.trim());
       }

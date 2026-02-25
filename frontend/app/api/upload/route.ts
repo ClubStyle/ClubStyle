@@ -102,6 +102,14 @@ export async function POST(request: Request) {
     );
   }
 
+  const maxBytes = 3.5 * 1024 * 1024;
+  if (file.size > maxBytes) {
+    return Response.json(
+      { error: "Файл слишком большой. Сожми изображение и попробуй снова." },
+      { status: 413, headers: { "cache-control": "no-store" } }
+    );
+  }
+
   const bucket = (process.env.SUPABASE_UPLOADS_BUCKET || "uploads").trim() || "uploads";
   const originalName = sanitizeFilename(file.name || "file");
   const contentType = file.type || "application/octet-stream";

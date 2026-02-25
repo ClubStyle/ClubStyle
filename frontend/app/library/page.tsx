@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { Heart, Clock, Trash2, PlayCircle, X, ChevronLeft, Search } from "lucide-react";
 import BottomNav from "../../components/BottomNav";
 import Image from "next/image";
@@ -93,66 +93,70 @@ const DEFAULT_CATEGORIES: Category[] = [
   { name: "Бренды" },
 ];
 
-const MATERIALS_DATA: MaterialItem[] = [
-  { id: '1', title: "Песочные часы", hashtag: "#песочныечасы", image: "/1pes.jpg", link: "https://t.me/c/2055411531/14930" },
-  { id: '2', title: "Перевернутый треугольник", hashtag: "#треугольник", image: "/treug.jpg", link: "https://t.me/c/2055411531/14835" },
-  { id: '3', title: "Яблоко", hashtag: "#яблоко", image: "/yabloko.jpg", link: "https://t.me/c/2055411531/14785" },
-  { id: '4', title: "Груша", hashtag: "#груша", image: "/grusha.jpg", link: "https://t.me/c/2055411531/13884" },
-  { id: '5', title: "Прямоугольник", hashtag: "#прямоугольник", image: "/pryamougolnik.jpg", link: "https://t.me/c/2055411531/14428" },
-  { id: '6', title: "Plus size", hashtag: "#plussize", image: "/plyus.jpg", link: "https://t.me/c/2055411531/13948" },
-  { id: '7', title: "Капсула", hashtag: "#капсула", image: "/kapsula.jpg", link: "https://t.me/c/2055411531/12058" },
-  { id: '8', title: "Образы", hashtag: "#образы", image: "/obrazy.jpg", link: "https://t.me/c/2055411531/13958", description: "Под этим хэштегами выкладываются готовые коллажи с образами" },
-  { id: '9', title: "Покупки по РФ", hashtag: "#образы #песочныечасы #прямоугольник #груша #яблоко #plussize #жакет #топ #юбка #сапоги #шуба #сумка #украшения #ссылкинавещи #покупкивроссии", image: "/porossii.jpg", link: "https://t.me/c/2055411531/14810" },
-  { id: '10', title: "Покупки по миру", hashtag: "#покупкипомиру", image: "/pomiru.jpg", link: "https://t.me/c/2055411531/14821", description: "Ссылки на покупки зарубежом" },
-  { id: '11', title: "#lookдняЛена", hashtag: "#lookдняЛена", image: "/luk.jpg", link: "https://t.me/c/2055411531/14859" },
-  { id: '12', title: "Вещь дня", hashtag: "#вещьдня", image: "/lukdnya.jpg", link: "https://t.me/c/2055411531/14862", description: "Еще одна вещь: https://t.me/c/2055411531/14861" },
-  { id: '13', title: "Советы", hashtag: "#советы", image: "/ban.png", link: "https://t.me/c/2055411531/14959" },
-  { id: '14', title: "Ответы на вопросы", hashtag: "#эфиры", image: "/efiry.png", link: "https://t.me/c/2055411531/651", description: "Дорогие участницы, вчера прошёл закрытый эфир Клуба стильных, где Лена отвечала на ваши вопросы ❤️" },
-  { id: '15', title: "Как собрать капсулу", hashtag: "#эфиры", image: "/efiry.png", link: "https://t.me/c/2055411531/1544", description: "Вчера состоялся наш закрытый эфир только для участниц Клуба на тему «Капсульный гардероб»! Я раскрыла выбранную вами тему и ответила на вопросы", video_link: "https://youtu.be/0n4m54NT7Lw" },
-  { id: '16', title: "Разбор образов участниц", hashtag: "#эфиры", image: "/efiry.png", link: "https://t.me/c/2055411531/2046", description: "Мы разобрали ваши образы, которые вы присылали в чат Клуба." },
-  { id: '17', title: "Осенний гардероб", hashtag: "#эфиры", image: "/efiry.png", link: "https://t.me/c/2055411531/2924", description: "Вчера состоялся наш закрытый эфир только для участниц Клуба на тему «Осенний гардероб», где я отвечала на ваши вопросы ❤️" },
-  { id: '18', title: "Ответы на вопросы участниц", hashtag: "#эфиры", image: "/efiry.png", link: "https://t.me/c/2055411531/4214", description: "Вчера состоялся наш закрытый эфир только для участниц Клуба, где я отвечала на ваши вопросы ❤️" },
-  { id: '19', title: "Эфир с Леной", hashtag: "#эфиры", image: "/efiry.png", link: "https://t.me/c/2055411531/4742", description: "Вчера состоялся наш закрытый эфир только для участниц Клуба, где я разбирала ваши праздничные образы❤️", video_link: "https://vimeo.com/1040450173" },
-  { id: '20', title: "Эфир с диетологом", hashtag: "#эфиры", image: "/efiry.png", link: "https://t.me/c/2055411531/4847", description: "В субботу состоялся закрытый эфир с диетологом Анастасией Егоровой, на котором Анастасия рассказывала как подготовиться к новогоднему застолью 🥗", video_link: "https://vimeo.com/1041654053?share=copy#t=282.321" },
-  { id: '21', title: "Неделя моды, тренды", hashtag: "#эфиры", image: "/efiry.png", link: "https://t.me/c/2055411531/7595", description: "Вчера состоялся наш закрытый эфир только для участниц Клуба, где я рассказывала про неделю моды в Париже, делилась впечатлениями и историями со стритстайла..." },
-  { id: '22', title: "Как быть яркой", hashtag: "#эфиры", image: "/efiry.png", link: "https://t.me/c/2055411531/9498", description: "В субботу состоялся закрытый эфир с психологом Ольгой Добряковой, на котором обсуждали очень важную тему о том, как разрешить себе быть яркой..." },
-  { id: '23', title: "Мастер-классы", hashtag: "#мастеркласс", image: "/masterkl.png", link: "https://t.me/c/2055411531/13191", description: "Привет, стильные ✨ Октябрь в Клубе стильных был посвящен теме \"Как быть стильной, когда пора утепляться\", и завершить его я хочу своим мастер классом 🔥" },
-  { id: '24', title: "Платья. Лето 2024", hashtag: "#платья", image: "/platya.png", link: "https://t.me/c/2055411531/9" },
-  { id: '25', title: "Cтильные приемы, которые помогут не замерзнуть", hashtag: "#советы", image: "/priemy.png", link: "https://t.me/c/2055411531/13050" },
-  { id: '26', title: "Бренды", hashtag: "#бренды", image: "/ban.png", link: "https://t.me/c/2055411531/248" },
-  { id: '27', title: "Осенние образы для работы", hashtag: "#осень", image: "/70.jpg", link: "https://t.me/c/2055411531/12880" },
-  { id: '28', title: "Повседневные осенние образы", hashtag: "#осень", image: "/ban.png", link: "https://t.me/c/2055411531/12717" },
-  { id: '29', title: "Верхняя одежда на осень", hashtag: "#осень", image: "/ban.png", link: "https://t.me/c/2055411531/12564" },
-  { id: '30', title: "Осенние образы с трикотажем", hashtag: "#трикотаж", image: "/ban.png", link: "https://t.me/c/2055411531/12402" },
-  { id: '31', title: "Как сделать базовый гардероб нескучным", hashtag: "#советы", image: "/ban.png", link: "https://t.me/c/2055411531/12248" },
-  { id: '32', title: "Обувь и аксессуары на осень", hashtag: "#mango", image: "/ban.png", link: "https://t.me/c/2055411531/12098" },
-  { id: '33', title: "Осенние капсулы", hashtag: "#капсула", image: "/ban.png", link: "https://t.me/c/2055411531/11955" },
-  { id: '34', title: "Базовый гардероб", hashtag: "#база", image: "/ban.png", link: "https://t.me/c/2055411531/11803" },
-  { id: '35', title: "Фишки стилизации", hashtag: "#стилизация", image: "/ban.png", link: "https://t.me/c/2055411531/11668" },
-  { id: '38', title: "Конкурс", hashtag: "#конкурс", image: "/ban.png", link: "https://t.me/c/2249399970/31710" },
-  { id: '39', title: "Ссылки на вещи", hashtag: "#ссылкинавещи", image: "/veshchi.png", link: "https://t.me/c/2249399970/2" },
-];
-
 export default function Library() {
   const [activeTab, setActiveTab] = useState<"favorites" | "recent">("favorites");
   const [favorites, setFavorites] = useState<string[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
+  const [materials, setMaterials] = useState<MaterialItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [categorySearchQuery, setCategorySearchQuery] = useState("");
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialItem | null>(null);
 
+  const materialsById = useMemo(() => {
+    const map = new Map<string, MaterialItem>();
+    for (const m of materials) {
+      if (m && typeof m.id === "string" && m.id.trim()) {
+        map.set(m.id.trim(), m);
+      }
+    }
+    return map;
+  }, [materials]);
+
+  const materialsByTitle = useMemo(() => {
+    const map = new Map<string, MaterialItem>();
+    for (const m of materials) {
+      if (m && typeof m.title === "string" && m.title.trim()) {
+        map.set(m.title.trim(), m);
+      }
+    }
+    return map;
+  }, [materials]);
+
+  const resolveMaterial = useCallback((key: string) => {
+    const k = (key || "").trim();
+    if (!k) return null;
+    return materialsById.get(k) || materialsByTitle.get(k) || null;
+  }, [materialsById, materialsByTitle]);
+
   useEffect(() => {
+    const readList = (raw: string | null) => {
+      if (!raw) return [];
+      try {
+        const parsed: unknown = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+          .map((v) => {
+            if (typeof v === "string") return v.trim();
+            if (v && typeof v === "object") {
+              const obj = v as Record<string, unknown>;
+              const id = typeof obj.id === "string" ? obj.id.trim() : "";
+              if (id) return id;
+              const title = typeof obj.title === "string" ? obj.title.trim() : "";
+              if (title) return title;
+            }
+            return "";
+          })
+          .filter(Boolean);
+      } catch {
+        return [];
+      }
+    };
+
     const savedFavs = localStorage.getItem("favorites");
     const savedRecent = localStorage.getItem("recent");
-    if (savedFavs) {
-        const favs = JSON.parse(savedFavs);
-        setTimeout(() => setFavorites(favs), 0);
-    }
-    if (savedRecent) {
-        const rec = JSON.parse(savedRecent);
-        setTimeout(() => setRecent(rec), 0);
-    }
+    setTimeout(() => setFavorites(readList(savedFavs)), 0);
+    setTimeout(() => setRecent(readList(savedRecent)), 0);
 
     fetch(`/api/materials?key=categories&t=${Date.now()}`, { cache: "no-store" })
       .then((res) => res.json())
@@ -179,17 +183,93 @@ export default function Library() {
         setCategories(cleaned);
       })
       .catch(() => {});
+
+    fetch(`/api/materials?t=${Date.now()}`, { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!Array.isArray(data)) return;
+        const cleaned = (data as unknown[])
+          .map((it) => (it && typeof it === "object" ? (it as Record<string, unknown>) : null))
+          .map((it) => {
+            const id = typeof it?.id === "string" ? it.id.trim() : "";
+            if (!id) return null;
+            const computedLink =
+              typeof it?.link === "string" && it.link.trim()
+                ? it.link.trim()
+                : /^\d+$/.test(id)
+                  ? `https://t.me/c/2055411531/${id}`
+                  : "";
+            return {
+              id,
+              title: typeof it?.title === "string" ? it.title : id,
+              hashtag: typeof it?.hashtag === "string" ? it.hashtag : "#материал",
+              image: typeof it?.image === "string" ? it.image : "/ban.png",
+              link: computedLink,
+              description: typeof it?.description === "string" ? it.description : undefined,
+              video_link: typeof it?.video_link === "string" ? it.video_link : undefined
+            } satisfies MaterialItem;
+          })
+          .filter(Boolean) as MaterialItem[];
+        setMaterials(cleaned);
+      })
+      .catch(() => {});
   }, []);
 
-  const toggleFavorite = (item: string) => {
-    let newFavs;
-    if (favorites.includes(item)) {
-        newFavs = favorites.filter(i => i !== item);
-    } else {
-        newFavs = [...favorites, item];
+  const normalizedFavorites = useMemo(() => {
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const raw of favorites) {
+      const key = (raw || "").trim();
+      if (!key) continue;
+      const resolved = resolveMaterial(key);
+      const id = (resolved?.id || key).trim();
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      out.push(id);
     }
-    setFavorites(newFavs);
-    localStorage.setItem("favorites", JSON.stringify(newFavs));
+    return out;
+  }, [favorites, resolveMaterial]);
+
+  const normalizedRecent = useMemo(() => {
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const raw of recent) {
+      const key = (raw || "").trim();
+      if (!key) continue;
+      const resolved = resolveMaterial(key);
+      const id = (resolved?.id || key).trim();
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      out.push(id);
+    }
+    return out;
+  }, [recent, resolveMaterial]);
+
+  const toggleFavorite = (itemKey: string) => {
+    const resolved = resolveMaterial(itemKey);
+    const targetId = (resolved?.id || itemKey).trim();
+    if (!targetId) return;
+    setFavorites((prev) => {
+      const next: string[] = [];
+      let existed = false;
+      const seen = new Set<string>();
+      for (const raw of prev) {
+        const key = (raw || "").trim();
+        if (!key) continue;
+        const id = (resolveMaterial(key)?.id || key).trim();
+        if (!id) continue;
+        if (id === targetId) {
+          existed = true;
+          continue;
+        }
+        if (seen.has(id)) continue;
+        seen.add(id);
+        next.push(id);
+      }
+      if (!existed) next.unshift(targetId);
+      localStorage.setItem("favorites", JSON.stringify(next));
+      return next;
+    });
   };
 
   const clearRecent = () => {
@@ -197,29 +277,43 @@ export default function Library() {
     localStorage.setItem("recent", JSON.stringify([]));
   };
 
-  const handleMaterialClick = (materialTitle: string) => {
-    let material = MATERIALS_DATA.find(m => m.title === materialTitle);
-    
-    // Fallback if not found in data
-    if (!material) {
-        material = {
-            id: 'fallback-' + materialTitle.replace(/\s+/g, '-').toLowerCase(),
-            title: materialTitle,
-            hashtag: "#" + materialTitle.toLowerCase().replace(/\s/g, ''),
-            image: "/ban.png", // placeholder
-            link: "https://t.me/c/2055411531/1" // default placeholder link
-        };
-    }
+  const handleMaterialClick = (key: string) => {
+    const resolved = resolveMaterial(key);
+    const isNumericId = /^\d+$/.test((key || "").trim());
+    const material: MaterialItem =
+      resolved ||
+      ({
+        id:
+          (key || "").trim() ||
+          `fallback-${(key || "material").toLowerCase().trim().replace(/\s+/g, "-")}`,
+        title: (key || "").trim() || "Материал",
+        hashtag: "#материал",
+        image: "/ban.png",
+        link: isNumericId ? `https://t.me/c/2055411531/${key}` : "https://t.me/c/2055411531/1"
+      } satisfies MaterialItem);
 
     setSelectedMaterial(material);
     setActiveCategory(null); // Close category modal if open
     
-    // Add to recent
-    if (!recent.includes(material.title)) {
-        const newRecent = [material.title, ...recent];
-        setRecent(newRecent);
-        localStorage.setItem("recent", JSON.stringify(newRecent));
-    }
+    setRecent((prev) => {
+      const next: string[] = [];
+      const seen = new Set<string>();
+      const targetId = (material.id || "").trim();
+      if (targetId) {
+        seen.add(targetId);
+        next.push(targetId);
+      }
+      for (const raw of prev) {
+        const key = (raw || "").trim();
+        if (!key) continue;
+        const id = (resolveMaterial(key)?.id || key).trim();
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        next.push(id);
+      }
+      localStorage.setItem("recent", JSON.stringify(next));
+      return next;
+    });
   };
 
   return (
@@ -256,19 +350,21 @@ export default function Library() {
         <div className="px-6 mt-6">
           {activeTab === "favorites" && (
             <div className="space-y-4">
-              {favorites.length === 0 ? (
+              {normalizedFavorites.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
                   <Heart size={48} className="mx-auto mb-4 opacity-20" />
                   <p>Пока нет избранного</p>
                 </div>
               ) : (
-                favorites.map((item) => {
-                  const material = MATERIALS_DATA.find(m => m.title === item);
+                normalizedFavorites.map((item) => {
+                  const material = resolveMaterial(item);
+                  const materialId = material?.id || item;
+                  const title = material?.title || item;
                   return (
                     <div 
-                        key={item} 
+                        key={materialId} 
                         className="bg-white rounded-[2rem] p-4 shadow-sm border border-gray-100 flex gap-4 items-center group relative overflow-hidden cursor-pointer hover:border-pink-200 transition-colors"
-                        onClick={() => handleMaterialClick(item)}
+                        onClick={() => handleMaterialClick(materialId)}
                     >
                       <div className="w-20 h-20 rounded-2xl bg-gray-200 shrink-0 overflow-hidden relative">
                            <Image
@@ -285,14 +381,14 @@ export default function Library() {
                               </span>
                           </div>
                           <h3 className="font-bold text-gray-900 text-sm leading-tight mb-1 line-clamp-2">
-                              {item}
+                              {title}
                           </h3>
                           <p className="text-[10px] text-gray-400">Нажмите для просмотра</p>
                       </div>
                       <button 
                           onClick={(e) => {
                               e.stopPropagation();
-                              toggleFavorite(item);
+                              toggleFavorite(materialId);
                           }} 
                           className="absolute top-4 right-4 p-2 text-gray-300 hover:text-pink-500 transition-colors bg-white/80 rounded-full backdrop-blur-sm z-10"
                       >
@@ -309,24 +405,26 @@ export default function Library() {
             <div className="space-y-6">
                <div className="flex justify-between items-center mb-2">
                   <h2 className="text-lg font-black uppercase tracking-wide">Просмотренное</h2>
-                  {recent.length > 0 && (
+                  {normalizedRecent.length > 0 && (
                       <button onClick={clearRecent} className="text-xs text-gray-400 hover:text-red-500 flex items-center gap-1">
                           <Trash2 size={12} /> Очистить
                       </button>
                   )}
                </div>
                
-               {recent.length > 0 ? (
+               {normalizedRecent.length > 0 ? (
                    <div className="space-y-6">
-                       {recent.map((item, idx) => {
-                         const material = MATERIALS_DATA.find(m => m.title === item);
+                       {normalizedRecent.map((item, idx) => {
+                         const material = resolveMaterial(item);
+                         const materialId = material?.id || item;
+                         const title = material?.title || item;
                          return (
                             <div key={`${item}-${idx}`} className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-gray-100 relative group">
                                 {/* Image Section */}
                                 <div className="relative h-48 w-full">
                                     <Image
                                         src={material ? material.image : "/ban.png"}
-                                        alt={item}
+                                        alt={title}
                                         fill
                                         className="object-cover"
                                     />
@@ -334,12 +432,12 @@ export default function Library() {
                                     
                                     {/* Favorite Button */}
                                     <button 
-                                        onClick={() => toggleFavorite(item)}
+                                        onClick={() => toggleFavorite(materialId)}
                                         className="absolute top-4 right-4 bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white transition-colors"
                                     >
                                         <Heart 
                                             size={20} 
-                                            className={`transition-colors ${favorites.includes(item) ? "fill-pink-500 text-pink-500" : "text-white"}`} 
+                                            className={`transition-colors ${normalizedFavorites.includes(materialId) ? "fill-pink-500 text-pink-500" : "text-white"}`} 
                                         />
                                     </button>
                                 </div>
@@ -352,7 +450,7 @@ export default function Library() {
                                         </span>
                                     </div>
                                     <h3 className="text-lg font-bold text-gray-900 mb-2 leading-tight">
-                                        {item}
+                                        {title}
                                     </h3>
                                     {material?.description && (
                                         <p className="text-gray-500 text-xs mb-4 leading-relaxed">
@@ -400,7 +498,7 @@ export default function Library() {
                                         setActiveCategory(cat.name);
                                         setCategorySearchQuery("");
                                     } else {
-                                        const material = MATERIALS_DATA.find(m => m.title === cat.name);
+                                        const material = resolveMaterial(cat.name);
                                         if (material) {
                                             handleMaterialClick(cat.name);
                                         } else {
@@ -458,7 +556,7 @@ export default function Library() {
                             const query = categorySearchQuery.toLowerCase();
                             if (!query) return true;
                             
-                            const material = MATERIALS_DATA.find(m => m.title === sub);
+                            const material = resolveMaterial(sub);
                             const titleMatch = sub.toLowerCase().includes(query);
                             const hashtagMatch = material 
                                 ? material.hashtag.toLowerCase().includes(query)
@@ -467,7 +565,8 @@ export default function Library() {
                             return titleMatch || hashtagMatch;
                         })
                         .map((sub) => {
-                         const material = MATERIALS_DATA.find(m => m.title === sub);
+                         const material = resolveMaterial(sub);
+                         const materialId = material?.id || sub;
                          const displayImage = material ? material.image : "/ban.png";
                          const displayHashtag = material ? material.hashtag : "#" + sub.toLowerCase().replace(/\s/g, '');
                          const displayLink = material ? material.link : `https://t.me/c/2055411531/1`;
@@ -486,12 +585,12 @@ export default function Library() {
                                     
                                     {/* Favorite Button */}
                                     <button 
-                                        onClick={() => toggleFavorite(sub)}
+                                        onClick={() => toggleFavorite(materialId)}
                                         className="absolute top-4 right-4 bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white transition-colors"
                                     >
                                         <Heart 
                                             size={20} 
-                                            className={`transition-colors ${favorites.includes(sub) ? "fill-pink-500 text-pink-500" : "text-white"}`} 
+                                            className={`transition-colors ${normalizedFavorites.includes(materialId) ? "fill-pink-500 text-pink-500" : "text-white"}`} 
                                         />
                                     </button>
                                 </div>
@@ -576,12 +675,12 @@ export default function Library() {
                     
                     {/* Favorite Button */}
                     <button 
-                        onClick={() => toggleFavorite(selectedMaterial!.title)}
+                        onClick={() => toggleFavorite(selectedMaterial!.id)}
                         className="absolute bottom-4 right-4 bg-white/30 backdrop-blur-md p-3 rounded-full hover:bg-white transition-colors border border-white/20"
                     >
                         <Heart 
                             size={24} 
-                            className={`transition-colors ${favorites.includes(selectedMaterial.title) ? "fill-pink-500 text-pink-500" : "text-white"}`} 
+                            className={`transition-colors ${normalizedFavorites.includes(selectedMaterial.id) ? "fill-pink-500 text-pink-500" : "text-white"}`} 
                         />
                     </button>
                 </div>
