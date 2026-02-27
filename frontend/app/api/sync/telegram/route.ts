@@ -19,6 +19,7 @@ type TelegramInboundMessage = {
   chat?: { id?: number };
   message_id?: number;
   date?: number;
+  edit_date?: number;
   text?: string;
   caption?: string;
   entities?: unknown;
@@ -524,6 +525,9 @@ async function handleTelegramWebhook(request: Request) {
 
     const msgChatId = typeof message.chat?.id === "number" ? message.chat.id : null;
     const msgDate = typeof message.date === "number" ? message.date : null;
+    const msgEditDate = typeof (message as { edit_date?: unknown }).edit_date === "number"
+      ? ((message as { edit_date: number }).edit_date as number)
+      : null;
     const msgId = typeof message.message_id === "number" ? message.message_id : null;
     if (!msgChatId || msgChatId !== chatId || !msgDate || !msgId) {
       return Response.json(
@@ -534,7 +538,8 @@ async function handleTelegramWebhook(request: Request) {
 
     const windowCutoffTs = Math.floor(Date.now() / 1000) - daysWindow * 24 * 60 * 60;
     const cutoffTs = Math.max(windowCutoffTs, getDefaultTelegramSinceSeconds());
-    if (msgDate < cutoffTs) {
+    const effectiveTs = msgEditDate ?? msgDate;
+    if (effectiveTs < cutoffTs) {
       return Response.json(
         { ok: true, ignored: true, reason: "outside_window" },
         { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } }
@@ -662,11 +667,17 @@ async function handleTelegramWebhook(request: Request) {
       existingImage !== "/ban.png" &&
       !existingImage.startsWith("/api/telegram-file?");
 
-    const shouldUpdateImages =
+    const existingImages = Array.isArray(existingItem?.images) ? existingItem!.images : [];
+    const hasManualImages = existingImages.some((img) => {
+      const v = typeof img === "string" ? img.trim() : "";
+      if (!v || v === "/ban.png") return false;
+      return !v.startsWith("/api/telegram-file?");
+    });
+    const shouldUpdateCover =
       !existingItem ||
-      (!hasManualCover && existingItem.image === "/ban.png") ||
-      !Array.isArray(existingItem.images) ||
-      (!hasManualCover && existingItem.images.length === 0);
+      (!hasManualCover &&
+        (!existingImage || existingImage === "/ban.png" || existingImage.startsWith("/api/telegram-file?")));
+    const shouldUpdateImages = !existingItem || (!hasManualImages && existingImages.length === 0);
 
     const currentTitle =
       existingItem && typeof existingItem.title === "string" ? existingItem.title.trim() : "";
@@ -684,7 +695,7 @@ async function handleTelegramWebhook(request: Request) {
           ? currentHashtag
           : hashtags || "#новинка",
       image: existingItem?.image || image,
-      images: Array.isArray(existingItem?.images) ? existingItem?.images : images,
+      images: existingImages.length ? existingImages : images,
       link,
       description: appendMissingLinks(
         currentDescription.trim().length ? currentDescription : descriptionFromTg,
@@ -693,10 +704,8 @@ async function handleTelegramWebhook(request: Request) {
       date: Math.max(existingItem?.date || 0, groupState.date || 0) || groupState.date
     };
 
-    if (shouldUpdateImages) {
-      next.image = image;
-      next.images = images;
-    }
+    if (shouldUpdateCover) next.image = image;
+    if (shouldUpdateImages) next.images = images;
 
     byId.set(id, next);
     const added = existingItem ? 0 : 1;
@@ -1230,8 +1239,12 @@ async function syncTelegram(request?: Request) {
               const { msg } = pickUpdateMessage(update);
               if (!msg) continue;
               if (!msg.chat || msg.chat.id !== chatId) continue;
-              if (!msg.date || msg.date < cutoffTs) continue;
+              const msgTs = typeof msg.date === "number" ? msg.date : null;
+              const msgEditTs = typeof msg.edit_date === "number" ? msg.edit_date : null;
+              const effectiveTs = msgEditTs ?? msgTs;
+              if (!effectiveTs || effectiveTs < cutoffTs) continue;
               if (typeof msg.message_id !== "number") continue;
+              const groupTs = msgTs ?? effectiveTs;
 
               const msgId = msg.message_id;
               const key = msg.media_group_id ? `group:${msg.media_group_id}` : `single:${msgId}`;
@@ -1239,7 +1252,7 @@ async function syncTelegram(request?: Request) {
                 groups.set(key, {
                   ids: [],
                   chatId: msg.chat.id,
-                  date: msg.date,
+                  date: groupTs,
                   text: "",
                   entities: [],
                   photoFileIds: []
@@ -1248,7 +1261,7 @@ async function syncTelegram(request?: Request) {
 
               const g = groups.get(key)!;
               g.ids.push(msgId);
-              g.date = Math.max(g.date, msg.date);
+              g.date = Math.max(g.date, groupTs);
               const text = msg.caption || msg.text || "";
               if (text && text.length > (g.text?.length || 0)) {
                 g.text = text;

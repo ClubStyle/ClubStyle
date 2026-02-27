@@ -34,10 +34,44 @@ function SafeImage({
   onError,
   ...props
 }: Omit<ImageProps, "src"> & { src: ImageProps["src"] }) {
+  const isRemote = typeof src === "string" && /^https?:\/\//i.test(src);
   const isUploads = typeof src === "string" && src.startsWith("/uploads/");
   const isWikimedia = typeof src === "string" && src.startsWith("https://upload.wikimedia.org/");
   const isTelegramFile = typeof src === "string" && src.startsWith("/api/telegram-file?");
   const isSupabaseFile = typeof src === "string" && src.startsWith("/api/supabase-file?");
+  if (isRemote) {
+    const fill = Boolean((props as { fill?: unknown })?.fill);
+    const width = (props as { width?: unknown })?.width;
+    const height = (props as { height?: unknown })?.height;
+    const className = (props as { className?: unknown })?.className;
+    const style = (props as { style?: unknown })?.style;
+    const mergedStyle = fill
+      ? ({
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          ...((style && typeof style === "object" ? (style as object) : {}) as object)
+        } as unknown)
+      : style;
+    return (
+      <img
+        src={src}
+        alt={alt}
+        className={typeof className === "string" ? className : undefined}
+        style={mergedStyle as never}
+        width={!fill && typeof width === "number" ? width : undefined}
+        height={!fill && typeof height === "number" ? height : undefined}
+        onError={(e) => {
+          onError?.(e as unknown as never);
+          const target = e.currentTarget as HTMLImageElement | null;
+          if (target && target.getAttribute("src") !== "/ban.png") {
+            target.setAttribute("src", "/ban.png");
+          }
+        }}
+      />
+    );
+  }
   return (
     <Image
       {...props}

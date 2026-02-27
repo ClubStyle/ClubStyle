@@ -45,16 +45,6 @@ function buildPublicObjectUrl(bucket: string, filePath: string) {
   }
 }
 
-function inferImageContentType(filePath: string) {
-  const lower = filePath.toLowerCase();
-  if (lower.endsWith(".png")) return "image/png";
-  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
-  if (lower.endsWith(".webp")) return "image/webp";
-  if (lower.endsWith(".gif")) return "image/gif";
-  if (lower.endsWith(".svg")) return "image/svg+xml";
-  return null;
-}
-
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const bucket = (url.searchParams.get("bucket") || "").trim();
@@ -76,38 +66,31 @@ export async function GET(request: Request) {
     return new Response("Forbidden", { status: 403, headers: { "cache-control": "no-store" } });
   }
 
+  const publicUrl = buildPublicObjectUrl(bucket, filePath);
+  if (publicUrl) {
+    return Response.redirect(publicUrl, 302);
+  }
+
   const supabase = getSupabase();
   if (!supabase) {
-    const publicUrl = buildPublicObjectUrl(bucket, filePath);
-    if (publicUrl) {
-      return Response.redirect(publicUrl, 302);
-    }
     return new Response("Supabase is not configured (missing SUPABASE_URL or a secret key)", {
       status: 500,
       headers: { "cache-control": "no-store" }
     });
   }
 
-  const { data, error } = await supabase.storage.from(bucket).download(filePath);
-  if (error || !data) {
-    return Response.json(
-      {
-        error: error?.message || "Object not found",
-        bucket,
-        path: filePath,
-        hint:
-          "Файл отсутствует в Storage по этому пути или нет прав на чтение. Проверь bucket, путь materials/..., и что ключ имеет доступ к Storage."
-      },
-      { status: 404, headers: { "cache-control": "no-store" } }
-    );
+  const fromSdk = supabase.storage.from(bucket).getPublicUrl(filePath);
+  const sdkUrl = (fromSdk?.data?.publicUrl || "").trim();
+  if (sdkUrl) {
+    return Response.redirect(sdkUrl, 302);
   }
 
-  const body = Buffer.from(await data.arrayBuffer());
-  const headers = new Headers();
-  const inferred = inferImageContentType(filePath);
-  const contentType = inferred || (data.type && data.type.startsWith("image/") ? data.type : null);
-  if (contentType) headers.set("content-type", contentType);
-  headers.set("cache-control", "public, max-age=3600");
-
-  return new Response(body, { status: 200, headers });
+  return Response.json(
+    {
+      error: "Object URL is not available",
+      bucket,
+      path: filePath
+    },
+    { status: 404, headers: { "cache-control": "no-store" } }
+  );
 }

@@ -102,7 +102,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const maxBytes = 3.5 * 1024 * 1024;
+  const maxBytes = 2.5 * 1024 * 1024;
   if (file.size > maxBytes) {
     return Response.json(
       { error: "Файл слишком большой. Сожми изображение и попробуй снова." },

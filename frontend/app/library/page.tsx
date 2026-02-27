@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState, useEffect } from "react";
 import { Heart, Clock, Trash2, PlayCircle, X, ChevronLeft, Search } from "lucide-react";
 import BottomNav from "../../components/BottomNav";
-import Image from "next/image";
+import Image, { type ImageProps } from "next/image";
 
 type MaterialItem = {
   id: string;
@@ -14,6 +14,67 @@ type MaterialItem = {
   description?: string;
   video_link?: string;
 };
+
+function SafeImage({
+  src,
+  alt,
+  onError,
+  ...props
+}: Omit<ImageProps, "src"> & { src: ImageProps["src"] }) {
+  const isRemote = typeof src === "string" && /^https?:\/\//i.test(src);
+  const isUploads = typeof src === "string" && src.startsWith("/uploads/");
+  const isWikimedia = typeof src === "string" && src.startsWith("https://upload.wikimedia.org/");
+  const isTelegramFile = typeof src === "string" && src.startsWith("/api/telegram-file?");
+  const isSupabaseFile = typeof src === "string" && src.startsWith("/api/supabase-file?");
+  if (isRemote) {
+    const fill = Boolean((props as { fill?: unknown })?.fill);
+    const width = (props as { width?: unknown })?.width;
+    const height = (props as { height?: unknown })?.height;
+    const className = (props as { className?: unknown })?.className;
+    const style = (props as { style?: unknown })?.style;
+    const mergedStyle = fill
+      ? ({
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          ...((style && typeof style === "object" ? (style as object) : {}) as object)
+        } as unknown)
+      : style;
+    return (
+      <img
+        src={src}
+        alt={alt}
+        className={typeof className === "string" ? className : undefined}
+        style={mergedStyle as never}
+        width={!fill && typeof width === "number" ? width : undefined}
+        height={!fill && typeof height === "number" ? height : undefined}
+        onError={(e) => {
+          onError?.(e as unknown as never);
+          const target = e.currentTarget as HTMLImageElement | null;
+          if (target && target.getAttribute("src") !== "/ban.png") {
+            target.setAttribute("src", "/ban.png");
+          }
+        }}
+      />
+    );
+  }
+  return (
+    <Image
+      {...props}
+      src={src}
+      alt={alt}
+      unoptimized={isUploads || isWikimedia || isTelegramFile || isSupabaseFile}
+      onError={(e) => {
+        onError?.(e);
+        const target = e.currentTarget as HTMLImageElement | null;
+        if (target && target.getAttribute("src") !== "/ban.png") {
+          target.setAttribute("src", "/ban.png");
+        }
+      }}
+    />
+  );
+}
 
 const getEmbedUrl = (url: string) => {
     if (!url) return null;
@@ -367,8 +428,8 @@ export default function Library() {
                         onClick={() => handleMaterialClick(materialId)}
                     >
                       <div className="w-20 h-20 rounded-2xl bg-gray-200 shrink-0 overflow-hidden relative">
-                           <Image
-                              src={material ? material.image : "/ban.png"}
+                           <SafeImage
+                              src={(material?.image || "").trim() || "/ban.png"}
                               alt="Preview"
                               fill
                               className="object-cover"
@@ -422,8 +483,8 @@ export default function Library() {
                             <div key={`${item}-${idx}`} className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-gray-100 relative group">
                                 {/* Image Section */}
                                 <div className="relative h-48 w-full">
-                                    <Image
-                                        src={material ? material.image : "/ban.png"}
+                                    <SafeImage
+                                        src={(material?.image || "").trim() || "/ban.png"}
                                         alt={title}
                                         fill
                                         className="object-cover"
@@ -575,8 +636,8 @@ export default function Library() {
                             <div key={sub} className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-gray-100 relative group">
                                 {/* Image Section */}
                                 <div className="relative h-48 w-full">
-                                    <Image
-                                        src={displayImage}
+                                    <SafeImage
+                                        src={(displayImage || "").trim() || "/ban.png"}
                                         alt={sub}
                                         fill
                                         className="object-cover"
@@ -663,8 +724,8 @@ export default function Library() {
                         />
                     ) : (
                         <>
-                            <Image
-                                src={selectedMaterial.image}
+                            <SafeImage
+                                src={(selectedMaterial.image || "").trim() || "/ban.png"}
                                 alt={selectedMaterial.title}
                                 fill
                                 className="object-cover"

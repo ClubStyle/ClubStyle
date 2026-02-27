@@ -39,6 +39,7 @@ type ServerInfo = {
   ref?: string | null;
   at?: number | null;
   vercel?: boolean;
+  telegramTokenPresent?: boolean;
   supabaseUrlPresent?: boolean;
   supabaseKeyPresent?: boolean;
   uploadsBucket?: string | null;
@@ -90,11 +91,45 @@ function SafeImage({
   onError,
   ...props
 }: Omit<ImageProps, "src"> & { src: ImageProps["src"] }) {
+  const isRemote = typeof src === "string" && /^https?:\/\//i.test(src);
   const isUploads = typeof src === "string" && src.startsWith("/uploads/");
   const isWikimedia =
     typeof src === "string" && src.startsWith("https://upload.wikimedia.org/");
   const isTelegramFile = typeof src === "string" && src.startsWith("/api/telegram-file?");
   const isSupabaseFile = typeof src === "string" && src.startsWith("/api/supabase-file?");
+  if (isRemote) {
+    const fill = Boolean((props as { fill?: unknown })?.fill);
+    const width = (props as { width?: unknown })?.width;
+    const height = (props as { height?: unknown })?.height;
+    const className = (props as { className?: unknown })?.className;
+    const style = (props as { style?: unknown })?.style;
+    const mergedStyle = fill
+      ? ({
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          ...((style && typeof style === "object" ? (style as object) : {}) as object)
+        } as unknown)
+      : style;
+    return (
+      <img
+        src={src}
+        alt={alt}
+        className={typeof className === "string" ? className : undefined}
+        style={mergedStyle as never}
+        width={!fill && typeof width === "number" ? width : undefined}
+        height={!fill && typeof height === "number" ? height : undefined}
+        onError={(e) => {
+          onError?.(e as unknown as never);
+          const target = e.currentTarget as HTMLImageElement | null;
+          if (target && target.getAttribute("src") !== "/ban.png") {
+            target.setAttribute("src", "/ban.png");
+          }
+        }}
+      />
+    );
+  }
   return (
     <Image
       {...props}
@@ -1258,6 +1293,9 @@ export default function AdminPage() {
           ? (data as { vercel: boolean }).vercel
           : undefined
         ,
+        telegramTokenPresent: typeof (data as { telegramTokenPresent?: unknown })?.telegramTokenPresent === "boolean"
+          ? (data as { telegramTokenPresent: boolean }).telegramTokenPresent
+          : undefined,
         supabaseUrlPresent: typeof (data as { supabaseUrlPresent?: unknown })?.supabaseUrlPresent === "boolean"
           ? (data as { supabaseUrlPresent: boolean }).supabaseUrlPresent
           : undefined,
@@ -1279,13 +1317,13 @@ export default function AdminPage() {
 
   const uploadFile = useCallback(
     async (file: File, materialId?: string) => {
-      const maxBytes = 3.5 * 1024 * 1024;
+      const maxBytes = 2.5 * 1024 * 1024;
       const prepare = async (input: File) => {
         if (!input.type.startsWith("image/")) return input;
         if (input.size <= maxBytes) return input;
         try {
           const bitmap = await createImageBitmap(input);
-          const maxDim = 1600;
+          const maxDim = 1400;
           const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
           const canvas = document.createElement("canvas");
           canvas.width = Math.max(1, Math.round(bitmap.width * scale));
@@ -1293,15 +1331,26 @@ export default function AdminPage() {
           const ctx = canvas.getContext("2d");
           if (!ctx) return input;
           ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-          const blob = await new Promise<Blob>((resolve, reject) => {
+          const base = (input.name || "image").replace(/\.[^/.]+$/, "");
+          for (const quality of [0.78, 0.7, 0.62]) {
+            const blob = await new Promise<Blob>((resolve, reject) => {
+              canvas.toBlob(
+                (b) => (b ? resolve(b) : reject(new Error("Не удалось обработать изображение"))),
+                "image/jpeg",
+                quality
+              );
+            });
+            const out = new File([blob], `${base}.jpg`, { type: "image/jpeg" });
+            if (out.size <= maxBytes) return out;
+          }
+          const lastBlob = await new Promise<Blob>((resolve, reject) => {
             canvas.toBlob(
               (b) => (b ? resolve(b) : reject(new Error("Не удалось обработать изображение"))),
               "image/jpeg",
-              0.82
+              0.56
             );
           });
-          const base = (input.name || "image").replace(/\.[^/.]+$/, "");
-          return new File([blob], `${base}.jpg`, { type: "image/jpeg" });
+          return new File([lastBlob], `${base}.jpg`, { type: "image/jpeg" });
         } catch {
           return input;
         }
@@ -1462,6 +1511,12 @@ export default function AdminPage() {
                   Сборка: {serverInfo.version.slice(0, 7)}
                   {serverInfo.ref ? ` (${serverInfo.ref})` : ""}
                   {serverInfo.vercel ? " • vercel" : ""}
+                  {typeof serverInfo.telegramTokenPresent === "boolean" ? (
+                    <>
+                      {" "}
+                      • TG_TOKEN: {serverInfo.telegramTokenPresent ? "ok" : "нет"}
+                    </>
+                  ) : null}
                   {typeof serverInfo.supabaseUrlPresent === "boolean" ? (
                     <>
                       {" "}
