@@ -64,14 +64,14 @@ type Database = {
 };
 
 function getTelegramConfig() {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const token = (process.env.TELEGRAM_BOT_TOKEN || process.env.TG_TOKEN || "").trim();
   const rawChatId = (process.env.TELEGRAM_TARGET_CHAT_ID || "").trim();
   const chatId = rawChatId ? Number(rawChatId) : -1002055411531;
   const defaultDaysWindow = 365;
   const rawDays = (process.env.TELEGRAM_DAYS_WINDOW || "").trim();
   const daysWindow = rawDays ? Number(rawDays) : defaultDaysWindow;
   return {
-    token,
+    token: token || null,
     chatId: Number.isFinite(chatId) && chatId !== 0 ? chatId : -1002055411531,
     daysWindow:
       Number.isFinite(daysWindow) && daysWindow > 0 ? daysWindow : defaultDaysWindow

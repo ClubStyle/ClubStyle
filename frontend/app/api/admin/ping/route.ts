@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     (process.env.VERCEL_GIT_COMMIT_REF || "").trim() ||
     (process.env.GIT_BRANCH || "").trim() ||
     null;
-  const telegramTokenPresent = Boolean((process.env.TELEGRAM_BOT_TOKEN || "").trim());
+  const telegramTokenPresent = Boolean((process.env.TELEGRAM_BOT_TOKEN || process.env.TG_TOKEN || "").trim());
   const supabaseUrlPresent = Boolean((process.env.SUPABASE_URL || "").trim());
   const supabaseKeyPresent = Boolean(
     (process.env.SUPABASE_SECRET_KEY || "").trim() ||

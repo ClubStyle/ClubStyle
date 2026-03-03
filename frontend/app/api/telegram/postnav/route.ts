@@ -35,7 +35,7 @@ function isAdminAuthorized(request: Request) {
 }
 
 function getTelegramConfig() {
-  const token = (process.env.TELEGRAM_BOT_TOKEN || "").trim();
+  const token = normalizeToken((process.env.TELEGRAM_BOT_TOKEN || process.env.TG_TOKEN || "").trim());
   const rawChatId = (process.env.TELEGRAM_TARGET_CHAT_ID || "").trim();
   const chatId = rawChatId ? Number(rawChatId) : -1002055411531;
   const webAppUrl = (process.env.TELEGRAM_WEBAPP_URL || "").trim();

@@ -100,8 +100,25 @@ function filterMaterials(value: unknown, hidden: Set<string>) {
   });
 }
 
-function compactMaterials(value: unknown): MaterialItem[] {
+type CompactOptions = {
+  lite?: boolean;
+  maxImages?: number;
+  maxDescription?: number;
+};
+
+function compactMaterials(value: unknown, options?: CompactOptions): MaterialItem[] {
   if (!Array.isArray(value)) return [];
+  const lite = Boolean(options?.lite);
+  const maxImages = Number.isFinite(Number(options?.maxImages))
+    ? Math.max(0, Math.floor(Number(options?.maxImages)))
+    : lite
+      ? 1
+      : 6;
+  const maxDescription = Number.isFinite(Number(options?.maxDescription))
+    ? Math.max(0, Math.floor(Number(options?.maxDescription)))
+    : lite
+      ? 400
+      : 1200;
   return value
     .map((m) => (m && typeof m === "object" ? (m as Record<string, unknown>) : null))
     .map((m) => {
@@ -120,11 +137,11 @@ function compactMaterials(value: unknown): MaterialItem[] {
         ? m.images
             .map((v: unknown) => (typeof v === "string" ? v.trim() : ""))
             .filter(Boolean)
-            .slice(0, 6)
+            .slice(0, maxImages)
         : undefined;
       const description =
-        typeof m?.description === "string" && m.description.trim().length
-          ? m.description.trim().slice(0, 1200)
+        maxDescription > 0 && typeof m?.description === "string" && m.description.trim().length
+          ? m.description.trim().slice(0, maxDescription)
           : undefined;
       return {
         id,
@@ -196,6 +213,13 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const key = url.searchParams.get('key')?.trim() || 'materials';
     const materialId = (url.searchParams.get("id") || "").trim();
+    const sourceParam = (url.searchParams.get("source") || "").trim().toLowerCase();
+    const forceSupabaseParam = (url.searchParams.get("supabase") || "").trim().toLowerCase();
+    const liteParam = (url.searchParams.get("lite") || "").trim().toLowerCase();
+    const lite = liteParam === "1" || liteParam === "true" || liteParam === "yes";
+    const limitRaw = (url.searchParams.get("limit") || "").trim();
+    const limit = limitRaw ? Number(limitRaw) : NaN;
+    const safeLimit = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : null;
     const isVercel = Boolean(process.env.VERCEL);
     const noStoreHeaders = {
       'cache-control': 'no-store, no-cache, must-revalidate, max-age=0',
@@ -205,7 +229,14 @@ export async function GET(request: Request) {
     const withSource = (source: "supabase" | "file") =>
       ({ ...noStoreHeaders, "x-materials-source": source }) as const;
     const supabase = getSupabase();
-    if (supabase) {
+    const preferSupabase =
+      isVercel ||
+      sourceParam === "supabase" ||
+      forceSupabaseParam === "1" ||
+      forceSupabaseParam === "true" ||
+      forceSupabaseParam === "yes";
+
+    if (supabase && preferSupabase) {
       try {
         const { data, error } = await supabase.client
           .from(supabase.table)
@@ -224,7 +255,9 @@ export async function GET(request: Request) {
                 }
                 return NextResponse.json(found, { headers: withSource("supabase") });
               }
-              return NextResponse.json(compactMaterials(visible), { headers: withSource("supabase") });
+              let out = compactMaterials(visible, lite ? { lite } : undefined);
+              if (safeLimit != null) out = out.slice(0, safeLimit);
+              return NextResponse.json(out, { headers: withSource("supabase") });
             }
           } else {
             return NextResponse.json(data.value, { headers: withSource("supabase") });
@@ -262,7 +295,9 @@ export async function GET(request: Request) {
       }
       return NextResponse.json(found, { headers: withSource("file") });
     }
-    return NextResponse.json(compactMaterials(visible), { headers: withSource("file") });
+    let out = compactMaterials(visible, lite ? { lite } : undefined);
+    if (safeLimit != null) out = out.slice(0, safeLimit);
+    return NextResponse.json(out, { headers: withSource("file") });
   } catch (error) {
     console.error("Error reading materials data:", error);
     return NextResponse.json(

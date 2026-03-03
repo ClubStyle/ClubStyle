@@ -461,6 +461,45 @@ const getEmbedUrl = (url: string) => {
     return null;
 };
 
+async function readJson<T>(res: Response): Promise<T> {
+  const contentType = (res.headers.get("content-type") || "").toLowerCase();
+  const text = await res.text();
+  if (!text) return null as T;
+  const looksLikeJson = contentType.includes("application/json") || /^[\s\r\n\t]*[\[{]/.test(text);
+  if (looksLikeJson) {
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      // fall through
+    }
+  }
+  const snippet = text.replace(/\s+/g, " ").trim().slice(0, 400);
+  return ({ error: snippet || `Non-JSON response (${res.status})` } as unknown) as T;
+}
+
+function extractImageUrls(text?: string): string[] {
+  const srcs: string[] = [];
+  const t = (text || "").trim();
+  if (!t) return srcs;
+  const urlRegex =
+    /\bhttps?:\/\/[^\s)'"<>]+?\.(?:jpg|jpeg|png|webp)(?:\?[^\s'"<>]*)?\b/gi;
+  const supabaseRegex = /\/api\/supabase-file\?[^)\s'"<>]+/gi;
+  const tgFileRegex = /\/api\/telegram-file\?fileId=[^)\s'"<>]+/gi;
+  const uploadsRegex = /\/uploads\/[a-zA-Z0-9_\-]+\.(?:jpg|jpeg|png|webp)\b/gi;
+  const imgTagRegex = /<img[^>]+src=["']([^"']+)["']/gi;
+  const push = (u: string) => {
+    const url = u.trim();
+    if (!url || url === "/ban.png") return;
+    if (!srcs.includes(url)) srcs.push(url);
+  };
+  for (const m of t.matchAll(urlRegex)) push(m[0]);
+  for (const m of t.matchAll(supabaseRegex)) push(m[0]);
+  for (const m of t.matchAll(tgFileRegex)) push(m[0]);
+  for (const m of t.matchAll(uploadsRegex)) push(m[0]);
+  for (const m of t.matchAll(imgTagRegex)) push(m[1]);
+  return srcs;
+}
+
 export default function Home() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
@@ -471,6 +510,9 @@ export default function Home() {
 
 function HomeContent() {
   const [materials, setMaterials] = useState<MaterialItem[]>([]);
+  const [materialsLoading, setMaterialsLoading] = useState(true);
+  const [materialsError, setMaterialsError] = useState<string | null>(null);
+  const [materialsReloadTick, setMaterialsReloadTick] = useState(0);
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [subCategorySheet, setSubCategorySheet] = useState<{title: string, items: string[]} | null>(null);
@@ -519,6 +561,20 @@ function HomeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
+  const hydrateMaterial = useCallback(async (material: MaterialItem) => {
+    const id = (material.id || "").trim();
+    if (!id || id.startsWith("fallback_") || id.startsWith("custom_")) return;
+    try {
+      const res = await fetch(`/api/materials?id=${encodeURIComponent(id)}&t=${Date.now()}`, {
+        cache: "no-store"
+      });
+      const data = await readJson<unknown>(res);
+      if (!res.ok) return;
+      if (!data || typeof data !== "object") return;
+      setSelectedMaterial(data as MaterialItem);
+    } catch {}
+  }, []);
+
   const handleItemClick = useCallback((item: string | MaterialItem) => {
     let material: MaterialItem | undefined;
 
@@ -539,6 +595,7 @@ function HomeContent() {
       };
     }
     setSelectedMaterial(material);
+    void hydrateMaterial(material);
     
     const title = material.title;
     if (!recent.includes(title)) {
@@ -546,7 +603,7 @@ function HomeContent() {
         setRecent(newRecent);
         localStorage.setItem("recent", JSON.stringify(newRecent));
     }
-  }, [materials, recent]);
+  }, [hydrateMaterial, materials, recent]);
 
   const handleCategoryClick = useCallback((category: Category) => {
     if (category.subCategories) {
@@ -571,7 +628,10 @@ function HomeContent() {
             return tagTokens.some((t) => allowed.has(t));
           })
           .filter((m) => !m.id.startsWith("edu_"));
-        const items = related.sort((a, b) => (b.date || 0) - (a.date || 0)).map((m) => m.id);
+        const items =
+          related.length > 0
+            ? related.sort((a, b) => (b.date || 0) - (a.date || 0)).map((m) => m.id)
+            : LENA_LOOKS.map((m) => m.id);
         setActiveCategory(category.name);
         setSubCategorySheet({ title: category.name, items });
         return;
@@ -649,7 +709,7 @@ function HomeContent() {
           handleItemClick(material);
       } else {
           setActiveCategory(category.name);
-          console.log("Selected:", category.name);
+          setSubCategorySheet({ title: category.name, items: [] });
       }
     }
   }, [materials, handleItemClick]);
@@ -664,67 +724,78 @@ function HomeContent() {
     }
   }, [categories, searchParams, handleCategoryClick]);
 
-  function extractImageUrls(text?: string): string[] {
-    const srcs: string[] = [];
-    const t = (text || "").trim();
-    if (!t) return srcs;
-    const urlRegex =
-      /\bhttps?:\/\/[^\s)'"<>]+?\.(?:jpg|jpeg|png|webp)(?:\?[^\s'"<>]*)?\b/gi;
-    const supabaseRegex = /\/api\/supabase-file\?[^)\s'"<>]+/gi;
-    const tgFileRegex = /\/api\/telegram-file\?fileId=[^)\s'"<>]+/gi;
-    const uploadsRegex = /\/uploads\/[a-zA-Z0-9_\-]+\.(?:jpg|jpeg|png|webp)\b/gi;
-    const imgTagRegex = /<img[^>]+src=["']([^"']+)["']/gi;
-    const push = (u: string) => {
-      const url = u.trim();
-      if (!url || url === "/ban.png") return;
-      if (!srcs.includes(url)) srcs.push(url);
-    };
-    for (const m of t.matchAll(urlRegex)) push(m[0]);
-    for (const m of t.matchAll(supabaseRegex)) push(m[0]);
-    for (const m of t.matchAll(tgFileRegex)) push(m[0]);
-    for (const m of t.matchAll(uploadsRegex)) push(m[0]);
-    for (const m of t.matchAll(imgTagRegex)) push(m[1]);
-    return srcs;
-  }
- 
- 
   useEffect(() => {
-    // Fetch materials from API
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    setMaterialsLoading(true);
+    setMaterialsError(null);
     console.log("Fetching materials...");
-    fetch(`/api/materials?t=${Date.now()}`, { cache: 'no-store' })
-        .then(res => res.json())
-        .then(data => {
-            console.log("Received materials count:", Array.isArray(data) ? data.length : 0);
-            if (Array.isArray(data)) {
-                const items = data as unknown as MaterialItem[];
-                const uniqById = new Map<string, MaterialItem>();
-                for (const m of items) {
-                  if (!uniqById.has(m.id)) uniqById.set(m.id, m);
-                }
-                const normalized = Array.from(uniqById.values()).map((m) => {
-                  const fromText = extractImageUrls(m.description);
-                  const candidateImages: string[] = [];
-                  if (m.image && m.image !== "/ban.png") candidateImages.push(m.image);
-                  if (Array.isArray(m.images) && m.images.length) candidateImages.push(...m.images);
-                  if (fromText.length) candidateImages.push(...fromText);
-                  const seen = new Set<string>();
-                  const images = candidateImages.filter((u) => {
-                    const url = (u || "").trim();
-                    if (!url || url === "/ban.png") return false;
-                    if (seen.has(url)) return false;
-                    seen.add(url);
-                    return true;
-                  });
-                  const image = images[0] || "/ban.png";
-                  return { ...m, images, image };
-                });
-                setMaterials(normalized.sort((a, b) => (b.date || 0) - (a.date || 0)));
-            }
-        })
-        .catch(err => console.error("Failed to fetch materials:", err));
 
-    fetch(`/api/materials?key=categories&t=${Date.now()}`, { cache: "no-store" })
-      .then((res) => res.json())
+    (async () => {
+      try {
+        const res = await fetch(`/api/materials?lite=1&t=${Date.now()}`, {
+          cache: "no-store",
+          signal: controller.signal
+        });
+        const data = await readJson<unknown>(res);
+        if (!res.ok) {
+          const message =
+            data && typeof data === "object" && typeof (data as { error?: unknown }).error === "string"
+              ? String((data as { error: string }).error)
+              : `HTTP ${res.status}`;
+          throw new Error(message);
+        }
+        if (!Array.isArray(data)) throw new Error("Неверный ответ сервера");
+
+        console.log("Received materials count:", data.length);
+        const items = data as unknown as MaterialItem[];
+        const uniqById = new Map<string, MaterialItem>();
+        for (const m of items) {
+          if (!uniqById.has(m.id)) uniqById.set(m.id, m);
+        }
+        const normalized = Array.from(uniqById.values()).map((m) => {
+          const fromText = extractImageUrls(m.description);
+          const candidateImages: string[] = [];
+          if (m.image && m.image !== "/ban.png") candidateImages.push(m.image);
+          if (Array.isArray(m.images) && m.images.length) candidateImages.push(...m.images);
+          if (fromText.length) candidateImages.push(...fromText);
+          const seen = new Set<string>();
+          const images = candidateImages.filter((u) => {
+            const url = (u || "").trim();
+            if (!url || url === "/ban.png") return false;
+            if (seen.has(url)) return false;
+            seen.add(url);
+            return true;
+          });
+          const image = images[0] || "/ban.png";
+          return { ...m, images, image };
+        });
+        setMaterials(normalized.sort((a, b) => (b.date || 0) - (a.date || 0)));
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Не удалось загрузить материалы";
+        console.error("Failed to fetch materials:", err);
+        setMaterials([]);
+        setMaterialsError(message);
+      } finally {
+        clearTimeout(timeoutId);
+        setMaterialsLoading(false);
+      }
+    })();
+
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [materialsReloadTick]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`/api/materials?key=categories&t=${Date.now()}`, {
+      cache: "no-store",
+      signal: controller.signal
+    })
+      .then((res) => readJson<unknown>(res))
       .then((data) => {
         if (!Array.isArray(data)) return;
         const cleaned = (data as unknown[])
@@ -748,9 +819,11 @@ function HomeContent() {
         setCategories(cleaned);
       })
       .catch(() => {});
-    
-    
 
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
     type TgWindow = {
         Telegram?: {
             WebApp?: {
@@ -945,7 +1018,37 @@ function HomeContent() {
         )
       : [];
 
-  const [feedCount, setFeedCount] = useState(20);
+  const [feedCount, setFeedCount] = useState(80);
+  const feedSentinelRef = useRef<HTMLDivElement | null>(null);
+
+  const channelMaterials = materials.filter((m) => {
+    const isChannelLink =
+      typeof m.link === "string" && /^https?:\/\/t\.me\/c\/2055411531\/\d+/.test(m.link);
+    const isNumericId = /^\d+$/.test(m.id);
+    return isChannelLink && isNumericId;
+  });
+
+  useEffect(() => {
+    if (materialsLoading || materialsError) return;
+    const sentinel = feedSentinelRef.current;
+    if (!sentinel) return;
+    const total = channelMaterials.length;
+    if (total <= feedCount) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        setFeedCount((prev) => {
+          if (prev >= total) return prev;
+          return Math.min(prev + 40, total);
+        });
+      },
+      { root: null, rootMargin: "500px 0px", threshold: 0 }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [materialsLoading, materialsError, channelMaterials.length, feedCount]);
 
  
 
@@ -1029,9 +1132,15 @@ function HomeContent() {
             {MENU_ITEMS.map((item, index) => (
                 <button 
                     key={index}
+                    type="button"
                     onClick={() => {
                         const cat = categories.find(c => c.name === item.category);
-                        if (cat) handleCategoryClick(cat);
+                        if (cat) {
+                          handleCategoryClick(cat);
+                          return;
+                        }
+                        setActiveCategory(item.category);
+                        setSubCategorySheet({ title: item.category, items: [] });
                     }}
                     className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden shadow-md group active:scale-[0.98] transition-transform"
                 >
@@ -1208,19 +1317,28 @@ function HomeContent() {
           </h2>
           
           <div className="space-y-4">
-            {materials.length > 0 ? (
-                materials
-                .filter((m) => {
-                    const isChannelLink = typeof m.link === 'string' && /^https?:\/\/t\.me\/c\/2055411531\/\d+/.test(m.link);
-                    const isNumericId = /^\d+$/.test(m.id);
-                    return isChannelLink && isNumericId;
-                })
-                .sort((a, b) => Number(b.id) - Number(a.id))
+            {materialsLoading ? (
+                 <div className="text-center text-gray-400 text-sm py-4">
+                     Загрузка...
+                 </div>
+            ) : materialsError ? (
+                 <div className="text-center text-gray-400 text-sm py-4 space-y-3">
+                     <div>Не удалось загрузить ленту</div>
+                     <button
+                       onClick={() => setMaterialsReloadTick((v) => v + 1)}
+                       className="px-4 py-2 rounded-xl text-xs font-bold bg-white text-gray-700 border border-gray-100 shadow-sm hover:bg-gray-50 transition-colors"
+                     >
+                       Повторить
+                     </button>
+                 </div>
+            ) : materials.length > 0 ? (
+                [...channelMaterials]
+                .sort((a, b) => (b.date || 0) - (a.date || 0) || Number(b.id) - Number(a.id))
                 .slice(0, feedCount)
                 .map((item) => (
                     <div
                         key={`${item.id}-${item.date || ""}`}
-                        onClick={() => setSelectedMaterial(item)}
+                        onClick={() => handleItemClick(item)}
                         className="block bg-white/90 backdrop-blur-sm rounded-3xl p-5 shadow-lg border border-white/50 transition-transform active:scale-95 cursor-pointer"
                     >
                         <div className="flex justify-between items-center mb-3">
@@ -1300,15 +1418,12 @@ function HomeContent() {
                 ))
             ) : (
                  <div className="text-center text-gray-400 text-sm py-4">
-                     Загрузка...
+                     Пока пусто
                  </div>
             )}
           </div>
-          {materials.filter((m) => {
-            const isChannelLink = typeof m.link === 'string' && /^https?:\/\/t\.me\/c\/2055411531\/\d+/.test(m.link);
-            const isNumericId = /^\d+$/.test(m.id);
-            return isChannelLink && isNumericId;
-          }).length > feedCount && (
+          <div ref={feedSentinelRef} className="h-px w-full" />
+          {!materialsLoading && !materialsError && channelMaterials.length > feedCount && (
             <div className="mt-4 flex justify-center">
               <button
                 onClick={() => setFeedCount(feedCount + 20)}
@@ -1436,12 +1551,18 @@ function HomeContent() {
 
                         const baseQuery = SUBCATEGORY_HASHTAG_OVERRIDES[item] || (material?.title || item);
                         const queries: string[] = [baseQuery].map((q: string) => (q || "").toLowerCase()).filter(Boolean);
-                        const previewMaterial = materials
+                        const baseMatches = materials
                           .filter((m) => {
                             const h = (m.hashtag || "").toLowerCase();
                             return queries.some((q) => h.includes(q) || h.includes("#" + q));
                           })
-                          .sort((a, b) => (b.date || 0) - (a.date || 0))[0];
+                          .sort((a, b) => (b.date || 0) - (a.date || 0));
+                        const previewMaterial =
+                          baseMatches.find(
+                            (m) =>
+                              ((m.images?.[0] || "").trim() && (m.images?.[0] || "").trim() !== "/ban.png") ||
+                              ((m.image || "").trim() && (m.image || "").trim() !== "/ban.png")
+                          ) || baseMatches[0];
                         const preferredImage = previewMaterial
                           ? (previewMaterial.images?.[0] || previewMaterial.image || "/ban.png")
                           : (material ? (material.images?.[0] || material.image || "/ban.png") : "/ban.png");
@@ -1676,7 +1797,7 @@ function HomeContent() {
                 {/* Fallback if no items */}
                 {subCategorySheet.items.length === 0 && (
                     <div className="text-center text-gray-400 py-12">
-                        Нет подкатегорий
+                        Пока пусто
                     </div>
                 )}
             </div>
