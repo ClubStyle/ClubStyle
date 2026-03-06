@@ -637,25 +637,27 @@ function HomeContent() {
         return;
       }
 
-      const relatedMaterials = materials.filter(m => 
-          m.hashtag.toLowerCase().includes(query) || 
-          m.hashtag.toLowerCase().includes("#" + query) ||
-          (category.name.toLowerCase() === "разборы образов" && (m.hashtag.toLowerCase().includes("#разборобразов") || m.hashtag.toLowerCase().includes("#лукдня"))) ||
-          (category.name.toLowerCase() === "мастер-классы" && (m.hashtag.toLowerCase().includes("#мастеркласс") || m.hashtag.toLowerCase().includes("#мастер-класс"))) ||
-          (category.name.toLowerCase() === "эфиры" && (m.hashtag.toLowerCase().includes("#эфир") || m.hashtag.toLowerCase().includes("эфир"))) ||
-          (category.name.toLowerCase() === "бренды" && m.hashtag.toLowerCase().includes("#обзорыбрендов")) ||
-          (category.name.toLowerCase() === "гайды и чек-листы" && (m.hashtag.toLowerCase().includes("#гайд") || (typeof m.link === "string" && m.link.toLowerCase().endsWith(".pdf")))) ||
-          (category.name.toLowerCase() === "покупки по миру" && m.hashtag.toLowerCase().includes("#покупкипомиру")) ||
-          (category.name.toLowerCase() === "покупки по рф" && m.hashtag.toLowerCase().includes("#покупкивроссии")) ||
-          (category.name.toLowerCase() === "идеи образов" &&
-            (m.hashtag.toLowerCase().includes("#идеиобразов") ||
-              m.hashtag.toLowerCase().includes("#образ") ||
-              m.hashtag.toLowerCase().includes("#образы") ||
-              m.hashtag.toLowerCase().includes("#lookднялена")) &&
+      const relatedMaterials = materials.filter(m => {
+          const tag = (m.hashtag || "").toLowerCase();
+          const name = category.name.toLowerCase();
+          return tag.includes(query) || 
+          tag.includes("#" + query) ||
+          (name === "разборы образов" && (tag.includes("#разборобразов") || tag.includes("#лукдня"))) ||
+          (name === "мастер-классы" && (tag.includes("#мастеркласс") || tag.includes("#мастер-класс") || tag.includes("mk_"))) ||
+          (name === "эфиры" && (tag.includes("#эфир") || tag.includes("эфир"))) ||
+          (name === "бренды" && (tag.includes("#обзорыбрендов") || m.id.startsWith("brand_"))) ||
+          (name === "гайды и чек-листы" && (tag.includes("#гайд") || tag.includes("guide_") || (typeof m.link === "string" && m.link.toLowerCase().endsWith(".pdf")))) ||
+          (name === "покупки по миру" && tag.includes("#покупкипомиру")) ||
+          (name === "покупки по рф" && tag.includes("#покупкивроссии")) ||
+          (name === "идеи образов" &&
+            (tag.includes("#идеиобразов") ||
+              tag.includes("#образ") ||
+              tag.includes("#образы") ||
+              tag.includes("#lookднялена")) &&
             m.link !== "https://t.me/c/2055411531/15199" &&
             m.id !== "15199" &&
             !(typeof m.link === "string" && m.link.toLowerCase().endsWith(".pdf")))
-      );
+      });
       
       console.log(`Found ${relatedMaterials.length} items for ${category.name}`);
 

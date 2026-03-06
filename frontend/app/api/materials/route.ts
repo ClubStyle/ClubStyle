@@ -236,6 +236,9 @@ export async function GET(request: Request) {
       forceSupabaseParam === "true" ||
       forceSupabaseParam === "yes";
 
+    let supabaseMaterials: MaterialItem[] = [];
+    let supabaseFound = false;
+
     if (supabase && preferSupabase) {
       try {
         const { data, error } = await supabase.client
@@ -244,61 +247,66 @@ export async function GET(request: Request) {
           .eq('key', key)
           .maybeSingle();
         if (!error && data?.value != null) {
-          if (key === 'materials') {
-            if (Array.isArray(data.value)) {
-              const hidden = await getHiddenMaterialIds(supabase);
-              const visible = filterMaterials(data.value, hidden);
-              if (materialId) {
-                const found = findMaterialById(visible, materialId);
-                if (!found) {
-                  return NextResponse.json({ error: "Not found" }, { status: 404, headers: withSource("supabase") });
-                }
-                return NextResponse.json(found, { headers: withSource("supabase") });
-              }
-              let out = compactMaterials(visible, lite ? { lite } : undefined);
-              if (safeLimit != null) out = out.slice(0, safeLimit);
-              return NextResponse.json(out, { headers: withSource("supabase") });
-            }
-          } else {
+          if (key === 'materials' && Array.isArray(data.value)) {
+            supabaseMaterials = data.value;
+            supabaseFound = true;
+          } else if (key !== 'materials') {
             return NextResponse.json(data.value, { headers: withSource("supabase") });
           }
         }
-      } catch {}
+      } catch (e) {
+        console.error("Supabase fetch error:", e);
+      }
     }
-    if (supabase && isVercel) {
-      if (key === 'materials') {
-        if (materialId) {
-          return NextResponse.json({ error: "Not found" }, { status: 404, headers: withSource("supabase") });
+
+    // Always load local file as base/fallback
+    let fileMaterials: MaterialItem[] = [];
+    try {
+      const fileContents = await fs.promises.readFile(dataPath, 'utf8');
+      fileMaterials = JSON.parse(fileContents);
+    } catch (e) {
+      console.error("File read error:", e);
+    }
+
+    // Merge logic: use Supabase items to override/augment local file items
+    // If Supabase has data, we prioritize it, but fill in the gaps from the file
+    let combined: MaterialItem[] = [];
+    if (key === 'materials') {
+      const mergedMap = new Map<string, MaterialItem>();
+      
+      // Add file materials first
+      for (const m of fileMaterials) {
+        if (m && m.id) mergedMap.set(String(m.id), m);
+      }
+      
+      // Add/overwrite with Supabase materials
+      for (const m of supabaseMaterials) {
+        if (m && m.id) mergedMap.set(String(m.id), m);
+      }
+      
+      combined = Array.from(mergedMap.values()).sort((a, b) => (b.date || 0) - (a.date || 0));
+      
+      const hidden = await getHiddenMaterialIds(supabase);
+      const visible = filterMaterials(combined, hidden);
+
+      if (materialId) {
+        const found = findMaterialById(visible, materialId);
+        if (!found) {
+          return NextResponse.json({ error: "Not found" }, { status: 404, headers: withSource(supabaseFound ? "supabase" : "file") });
         }
-        return NextResponse.json([], { headers: withSource("supabase") });
+        return NextResponse.json(found, { headers: withSource(supabaseFound ? "supabase" : "file") });
       }
-      return NextResponse.json(null, { headers: withSource("supabase") });
+
+      let out = compactMaterials(visible, lite ? { lite } : undefined);
+      if (safeLimit != null) out = out.slice(0, safeLimit);
+      return NextResponse.json(out, { headers: withSource(supabaseFound ? "supabase" : "file") });
     }
 
-    if (key !== 'materials') {
-      const ui = await readUiFile();
-      const value = ui[key];
-      if (value == null) {
-        return NextResponse.json(null, { headers: withSource("file") });
-      }
-      return NextResponse.json(value, { headers: withSource("file") });
-    }
-
-    const fileContents = await fs.promises.readFile(dataPath, 'utf8');
-    const data = JSON.parse(fileContents);
-    const hidden = await getHiddenMaterialIds(supabase);
-    const visible = filterMaterials(data, hidden);
-    if (materialId) {
-      const found = findMaterialById(visible, materialId);
-      if (!found) {
-        return NextResponse.json({ error: "Not found" }, { status: 404, headers: withSource("file") });
-      }
-      return NextResponse.json(found, { headers: withSource("file") });
-    }
-    let out = compactMaterials(visible, lite ? { lite } : undefined);
-    if (safeLimit != null) out = out.slice(0, safeLimit);
-    return NextResponse.json(out, { headers: withSource("file") });
-  } catch (error) {
+    // If we reach here for non-materials key and Supabase didn't have it
+    const ui = await readUiFile();
+    const value = ui[key];
+    return NextResponse.json(value ?? null, { headers: withSource("file") });
+} catch (error) {
     console.error("Error reading materials data:", error);
     return NextResponse.json(
       { error: 'Failed to read materials' },

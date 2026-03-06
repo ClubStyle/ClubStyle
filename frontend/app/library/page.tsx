@@ -420,7 +420,10 @@ export default function Library() {
                 normalizedFavorites.map((item) => {
                   const material = resolveMaterial(item);
                   const materialId = material?.id || item;
-                  const title = material?.title || item;
+                  const title = material?.title || `Материал ${item}`;
+                  const hashtag = material?.hashtag || "#сохранено";
+                  const image = material?.image || "/ban.png";
+                  
                   return (
                     <div 
                         key={materialId} 
@@ -429,7 +432,7 @@ export default function Library() {
                     >
                       <div className="w-20 h-20 rounded-2xl bg-gray-200 shrink-0 overflow-hidden relative">
                            <SafeImage
-                              src={(material?.image || "").trim() || "/ban.png"}
+                              src={(image || "").trim() || "/ban.png"}
                               alt="Preview"
                               fill
                               className="object-cover"
@@ -438,7 +441,7 @@ export default function Library() {
                       <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                               <span className="text-[10px] font-bold text-pink-500 bg-pink-50 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                                  {material ? material.hashtag : "Материал"}
+                                  {hashtag}
                               </span>
                           </div>
                           <h3 className="font-bold text-gray-900 text-sm leading-tight mb-1 line-clamp-2">
