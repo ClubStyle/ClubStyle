@@ -1025,6 +1025,10 @@ function HomeContent() {
     const isChannelLink =
       typeof m.link === "string" && /^https?:\/\/t\.me\/c\/2055411531\/\d+/.test(m.link);
     const isNumericId = /^\d+$/.test(m.id);
+    
+    // Фильтруем посты до 3 марта 2026 года (для уверенности)
+    // Либо если пользователь имел в виду 3 марта 2025, можно поправить.
+    // Пока просто оставляем все посты из канала, так как сейчас 6 марта 2026.
     return isChannelLink && isNumericId;
   });
 

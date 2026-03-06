@@ -341,11 +341,8 @@ function parseSinceSeconds(raw: string | null | undefined) {
 function getDefaultTelegramSinceSeconds() {
   const fromEnv = parseSinceSeconds(process.env.TELEGRAM_SINCE_DATE);
   if (fromEnv) return fromEnv;
-  const nowMs = Date.now();
-  const year = new Date(nowMs).getUTCFullYear();
-  const thisYear = Date.UTC(year, 1, 6, 0, 0, 0);
-  const prevYear = Date.UTC(year - 1, 1, 6, 0, 0, 0);
-  const ms = nowMs >= thisYear ? thisYear : prevYear;
+  // Устанавливаем дату отсечки на 2024 год, чтобы охватить все посты
+  const ms = Date.UTC(2024, 0, 1, 0, 0, 0);
   return Math.floor(ms / 1000);
 }
 
