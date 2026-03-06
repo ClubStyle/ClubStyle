@@ -640,14 +640,14 @@ function HomeContent() {
       const relatedMaterials = materials.filter(m => 
           m.hashtag.toLowerCase().includes(query) || 
           m.hashtag.toLowerCase().includes("#" + query) ||
-          (category.name === "Разборы образов" && (m.hashtag.includes("#разборобразов") || m.hashtag.includes("#лукдня"))) ||
-          (category.name === "Мастер-классы" && (m.hashtag.includes("#мастеркласс") || m.hashtag.includes("#мастер-класс"))) ||
-          (category.name === "Эфиры" && m.hashtag.includes("#эфир")) ||
-          (category.name === "Бренды" && m.hashtag.includes("#обзорыбрендов")) ||
-          (category.name === "Гайды и чек-листы" && (m.hashtag.includes("#гайд") || (typeof m.link === "string" && m.link.toLowerCase().endsWith(".pdf")))) ||
-          (category.name === "Покупки по миру" && m.hashtag.toLowerCase().includes("#покупкипомиру")) ||
-          (category.name === "Покупки по РФ" && m.hashtag.toLowerCase().includes("#покупкивроссии")) ||
-          (category.name === "Идеи образов" &&
+          (category.name.toLowerCase() === "разборы образов" && (m.hashtag.toLowerCase().includes("#разборобразов") || m.hashtag.toLowerCase().includes("#лукдня"))) ||
+          (category.name.toLowerCase() === "мастер-классы" && (m.hashtag.toLowerCase().includes("#мастеркласс") || m.hashtag.toLowerCase().includes("#мастер-класс"))) ||
+          (category.name.toLowerCase() === "эфиры" && (m.hashtag.toLowerCase().includes("#эфир") || m.hashtag.toLowerCase().includes("эфир"))) ||
+          (category.name.toLowerCase() === "бренды" && m.hashtag.toLowerCase().includes("#обзорыбрендов")) ||
+          (category.name.toLowerCase() === "гайды и чек-листы" && (m.hashtag.toLowerCase().includes("#гайд") || (typeof m.link === "string" && m.link.toLowerCase().endsWith(".pdf")))) ||
+          (category.name.toLowerCase() === "покупки по миру" && m.hashtag.toLowerCase().includes("#покупкипомиру")) ||
+          (category.name.toLowerCase() === "покупки по рф" && m.hashtag.toLowerCase().includes("#покупкивроссии")) ||
+          (category.name.toLowerCase() === "идеи образов" &&
             (m.hashtag.toLowerCase().includes("#идеиобразов") ||
               m.hashtag.toLowerCase().includes("#образ") ||
               m.hashtag.toLowerCase().includes("#образы") ||
