@@ -261,16 +261,21 @@ export async function GET(request: Request) {
 
     // Always load local file as base/fallback
     let fileMaterials: MaterialItem[] = [];
+    let fileUi: Record<string, any> = {};
     try {
       const fileContents = await fs.promises.readFile(dataPath, 'utf8');
       fileMaterials = JSON.parse(fileContents);
     } catch (e) {
       console.error("File read error:", e);
     }
+    try {
+      fileUi = await readUiFile();
+    } catch (e) {
+      console.error("UI file read error:", e);
+    }
 
     // Merge logic: use Supabase items to override/augment local file items
     // If Supabase has data, we prioritize it, but fill in the gaps from the file
-    let combined: MaterialItem[] = [];
     if (key === 'materials') {
       const mergedMap = new Map<string, MaterialItem>();
       
@@ -279,12 +284,12 @@ export async function GET(request: Request) {
         if (m && m.id) mergedMap.set(String(m.id), m);
       }
       
-      // Add/overwrite with Supabase materials
+      // Add/overwrite with Supabase materials (these are the ones from admin panel)
       for (const m of supabaseMaterials) {
         if (m && m.id) mergedMap.set(String(m.id), m);
       }
       
-      combined = Array.from(mergedMap.values()).sort((a, b) => (b.date || 0) - (a.date || 0));
+      let combined = Array.from(mergedMap.values()).sort((a, b) => (b.date || 0) - (a.date || 0));
       
       const hidden = await getHiddenMaterialIds(supabase);
       const visible = filterMaterials(combined, hidden);
@@ -302,9 +307,9 @@ export async function GET(request: Request) {
       return NextResponse.json(out, { headers: withSource(supabaseFound ? "supabase" : "file") });
     }
 
-    // If we reach here for non-materials key and Supabase didn't have it
-    const ui = await readUiFile();
-    const value = ui[key];
+    // For UI keys (categories, etc.)
+    // If Supabase didn't have it, we use the local file version
+    const value = fileUi[key];
     return NextResponse.json(value ?? null, { headers: withSource("file") });
 } catch (error) {
     console.error("Error reading materials data:", error);
