@@ -396,7 +396,7 @@ const BOTTOM_IMAGES: Record<string, string> = {
 };
 
 const BODY_TYPE_IMAGES: Record<string, string> = {
-  "Песочные часы": "/1pes.jpg",
+  "Песочные часы": "/chasy.jpg",
   "Перевернутый треугольник": "/pertreug.jpg",
   "Яблоко": "/yabloko.jpg",
   "Груша": "/grusha.jpg",
