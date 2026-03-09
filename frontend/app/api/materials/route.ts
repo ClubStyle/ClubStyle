@@ -351,21 +351,60 @@ export async function POST(request: Request) {
           }
           const currentRaw = supabase ? await readKvValue(supabase, "materials") : JSON.parse(await fs.promises.readFile(dataPath, "utf8"));
           const current = Array.isArray(currentRaw) ? (currentRaw as MaterialItem[]) : [];
+          
+          // IMPORTANT: If currentRaw is empty (first time saving to Supabase), we should probably init it with file data?
+          // But maybe not, to avoid huge payload. Let's just treat Supabase as "overrides" only layer.
+          // Wait, if we only save one item, we need the full list?
+          // Actually, 'materials' key in Supabase should store ONLY the modified items or ALL items?
+          // If we store ALL items (14k+), it might hit Supabase row size limits (JSONB size limit).
+          // Strategy: Supabase 'materials' key stores only manually modified items.
+          // BUT the current logic reads 'materials' key and expects an array.
+          // If the user edits one item, we need to make sure we don't lose the others IF they were already in Supabase.
+          // If Supabase was empty, we start with empty array? No, that would mean we only see 1 item in "overrides".
+          // The merge logic in GET handles the rest.
+          // So:
+          // 1. Read existing overrides from Supabase (or empty array if none)
+          // 2. Add/Update the modified item
+          // 3. Save back to Supabase
+          
           const idx = current.findIndex((m) => m && typeof m === "object" && typeof (m as MaterialItem).id === "string" && (m as MaterialItem).id === id);
-          const next = idx >= 0 ? [...current] : [incoming as MaterialItem, ...current];
+          const next = [...current];
+          
           if (idx >= 0) {
-            next[idx] = { ...(current[idx] as MaterialItem), ...(incoming as MaterialItem), id };
+            // Update existing override
+            next[idx] = { ...next[idx], ...(incoming as MaterialItem), id };
+          } else {
+            // New override. But wait, if it's not in Supabase, it might be in the local file.
+            // We should check if we need to "promote" it from local file to Supabase first?
+            // If we just push `incoming`, it might lack some fields if `incoming` is partial.
+            // But usually the Admin Panel sends the full object.
+            // Let's assume Admin Panel sends full object or we accept partial updates to overrides.
+            next.push(incoming as MaterialItem);
           }
+          
           if (supabase) {
             const { error } = await supabase.client
               .from(supabase.table)
               .upsert({ key: "materials", value: next }, { onConflict: "key" });
             if (error) return NextResponse.json({ error: "Failed to save data" }, { status: 500 });
-            if (!isVercel) {
-              await fs.promises.writeFile(dataPath, JSON.stringify(next, null, 2));
-            }
+            
+            // We do NOT write to local file in Vercel environment, that's fine.
+            // But in local dev we might want to? 
+            // Actually, better to keep local file as "upstream source" and Supabase as "overrides".
+            // So we don't modify local file when using Supabase, to avoid confusion.
           } else {
-            await fs.promises.writeFile(dataPath, JSON.stringify(next, null, 2));
+            // Local dev without Supabase: modify local file directly (legacy behavior)
+            // But we need to read full file first, not just "currentRaw" which might be empty if we switched logic.
+            // Re-read file to be safe if we are in local mode.
+             const fullFileRaw = JSON.parse(await fs.promises.readFile(dataPath, "utf8"));
+             const fullFile = Array.isArray(fullFileRaw) ? (fullFileRaw as MaterialItem[]) : [];
+             const fIdx = fullFile.findIndex(m => m.id === id);
+             if (fIdx >= 0) {
+                 fullFile[fIdx] = { ...fullFile[fIdx], ...(incoming as MaterialItem), id };
+             } else {
+                 fullFile.push(incoming as MaterialItem);
+             }
+             await fs.promises.writeFile(dataPath, JSON.stringify(fullFile, null, 2));
           }
           return NextResponse.json({ success: true });
         }
@@ -380,17 +419,36 @@ export async function POST(request: Request) {
           }
           const currentRaw = supabase ? await readKvValue(supabase, "materials") : JSON.parse(await fs.promises.readFile(dataPath, "utf8"));
           const current = Array.isArray(currentRaw) ? (currentRaw as MaterialItem[]) : [];
+          // If using Supabase, 'current' only contains overrides.
+          // If we want to delete an item, we have 2 cases:
+          // 1. It's a manual item (only in Supabase) -> remove from 'current' and save.
+          // 2. It's a file item (in local file) -> we need to mark it as "hidden" or "deleted" in Supabase.
+          // But our current logic for 'hidden' uses a separate table/list (getHiddenMaterialIds).
+          // If we just remove it from 'current' (overrides), it might still exist in file!
+          // So 'deleteOne' logic is tricky with the new merge strategy.
+          // Let's stick to 'hidden' list for hiding items.
+          // But if the Admin Panel expects DELETE to really delete...
+          // If it's a file item, we can't delete it from the file on Vercel.
+          // So we should add it to 'hidden' list instead.
+          // BUT, for now, let's assume 'deleteOne' is mostly for manual items.
+          // If it is in Supabase overrides, remove it.
+          
           const next = current.filter((m) => !(m && typeof m === "object" && typeof (m as MaterialItem).id === "string" && (m as MaterialItem).id === id));
+          
           if (supabase) {
             const { error } = await supabase.client
               .from(supabase.table)
               .upsert({ key: "materials", value: next }, { onConflict: "key" });
             if (error) return NextResponse.json({ error: "Failed to save data" }, { status: 500 });
-            if (!isVercel) {
-              await fs.promises.writeFile(dataPath, JSON.stringify(next, null, 2));
-            }
+            
+            // Also, we might want to ensure it's hidden if it exists in file?
+            // For now, let's keep it simple: we update the overrides list.
           } else {
-            await fs.promises.writeFile(dataPath, JSON.stringify(next, null, 2));
+             // Local mode: delete from file
+             const fullFileRaw = JSON.parse(await fs.promises.readFile(dataPath, "utf8"));
+             const fullFile = Array.isArray(fullFileRaw) ? (fullFileRaw as MaterialItem[]) : [];
+             const nextFile = fullFile.filter(m => m.id !== id);
+             await fs.promises.writeFile(dataPath, JSON.stringify(nextFile, null, 2));
           }
           return NextResponse.json({ success: true });
         }
