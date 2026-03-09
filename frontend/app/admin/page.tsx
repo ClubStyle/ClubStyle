@@ -725,31 +725,65 @@ export default function AdminPage() {
     }
   }, [headers, loadMaterials, loadTelegramSync]);
 
-  const restoreTelegramMaterials = useCallback(async () => {
+  const importManualPost = useCallback(async () => {
+    const rawId = prompt("Введите ID поста (число) или ссылку на пост:");
+    if (!rawId) return;
+    
+    let id = "";
+    if (/^\d+$/.test(rawId.trim())) {
+      id = rawId.trim();
+    } else {
+      const match = rawId.match(/t\.me\/c\/\d+\/(\d+)/) || rawId.match(/t\.me\/[^\/]+\/(\d+)/);
+      if (match && match[1]) {
+        id = match[1];
+      }
+    }
+    
+    if (!id) {
+      alert("Некорректный ID или ссылка");
+      return;
+    }
+
     setBusy(true);
     setStatus(null);
     try {
-      const res = await fetch(`/api/sync/telegram?restore=1&t=${Date.now()}`, {
+      // 1. Пытаемся получить данные поста через API синхронизации (если поддерживается)
+      // Или просто создаем "заготовку" поста, которую потом можно отредактировать
+      // Лучше всего создать новый материал с этим ID и базовыми данными
+      
+      const newMaterial: MaterialItem = {
+        id,
+        title: `Пост ${id}`,
+        hashtag: "#новинка",
+        image: "/ban.png",
+        link: `https://t.me/c/2055411531/${id}`,
+        description: "Добавлено вручную. Отредактируйте описание.",
+        date: Math.floor(Date.now() / 1000)
+      };
+
+      // 2. Сохраняем через API materials (это запишет в Supabase/файл)
+      const res = await fetch(`/api/materials?key=materials&op=upsertOne&t=${Date.now()}`, {
         method: "POST",
-        headers,
-        cache: "no-store"
+        headers: {
+          ...headers,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(newMaterial)
       });
-      const data = await readJson<unknown>(res);
+      
       if (!res.ok) {
-        const message =
-          pickStringField(data, "error") || `Не удалось восстановить (${res.status})`;
-        throw new Error(message);
+        throw new Error(`Ошибка сохранения: ${res.status}`);
       }
-      const record = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
-      const total = typeof record.total === "number" ? record.total : Number(record.total || 0);
-      const keptNew = typeof record.keptNew === "number" ? record.keptNew : Number(record.keptNew || 0);
+
       await loadMaterials();
-      await loadTelegramSync();
-      setStatus(`Восстановлено. Всего: ${Number.isFinite(total) ? total : 0}, новых с 6 февраля: ${Number.isFinite(keptNew) ? keptNew : 0}`);
+      setStatus(`Пост ${id} добавлен. Теперь вы можете найти его в списке и отредактировать.`);
+      setQuery(id); // Сразу фильтруем список по этому ID
+    } catch (e) {
+      setStatus(`Ошибка: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setBusy(false);
     }
-  }, [headers, loadMaterials, loadTelegramSync]);
+  }, [headers, loadMaterials]);
 
   const restoreTelegramAll = useCallback(async () => {
     setBusy(true);
@@ -1648,6 +1682,13 @@ export default function AdminPage() {
                         disabled={busy}
                       >
                         Восстановить всё
+                      </button>
+                      <button
+                        onClick={() => importManualPost()}
+                        className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs disabled:opacity-60"
+                        disabled={busy}
+                      >
+                        Импорт ID
                       </button>
                       <button
                         onClick={() => {
