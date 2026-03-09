@@ -891,14 +891,19 @@ function HomeContent() {
     const w = window as unknown as {
       Telegram?: {
         WebApp?: {
-          openLink?: (url: string) => void;
+          openLink?: (url: string, options?: { try_instant_view?: boolean }) => void;
           openTelegramLink?: (url: string) => void;
+          close?: () => void;
         };
       };
     };
     const tg = w.Telegram?.WebApp;
     if (tg?.openTelegramLink && /^https?:\/\/t\.me\//.test(u)) {
       tg.openTelegramLink(u);
+      // Пытаемся закрыть приложение после перехода к посту
+      setTimeout(() => {
+          tg.close?.();
+      }, 500); 
       return;
     }
     if (tg?.openLink) {
