@@ -248,7 +248,8 @@ async function sync() {
                     chatId: msg.chat.id,
                     date: msg.date,
                     text: '',
-                    photos: []
+                    photos: [],
+                    fileIds: []
                 });
             }
             const g = groups.get(key);
@@ -270,6 +271,7 @@ async function sync() {
                         await downloadImage(fileLink, localFilePath);
                     }
                     g.photos.push(`/uploads/${fileName}`);
+                    g.fileIds.push(photo.file_id);
                 } catch (err) {
                     console.error(`Failed to download image for msg ${msg.message_id}:`, err.message);
                 }
@@ -286,7 +288,9 @@ async function sync() {
             const chatId = g.chatId.toString().replace('-100', '');
             const link = `https://t.me/c/${chatId}/${id}`;
             const images = g.photos;
+            const fileIds = g.fileIds || [];
             const image = images.length ? images[0] : '/ban.png';
+            const fileId = fileIds.length ? fileIds[0] : null;
 
             const existingItem = materials.find(m => m.id === id) || null;
             const existingHashtag = existingItem && typeof existingItem.hashtag === 'string' ? existingItem.hashtag.trim() : '';
@@ -308,6 +312,7 @@ async function sync() {
                 hashtag: nextHashtag,
                 image: shouldUpdateImages ? image : existingImage,
                 images: shouldUpdateImages ? images : existingImages,
+                telegram_file_ids: shouldUpdateImages ? fileIds : (existingItem?.telegram_file_ids || []),
                 link: existingItem && typeof existingItem.link === 'string' && existingItem.link.trim() ? existingItem.link : link,
                 description: existingItem && typeof existingItem.description === 'string' && existingItem.description.trim().length ? existingItem.description : g.text,
                 date: Math.max(Number(existingItem?.date || 0), Number(g.date || 0)) || g.date
