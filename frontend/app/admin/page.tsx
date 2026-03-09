@@ -383,6 +383,7 @@ export default function AdminPage() {
   const [categories, setCategories] = useState<CategoryConfig[]>(DEFAULT_CATEGORIES);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [categoriesDraft, setCategoriesDraft] = useState<CategoryConfig[]>(DEFAULT_CATEGORIES);
+  const [search, setSearch] = useState("");
 
   const [feedAddOpen, setFeedAddOpen] = useState(false);
   const [feedAddInput, setFeedAddInput] = useState("");
@@ -725,6 +726,32 @@ export default function AdminPage() {
     }
   }, [headers, loadMaterials, loadTelegramSync]);
 
+  const restoreTelegramAll = useCallback(async () => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const res = await fetch(`/api/sync/telegram?restore=1&t=${Date.now()}`, {
+        method: "POST",
+        headers,
+        cache: "no-store"
+      });
+      const data = await readJson<unknown>(res);
+      if (!res.ok) {
+        const message =
+          pickStringField(data, "error") || `Не удалось восстановить (${res.status})`;
+        throw new Error(message);
+      }
+      const record = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+      const total = typeof record.total === "number" ? record.total : Number(record.total || 0);
+      const keptNew = typeof record.keptNew === "number" ? record.keptNew : Number(record.keptNew || 0);
+      await loadMaterials();
+      await loadTelegramSync();
+      setStatus(`Восстановлено. Всего: ${Number.isFinite(total) ? total : 0}, новых с 6 февраля: ${Number.isFinite(keptNew) ? keptNew : 0}`);
+    } finally {
+      setBusy(false);
+    }
+  }, [headers, loadMaterials, loadTelegramSync]);
+
   const importManualPost = useCallback(async () => {
     const rawId = prompt("Введите ID поста (число) или ссылку на пост:");
     if (!rawId) return;
@@ -777,7 +804,7 @@ export default function AdminPage() {
 
       await loadMaterials();
       setStatus(`Пост ${id} добавлен. Теперь вы можете найти его в списке и отредактировать.`);
-      setQuery(id); // Сразу фильтруем список по этому ID
+      setSearch(id); // Сразу фильтруем список по этому ID
     } catch (e) {
       setStatus(`Ошибка: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -785,7 +812,7 @@ export default function AdminPage() {
     }
   }, [headers, loadMaterials]);
 
-  const restoreTelegramAll = useCallback(async () => {
+  const restoreTelegramAllAction = useCallback(async () => {
     setBusy(true);
     setStatus(null);
     try {
@@ -1663,7 +1690,7 @@ export default function AdminPage() {
                       </button>
                       <button
                         onClick={() =>
-                          restoreTelegramMaterials().catch((e: unknown) =>
+                          restoreTelegramAll().catch((e: unknown) =>
                             setStatus(e instanceof Error ? e.message : "Ошибка")
                           )
                         }
@@ -1674,7 +1701,7 @@ export default function AdminPage() {
                       </button>
                       <button
                         onClick={() =>
-                          restoreTelegramAll().catch((e: unknown) =>
+                          restoreTelegramAllAction().catch((e: unknown) =>
                             setStatus(e instanceof Error ? e.message : "Ошибка")
                           )
                         }
