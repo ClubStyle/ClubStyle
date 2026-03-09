@@ -1361,17 +1361,22 @@ function HomeContent() {
                             <div className="h-2 w-2 rounded-full bg-pink-500 shadow-[0_0_8px_rgba(236,72,153,0.6)]"></div>
                         </div>
                         
-                        { (item.images?.length || 0) > 0 ? (
-                            <div className="w-full h-80 bg-gray-100 rounded-2xl overflow-hidden relative mb-4 border border-gray-100">
-                                <SafeImage
-                                    src={item.images![0]} 
-                                    alt={item.title}
-                                    fill
-                                    className="object-cover"
-                                />
+                        { (item.images?.length || 0) > 1 ? (
+                            <div className="w-full h-80 bg-gray-100 rounded-2xl overflow-x-auto overflow-y-hidden relative mb-4 border border-gray-100 no-scrollbar snap-x snap-mandatory flex">
+                                {item.images!.map((img, idx) => (
+                                    <div key={idx} className="w-full h-full flex-shrink-0 relative snap-center">
+                                        <SafeImage
+                                            src={img} 
+                                            alt={`${item.title} ${idx + 1}`}
+                                            fill
+                                            className="object-cover"
+                                        />
+                                    </div>
+                                ))}
                                 <button 
                                     onClick={(e) => {
                                         e.preventDefault();
+                                        e.stopPropagation();
                                         toggleFavorite(e, item.id);
                                     }}
                                     className="absolute top-4 right-4 bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white transition-colors z-10"
@@ -1381,11 +1386,17 @@ function HomeContent() {
                                         className={`transition-colors ${favorites.includes(item.id) ? "fill-pink-500 text-pink-500" : "text-white"}`} 
                                     />
                                 </button>
+                                {/* Indicator dots */}
+                                <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-10">
+                                    {item.images!.map((_, idx) => (
+                                        <div key={idx} className="w-1.5 h-1.5 rounded-full bg-white/50 backdrop-blur-sm shadow-sm" />
+                                    ))}
+                                </div>
                             </div>
-                        ) : item.image && item.image !== '/ban.png' && (
+                        ) : (item.images?.length === 1 || (item.image && item.image !== '/ban.png')) && (
                             <div className="w-full h-80 bg-gray-100 rounded-2xl overflow-hidden relative mb-4 border border-gray-100">
                                 <SafeImage
-                                    src={item.image} 
+                                    src={item.images?.[0] || item.image} 
                                     alt={item.title}
                                     fill
                                     className="object-cover"
@@ -1393,6 +1404,7 @@ function HomeContent() {
                                 <button 
                                     onClick={(e) => {
                                         e.preventDefault();
+                                        e.stopPropagation();
                                         toggleFavorite(e, item.id);
                                     }}
                                     className="absolute top-4 right-4 bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white transition-colors z-10"
