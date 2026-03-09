@@ -885,6 +885,8 @@ function HomeContent() {
     }
   }, []);
 
+  const [showSwipeOverlay, setShowSwipeOverlay] = useState(false);
+
   const openExternalLink = (url: string) => {
     const u = (url || "").trim();
     if (!u) return;
@@ -900,10 +902,14 @@ function HomeContent() {
     const tg = w.Telegram?.WebApp;
     if (tg?.openTelegramLink && /^https?:\/\/t\.me\//.test(u)) {
       tg.openTelegramLink(u);
-      // Пытаемся закрыть приложение после перехода к посту
+      
+      // Показываем оверлей со свайпом
+      setShowSwipeOverlay(true);
+      
+      // Пытаемся закрыть приложение после перехода к посту (как запасной вариант)
       setTimeout(() => {
           tg.close?.();
-      }, 500); 
+      }, 3000); 
       return;
     }
     if (tg?.openLink) {
@@ -2014,6 +2020,31 @@ function HomeContent() {
                       })()}
                  </div>
             </div>
+        </div>
+      )}
+
+      {/* Swipe Overlay */}
+      {showSwipeOverlay && (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white/95 backdrop-blur-xl animate-in fade-in duration-300">
+            <div className="relative w-64 h-64 mb-8 animate-bounce">
+                <Image 
+                    src="/swipe.png" 
+                    alt="Свайпни вниз" 
+                    fill 
+                    className="object-contain drop-shadow-xl"
+                    unoptimized
+                />
+            </div>
+            <div className="text-center px-8">
+                <h2 className="text-2xl font-black text-gray-900 mb-2">Не открылось?</h2>
+                <p className="text-xl font-medium text-gray-500">Свайпни вниз</p>
+            </div>
+            <button 
+                onClick={() => setShowSwipeOverlay(false)}
+                className="mt-12 text-gray-400 text-sm font-medium hover:text-gray-600 transition-colors"
+            >
+                Закрыть подсказку
+            </button>
         </div>
       )}
 
