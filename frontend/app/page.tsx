@@ -903,13 +903,15 @@ function HomeContent() {
     if (tg?.openTelegramLink && /^https?:\/\/t\.me\//.test(u)) {
       tg.openTelegramLink(u);
       
-      // Показываем оверлей со свайпом
-      setShowSwipeOverlay(true);
-      
-      // Пытаемся закрыть приложение после перехода к посту (как запасной вариант)
+      // Показываем оверлей через 3 секунды, если пользователь все еще в приложении
       setTimeout(() => {
-          tg.close?.();
-      }, 3000); 
+          setShowSwipeOverlay(true);
+      }, 3000);
+      
+      // Пытаемся закрыть приложение (опционально, если это поддерживается)
+      // setTimeout(() => {
+      //    tg.close?.();
+      // }, 500); 
       return;
     }
     if (tg?.openLink) {
@@ -2025,7 +2027,7 @@ function HomeContent() {
 
       {/* Swipe Overlay */}
       {showSwipeOverlay && (
-        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white/95 backdrop-blur-xl animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
             <div className="relative w-64 h-64 mb-8 animate-bounce">
                 <Image 
                     src="/swipe.png" 
@@ -2036,12 +2038,12 @@ function HomeContent() {
                 />
             </div>
             <div className="text-center px-8">
-                <h2 className="text-2xl font-black text-gray-900 mb-2">Не открылось?</h2>
-                <p className="text-xl font-medium text-gray-500">Свайпни вниз</p>
+                <h2 className="text-2xl font-black text-white mb-2">Не открылось?</h2>
+                <p className="text-xl font-medium text-white/80">Свайпни вниз</p>
             </div>
             <button 
                 onClick={() => setShowSwipeOverlay(false)}
-                className="mt-12 text-gray-400 text-sm font-medium hover:text-gray-600 transition-colors"
+                className="mt-12 text-white/60 text-sm font-medium hover:text-white transition-colors"
             >
                 Закрыть подсказку
             </button>
