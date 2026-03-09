@@ -220,6 +220,7 @@ export async function GET(request: Request) {
     const limitRaw = (url.searchParams.get("limit") || "").trim();
     const limit = limitRaw ? Number(limitRaw) : NaN;
     const safeLimit = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : null;
+    const searchQuery = (url.searchParams.get("search") || "").trim().toLowerCase();
     const isVercel = Boolean(process.env.VERCEL);
     const noStoreHeaders = {
       'cache-control': 'no-store, no-cache, must-revalidate, max-age=0',
@@ -292,7 +293,16 @@ export async function GET(request: Request) {
       let combined = Array.from(mergedMap.values()).sort((a, b) => (b.date || 0) - (a.date || 0));
       
       const hidden = await getHiddenMaterialIds(supabase);
-      const visible = filterMaterials(combined, hidden);
+      let visible = filterMaterials(combined, hidden);
+      
+      if (searchQuery) {
+        visible = visible.filter((m) => {
+          const t = (m.title || "").toLowerCase();
+          const h = (m.hashtag || "").toLowerCase();
+          const i = (m.id || "").toLowerCase();
+          return t.includes(searchQuery) || h.includes(searchQuery) || i.includes(searchQuery);
+        });
+      }
 
       if (materialId) {
         const found = findMaterialById(visible, materialId);

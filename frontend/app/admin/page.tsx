@@ -384,6 +384,36 @@ export default function AdminPage() {
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [categoriesDraft, setCategoriesDraft] = useState<CategoryConfig[]>(DEFAULT_CATEGORIES);
   const [search, setSearch] = useState("");
+  const [limit, setLimit] = useState(50);
+
+  const loadMaterials = useCallback(async () => {
+    setStatus(null);
+    const query = new URLSearchParams();
+    if (search) query.set("search", search);
+    if (limit > 0) query.set("limit", String(limit));
+    
+    const res = await fetch(`/api/materials?${query.toString()}&t=${Date.now()}`, { cache: "no-store" });
+    const data = await readJson<unknown>(res);
+    if (!res.ok) {
+      const message =
+        pickStringField(data, "error") ||
+        `Не удалось загрузить материалы (${res.status})`;
+      throw new Error(message);
+    }
+    if (!Array.isArray(data)) {
+      throw new Error("Неверный формат данных /api/materials");
+    }
+    setMaterials(data as MaterialItem[]);
+  }, [search, limit]);
+
+  // We need to fetch materials on search change or limit change
+  useEffect(() => {
+    if (!adminUser || !adminPass) return;
+    const t = setTimeout(() => {
+        loadMaterials().catch(() => {});
+    }, 500); // Debounce search
+    return () => clearTimeout(t);
+  }, [search, limit, adminUser, adminPass, loadMaterials]);
 
   const [feedAddOpen, setFeedAddOpen] = useState(false);
   const [feedAddInput, setFeedAddInput] = useState("");
@@ -427,22 +457,6 @@ export default function AdminPage() {
       "x-admin-pass": adminPass
     };
   }, [adminUser, adminPass]);
-
-  const loadMaterials = useCallback(async () => {
-    setStatus(null);
-    const res = await fetch(`/api/materials?t=${Date.now()}`, { cache: "no-store" });
-    const data = await readJson<unknown>(res);
-    if (!res.ok) {
-      const message =
-        pickStringField(data, "error") ||
-        `Не удалось загрузить материалы (${res.status})`;
-      throw new Error(message);
-    }
-    if (!Array.isArray(data)) {
-      throw new Error("Неверный формат данных /api/materials");
-    }
-    setMaterials(data as MaterialItem[]);
-  }, []);
 
   const loadBottomNav = useCallback(async () => {
     const res = await fetch(`/api/materials?key=bottomNav&t=${Date.now()}`, { cache: "no-store" });
@@ -911,24 +925,15 @@ export default function AdminPage() {
   }, [headers, loadMaterials, loadTelegramSync]);
 
   useEffect(() => {
-    if (!authed) return;
-    loadMaterials().catch((e: unknown) => {
-      setStatus(e instanceof Error ? e.message : "Ошибка загрузки");
-    });
-    loadBottomNav().catch(() => {});
-    loadCommunity().catch(() => {});
-    loadQuickFilters().catch(() => {});
-    loadCategories().catch(() => {});
-    loadTelegramSync().catch(() => {});
-  }, [
-    authed,
-    loadBottomNav,
-    loadCategories,
-    loadCommunity,
-    loadMaterials,
-    loadQuickFilters,
-    loadTelegramSync
-  ]);
+    // Only load if user provided credentials to avoid error on login screen
+    if (adminUser && adminPass) {
+        // Load with default limit
+        loadMaterials().catch(() => {});
+        loadBottomNav().catch(() => {});
+        loadCommunity().catch(() => {});
+        // loadTelegramSync().catch(() => {}); // Telegram sync can be heavy, load on demand or separately
+    }
+  }, [loadMaterials, loadBottomNav, loadCommunity, adminUser, adminPass]);
 
   const baseList = useMemo(() => {
     if (section !== "materials") return materials;
@@ -965,13 +970,9 @@ export default function AdminPage() {
   }, [activeHubCategory, materials, materialsView, section]);
 
   const filtered = useMemo(() => {
-    const q = filter.trim().toLowerCase();
-    if (!q) return baseList;
-    return baseList.filter((m) => {
-      const hay = `${m.id} ${m.title} ${m.hashtag} ${m.link}`.toLowerCase();
-      return hay.includes(q);
-    });
-  }, [baseList, filter]);
+    // If using server side search, materials are already filtered
+    return baseList;
+  }, [baseList]);
 
   const selectItem = useCallback(
     (id: string) => {
