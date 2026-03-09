@@ -643,9 +643,9 @@ function HomeContent() {
           return tag.includes(query) || 
           tag.includes("#" + query) ||
           (name === "разборы образов" && (tag.includes("#разборобразов") || tag.includes("#лукдня"))) ||
-          (name === "мастер-классы" && (tag.includes("#мастеркласс") || tag.includes("#мастер-класс") || tag.includes("mk_"))) ||
+          (name === "мастер-классы" && (tag.includes("#мастеркласс") || tag.includes("#мастер-класс") || tag.includes("mk_") || tag.includes("мастер-класс"))) ||
           (name === "эфиры" && (tag.includes("#эфир") || tag.includes("эфир"))) ||
-          (name === "бренды" && (tag.includes("#обзорыбрендов") || m.id.startsWith("brand_"))) ||
+          (name === "бренды" && (tag.includes("#обзорыбрендов") || tag.includes("#обзорбрендов") || tag.includes("#бренд") || tag.includes("#обзор") || m.id.startsWith("brand_"))) ||
           (name === "гайды и чек-листы" && (tag.includes("#гайд") || tag.includes("guide_") || (typeof m.link === "string" && m.link.toLowerCase().endsWith(".pdf")))) ||
           (name === "покупки по миру" && tag.includes("#покупкипомиру")) ||
           (name === "покупки по рф" && tag.includes("#покупкивроссии")) ||
