@@ -21,11 +21,27 @@ function SafeImage({
   onError,
   ...props
 }: Omit<ImageProps, "src"> & { src: ImageProps["src"] }) {
-  const isRemote = typeof src === "string" && /^https?:\/\//i.test(src);
-  const isUploads = typeof src === "string" && src.startsWith("/uploads/");
-  const isWikimedia = typeof src === "string" && src.startsWith("https://upload.wikimedia.org/");
-  const isTelegramFile = typeof src === "string" && src.startsWith("/api/telegram-file?");
-  const isSupabaseFile = typeof src === "string" && src.startsWith("/api/supabase-file?");
+  const normalizeImageSrc = (input: ImageProps["src"]) => {
+    if (typeof input !== "string") return input;
+    const raw = input.trim();
+    if (!raw) return input;
+    if (raw.startsWith("/uploads/")) {
+      const fileName = raw.slice("/uploads/".length);
+      const path = `telegram/${fileName}`;
+      return `/api/supabase-file?bucket=uploads&path=${encodeURIComponent(path)}`;
+    }
+    return input;
+  };
+
+  const normalizedSrc = normalizeImageSrc(src);
+  const isRemote = typeof normalizedSrc === "string" && /^https?:\/\//i.test(normalizedSrc);
+  const isUploads = typeof normalizedSrc === "string" && normalizedSrc.startsWith("/uploads/");
+  const isWikimedia =
+    typeof normalizedSrc === "string" && normalizedSrc.startsWith("https://upload.wikimedia.org/");
+  const isTelegramFile =
+    typeof normalizedSrc === "string" && normalizedSrc.startsWith("/api/telegram-file?");
+  const isSupabaseFile =
+    typeof normalizedSrc === "string" && normalizedSrc.startsWith("/api/supabase-file?");
   if (isRemote) {
     const fill = Boolean((props as { fill?: unknown })?.fill);
     const width = (props as { width?: unknown })?.width;
@@ -43,7 +59,7 @@ function SafeImage({
       : style;
     return (
       <img
-        src={src}
+        src={typeof normalizedSrc === "string" ? normalizedSrc : String(src)}
         alt={alt}
         className={typeof className === "string" ? className : undefined}
         style={mergedStyle as never}
@@ -62,7 +78,7 @@ function SafeImage({
   return (
     <Image
       {...props}
-      src={src}
+      src={normalizedSrc}
       alt={alt}
       unoptimized={isUploads || isWikimedia || isTelegramFile || isSupabaseFile}
       onError={(e) => {

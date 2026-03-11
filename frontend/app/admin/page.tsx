@@ -91,12 +91,27 @@ function SafeImage({
   onError,
   ...props
 }: Omit<ImageProps, "src"> & { src: ImageProps["src"] }) {
-  const isRemote = typeof src === "string" && /^https?:\/\//i.test(src);
-  const isUploads = typeof src === "string" && src.startsWith("/uploads/");
+  const normalizeImageSrc = (input: ImageProps["src"]) => {
+    if (typeof input !== "string") return input;
+    const raw = input.trim();
+    if (!raw) return input;
+    if (raw.startsWith("/uploads/")) {
+      const fileName = raw.slice("/uploads/".length);
+      const path = `telegram/${fileName}`;
+      return `/api/supabase-file?bucket=uploads&path=${encodeURIComponent(path)}`;
+    }
+    return input;
+  };
+
+  const normalizedSrc = normalizeImageSrc(src);
+  const isRemote = typeof normalizedSrc === "string" && /^https?:\/\//i.test(normalizedSrc);
+  const isUploads = typeof normalizedSrc === "string" && normalizedSrc.startsWith("/uploads/");
   const isWikimedia =
-    typeof src === "string" && src.startsWith("https://upload.wikimedia.org/");
-  const isTelegramFile = typeof src === "string" && src.startsWith("/api/telegram-file?");
-  const isSupabaseFile = typeof src === "string" && src.startsWith("/api/supabase-file?");
+    typeof normalizedSrc === "string" && normalizedSrc.startsWith("https://upload.wikimedia.org/");
+  const isTelegramFile =
+    typeof normalizedSrc === "string" && normalizedSrc.startsWith("/api/telegram-file?");
+  const isSupabaseFile =
+    typeof normalizedSrc === "string" && normalizedSrc.startsWith("/api/supabase-file?");
   if (isRemote) {
     const fill = Boolean((props as { fill?: unknown })?.fill);
     const width = (props as { width?: unknown })?.width;
@@ -114,7 +129,7 @@ function SafeImage({
       : style;
     return (
       <img
-        src={src}
+        src={typeof normalizedSrc === "string" ? normalizedSrc : String(src)}
         alt={alt}
         className={typeof className === "string" ? className : undefined}
         style={mergedStyle as never}
@@ -133,7 +148,7 @@ function SafeImage({
   return (
     <Image
       {...props}
-      src={src}
+      src={normalizedSrc}
       alt={alt}
       unoptimized={isUploads || isWikimedia || isTelegramFile || isSupabaseFile}
       onError={(e) => {
@@ -938,6 +953,7 @@ export default function AdminPage() {
   const baseList = useMemo(() => {
     if (section !== "materials") return materials;
     if (materialsView !== "list") return materials;
+    if (search.trim()) return materials;
     if (!activeHubCategory) return materials;
     const query = activeHubCategory.toLowerCase().replace(/\s/g, "");
     return materials.filter((m) => {
@@ -967,7 +983,7 @@ export default function AdminPage() {
       }
       return h.includes(query) || h.includes("#" + query);
     });
-  }, [activeHubCategory, materials, materialsView, section]);
+  }, [activeHubCategory, materials, materialsView, search, section]);
 
   const filtered = useMemo(() => {
     // If using server side search, materials are already filtered
@@ -1174,18 +1190,42 @@ export default function AdminPage() {
     setSection("materials");
     setMaterialsView("list");
     setActiveHubCategory(category);
+    const nextSearch =
+      category === "Лента новостей"
+        ? "#вленту"
+        : category === "Бренды"
+          ? "бренд"
+          : category === "Мастер-классы"
+            ? "мастер"
+            : category === "Эфиры"
+              ? "эфир"
+              : category === "Гайды и чек-листы"
+                ? "гайд"
+                : category === "Идеи образов"
+                  ? "идеиобразов"
+                  : category === "#lookдняЛена"
+                    ? "lookдня"
+                    : category === "Советы"
+                      ? "советы"
+                      : category === "Мои обучения"
+                        ? "edu_"
+                        : category.toLowerCase();
+    setSearch(nextSearch);
+    setLimit(500);
     setFilter("");
     setDraft(null);
     setSelectedId(null);
-  }, []);
+  }, [setLimit, setSearch]);
 
   const backToHub = useCallback(() => {
     setMaterialsView("hub");
     setActiveHubCategory(null);
+    setSearch("");
+    setLimit(50);
     setFilter("");
     setDraft(null);
     setSelectedId(null);
-  }, []);
+  }, [setLimit, setSearch]);
 
   const saveAll = useCallback(async () => {
     setBusy(true);
@@ -1561,12 +1601,28 @@ export default function AdminPage() {
                   className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
                 />
                 <input
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
                   className="w-full rounded-2xl border border-gray-100 bg-white px-10 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200 shadow-sm"
-                  placeholder="Поиск по id/названию/хэштегу/ссылке"
+                  placeholder="Поиск по id/названию/хэштегу/ссылке (серверный)"
                   disabled={section !== "materials" || materialsView !== "list"}
                 />
+              </div>
+              <div className="mt-2 flex items-center gap-2 text-[11px] text-gray-400">
+                <span className="font-bold uppercase tracking-wider">Лимит</span>
+                <select
+                  value={limit}
+                  onChange={(e) => setLimit(Number(e.target.value))}
+                  className="rounded-xl border border-gray-100 bg-white px-3 py-2 text-xs text-gray-700 outline-none focus:ring-2 focus:ring-pink-200 shadow-sm"
+                  disabled={section !== "materials" || materialsView !== "list"}
+                >
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={300}>300</option>
+                  <option value={500}>500</option>
+                  <option value={0}>Все</option>
+                </select>
               </div>
               {serverInfo?.version ? (
                 <div className="mt-2 text-[11px] text-gray-400">

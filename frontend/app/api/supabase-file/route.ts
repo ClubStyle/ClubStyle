@@ -62,7 +62,10 @@ export async function GET(request: Request) {
   if (!allowedBuckets.has(bucket)) {
     return new Response("Forbidden", { status: 403, headers: { "cache-control": "no-store" } });
   }
-  if (!filePath.startsWith("materials/")) {
+  if (filePath.startsWith("/") || filePath.includes("..")) {
+    return new Response("Forbidden", { status: 403, headers: { "cache-control": "no-store" } });
+  }
+  if (!filePath.startsWith("materials/") && !filePath.startsWith("telegram/")) {
     return new Response("Forbidden", { status: 403, headers: { "cache-control": "no-store" } });
   }
 

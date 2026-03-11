@@ -262,7 +262,7 @@ export async function GET(request: Request) {
 
     // Always load local file as base/fallback
     let fileMaterials: MaterialItem[] = [];
-    let fileUi: Record<string, any> = {};
+    let fileUi: Record<string, unknown> = {};
     try {
       const fileContents = await fs.promises.readFile(dataPath, 'utf8');
       fileMaterials = JSON.parse(fileContents);
@@ -290,7 +290,7 @@ export async function GET(request: Request) {
         if (m && m.id) mergedMap.set(String(m.id), m);
       }
       
-      let combined = Array.from(mergedMap.values()).sort((a, b) => (b.date || 0) - (a.date || 0));
+      const combined = Array.from(mergedMap.values()).sort((a, b) => (b.date || 0) - (a.date || 0));
       
       const hidden = await getHiddenMaterialIds(supabase);
       let visible = filterMaterials(combined, hidden);

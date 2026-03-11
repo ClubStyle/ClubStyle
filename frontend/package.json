@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "sync:telegram": "node scripts/telegram-sync.js"
+    "sync:telegram": "node scripts/telegram-sync.js",
+    "upload:uploads": "node scripts/upload-uploads-to-supabase.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.90.1",

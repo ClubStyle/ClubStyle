@@ -34,11 +34,27 @@ function SafeImage({
   onError,
   ...props
 }: Omit<ImageProps, "src"> & { src: ImageProps["src"] }) {
-  const isRemote = typeof src === "string" && /^https?:\/\//i.test(src);
-  const isUploads = typeof src === "string" && src.startsWith("/uploads/");
-  const isWikimedia = typeof src === "string" && src.startsWith("https://upload.wikimedia.org/");
-  const isTelegramFile = typeof src === "string" && src.startsWith("/api/telegram-file?");
-  const isSupabaseFile = typeof src === "string" && src.startsWith("/api/supabase-file?");
+  const normalizeImageSrc = (input: ImageProps["src"]) => {
+    if (typeof input !== "string") return input;
+    const raw = input.trim();
+    if (!raw) return input;
+    if (raw.startsWith("/uploads/")) {
+      const fileName = raw.slice("/uploads/".length);
+      const path = `telegram/${fileName}`;
+      return `/api/supabase-file?bucket=uploads&path=${encodeURIComponent(path)}`;
+    }
+    return input;
+  };
+
+  const normalizedSrc = normalizeImageSrc(src);
+  const isRemote = typeof normalizedSrc === "string" && /^https?:\/\//i.test(normalizedSrc);
+  const isUploads = typeof normalizedSrc === "string" && normalizedSrc.startsWith("/uploads/");
+  const isWikimedia =
+    typeof normalizedSrc === "string" && normalizedSrc.startsWith("https://upload.wikimedia.org/");
+  const isTelegramFile =
+    typeof normalizedSrc === "string" && normalizedSrc.startsWith("/api/telegram-file?");
+  const isSupabaseFile =
+    typeof normalizedSrc === "string" && normalizedSrc.startsWith("/api/supabase-file?");
   if (isRemote) {
     const fill = Boolean((props as { fill?: unknown })?.fill);
     const width = (props as { width?: unknown })?.width;
@@ -56,7 +72,7 @@ function SafeImage({
       : style;
     return (
       <img
-        src={src}
+        src={typeof normalizedSrc === "string" ? normalizedSrc : String(src)}
         alt={alt}
         className={typeof className === "string" ? className : undefined}
         style={mergedStyle as never}
@@ -75,7 +91,7 @@ function SafeImage({
   return (
     <Image
       {...props}
-      src={src}
+      src={normalizedSrc}
       alt={alt}
       unoptimized={isUploads || isWikimedia || isTelegramFile || isSupabaseFile}
       onError={(e) => {
@@ -1597,14 +1613,6 @@ function HomeContent() {
                         const preferredImage = previewMaterial
                           ? (previewMaterial.images?.[0] || previewMaterial.image || "/ban.png")
                           : (material ? (material.images?.[0] || material.image || "/ban.png") : "/ban.png");
-                        
-                        // Если это не категория (а конкретный пост), и у него нет картинки - пропускаем его
-                        // Но если это категория (categoryItem), то показываем даже с заглушкой, но лучше найти пост с картинкой внутри
-                        if (!categoryItem && !material && preferredImage === "/ban.png") {
-                            // Проверяем, есть ли другие посты с таким же тегом и картинкой
-                            const hasImage = baseMatches.some(m => m.image && m.image !== "/ban.png");
-                            if (!hasImage) return null; // Скрываем тег, если нет ни одного поста с картинкой
-                        }
                         const displayImage = activeCategory === "Мои обучения"
                           ? (TRAINING_IMAGES[item] ?? preferredImage)
                           : activeCategory === "Типы фигуры"
@@ -1725,13 +1733,9 @@ function HomeContent() {
                                  }
 
                                  if (relatedMaterials.length > 1) {
-                                       // Filter out items without images if they are placeholders
-                                       const withImages = relatedMaterials.filter(m => m.image && m.image !== '/ban.png');
-                                       const itemsToShow = withImages.length > 0 ? withImages : relatedMaterials;
-                                       
                                        setSubCategorySheet({
                                           title: material?.title || item,
-                                          items: itemsToShow.map(m => m.id)
+                                          items: relatedMaterials.map(m => m.id)
                                        });
                                       return;
                                  }
