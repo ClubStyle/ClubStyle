@@ -1026,6 +1026,7 @@ async function readSeedFromLocalFile(seedCount: number, sinceTs?: number | null)
 
 async function syncTelegram(request?: Request) {
   const url = request ? new URL(request.url) : null;
+  const isCronRequest = Boolean(request && request.headers.get("x-vercel-cron") === "1");
   const wantHealth = url?.searchParams.get("health") === "1";
   if (wantHealth && request) {
     return health();
@@ -1601,7 +1602,7 @@ async function syncTelegram(request?: Request) {
 
         const maxUpdatesPerSync = getTelegramMaxUpdatesPerSync();
         const updates: TelegramBot.Update[] = [];
-        if (webhookActive && request && isAdminAuthorized(request)) {
+        if (webhookActive && request && (isCronRequest || isAdminAuthorized(request))) {
           try {
             await bot.deleteWebHook();
             webhookCleared = true;
@@ -1631,7 +1632,7 @@ async function syncTelegram(request?: Request) {
             if (batch.length < limit) break;
           }
         }
-        if (request && webhookUrlAtSync && !webhookActive && isAdminAuthorized(request)) {
+        if (request && webhookUrlAtSync && !webhookActive && (isCronRequest || isAdminAuthorized(request))) {
           const secret = getTelegramSecret();
           if (secret) {
             try {
