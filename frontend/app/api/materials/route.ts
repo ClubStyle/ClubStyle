@@ -289,6 +289,21 @@ type CompactOptions = {
   maxDescription?: number;
 };
 
+function extractImageUrlsFromText(value: string) {
+  const text = (value || "").trim();
+  if (!text) return [];
+  const out: string[] = [];
+  const re = /(https?:\/\/[^\s"'<>()]+?\.(?:png|jpe?g|webp|gif))(?:\?[^\s"'<>()]*)?/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const raw = (m[0] || "").trim();
+    if (!raw) continue;
+    out.push(raw);
+    if (out.length >= 12) break;
+  }
+  return out;
+}
+
 function compactMaterials(value: unknown, options?: CompactOptions): MaterialItem[] {
   if (!Array.isArray(value)) return [];
   const lite = Boolean(options?.lite);
@@ -309,22 +324,36 @@ function compactMaterials(value: unknown, options?: CompactOptions): MaterialIte
       if (!id) return null;
       const title = typeof m?.title === "string" ? m.title : "";
       const hashtag = typeof m?.hashtag === "string" ? m.hashtag : "";
-      const image = typeof m?.image === "string" ? m.image : "/ban.png";
+      const rawImage = typeof m?.image === "string" ? m.image.trim() : "";
       const link = typeof m?.link === "string" ? m.link : "";
       const video_link = typeof m?.video_link === "string" ? m.video_link : "";
       const type = typeof m?.type === "string" ? m.type : "";
       const image_position = typeof m?.image_position === "string" ? m.image_position : "";
       const date =
         typeof m?.date === "number" ? m.date : Number.isFinite(Number(m?.date)) ? Number(m?.date) : undefined;
-      const images = Array.isArray(m?.images)
-        ? m.images
-            .map((v: unknown) => (typeof v === "string" ? v.trim() : ""))
-            .filter(Boolean)
-            .slice(0, maxImages)
-        : undefined;
+      const rawImages = Array.isArray(m?.images)
+        ? m.images.map((v: unknown) => (typeof v === "string" ? v.trim() : "")).filter(Boolean)
+        : [];
+      const fullDescription = typeof m?.description === "string" ? m.description : "";
+      const extracted = extractImageUrlsFromText(fullDescription);
+      const mergedImages: string[] = [];
+      const seen = new Set<string>();
+      const push = (u: string) => {
+        const url = (u || "").trim();
+        if (!url) return;
+        if (url === "/ban.png") return;
+        if (seen.has(url)) return;
+        seen.add(url);
+        mergedImages.push(url);
+      };
+      if (rawImage) push(rawImage);
+      for (const u of rawImages) push(u);
+      for (const u of extracted) push(u);
+      const images = mergedImages.length ? mergedImages.slice(0, maxImages) : undefined;
+      const image = images?.[0] || (rawImage && rawImage !== "/ban.png" ? rawImage : "/ban.png");
       const description =
-        maxDescription > 0 && typeof m?.description === "string" && m.description.trim().length
-          ? m.description.trim().slice(0, maxDescription)
+        maxDescription > 0 && fullDescription.trim().length
+          ? fullDescription.trim().slice(0, maxDescription)
           : undefined;
       return {
         id,

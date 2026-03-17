@@ -647,7 +647,17 @@ function HomeContent() {
           .filter((m) => !m.id.startsWith("edu_"));
         const items =
           related.length > 0
-            ? related.sort((a, b) => (b.date || 0) - (a.date || 0)).map((m) => m.id)
+            ? related
+                .sort((a, b) => {
+                  const ad = Number(a.date || 0);
+                  const bd = Number(b.date || 0);
+                  if (ad !== bd) return bd - ad;
+                  const ai = /^\d+$/.test(a.id) ? Number(a.id) : 0;
+                  const bi = /^\d+$/.test(b.id) ? Number(b.id) : 0;
+                  if (ai !== bi) return bi - ai;
+                  return String(b.id).localeCompare(String(a.id), "ru");
+                })
+                .map((m) => m.id)
             : LENA_LOOKS.map((m) => m.id);
         setActiveCategory(category.name);
         setSubCategorySheet({ title: category.name, items });
