@@ -652,14 +652,14 @@ export default function AdminPage() {
   }, [defaultCommunity]);
 
   const loadDocs = useCallback(async () => {
-    const res = await fetch(`/api/materials?key=admin_docs&t=${Date.now()}`, { cache: "no-store" });
+    const res = await fetch(`/api/materials?key=admin_docs&t=${Date.now()}`, { cache: "no-store", headers });
     const data = await readJson<unknown>(res);
     if (!res.ok) return;
     setDocsStore(normalizeDocsStore(data));
-  }, [normalizeDocsStore]);
+  }, [headers, normalizeDocsStore]);
 
   const loadDocsFeedback = useCallback(async () => {
-    const res = await fetch(`/api/materials?key=admin_docs_feedback&t=${Date.now()}`, { cache: "no-store" });
+    const res = await fetch(`/api/materials?key=admin_docs_feedback&t=${Date.now()}`, { cache: "no-store", headers });
     const data = await readJson<unknown>(res);
     if (!res.ok) return;
     const list = Array.isArray(data) ? data : [];
@@ -679,7 +679,7 @@ export default function AdminPage() {
       .filter((it) => it.message.trim().length > 0)
       .sort((a, b) => b.createdAt - a.createdAt);
     setDocsFeedback(cleaned);
-  }, []);
+  }, [headers]);
 
   const loadQuickFilters = useCallback(async () => {
     const res = await fetch(`/api/materials?key=quickFilters&t=${Date.now()}`, { cache: "no-store" });

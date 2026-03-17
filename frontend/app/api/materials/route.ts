@@ -13,6 +13,188 @@ const uiPath = path.join(process.cwd(), 'data', 'ui.json');
 
 const ALWAYS_HIDDEN_MATERIAL_IDS = new Set(['look_1', 'look_2', 'look_3', 'look_4', 'look_5']);
 
+function defaultAdminDocsStore() {
+  const now = Date.now();
+  return {
+    version: 1,
+    items: [
+      {
+        id: "doc_admin_login",
+        kind: "instruction",
+        category: "Админка",
+        tags: ["admin", "login"],
+        title: { ru: "Вход в админ‑панель", en: "Admin login" },
+        body: {
+          ru: "Открой /admin, введи логин и пароль администратора и нажми «Войти». После входа появятся вкладки «Материалы», «О клубе», «Навбар», «Инструкции».",
+          en: "Open /admin, enter admin login & password, then press “Login”. After login you will see “Materials”, “Community”, “Navbar”, “Docs”."
+        },
+        steps: [
+          {
+            title: { ru: "Открой страницу админки", en: "Open admin page" },
+            text: { ru: "Перейди на /admin.", en: "Go to /admin." },
+            image: "/новое.jpg"
+          },
+          {
+            title: { ru: "Введи доступ", en: "Enter credentials" },
+            text: {
+              ru: "Заполни логин и пароль. Если видишь «Неверный логин или пароль» — проверь раскладку и пробелы.",
+              en: "Enter username and password. If you see “Invalid login or password”, check spaces and keyboard layout."
+            }
+          }
+        ],
+        createdAt: now,
+        updatedAt: now
+      },
+      {
+        id: "doc_materials_search_edit",
+        kind: "instruction",
+        category: "Материалы",
+        tags: ["materials", "search", "edit", "images"],
+        title: { ru: "Материалы: поиск, редактирование, обложки", en: "Materials: search, edit, covers" },
+        body: {
+          ru: "Вкладка «Материалы» показывает список постов и позволяет редактировать поля: заголовок, хэштеги, описание, ссылки, обложку и галерею картинок. Поиск работает серверно.",
+          en: "The “Materials” tab lists posts and lets you edit title, hashtags, description, links, cover and gallery. Search is server-side."
+        },
+        steps: [
+          {
+            title: { ru: "Найди пост", en: "Find a post" },
+            text: {
+              ru: "Переключись на «Материалы» → открой список → в поиске введи id / слово из заголовка / хэштег / ссылку. При необходимости увеличь лимит.",
+              en: "Go to “Materials” → list view → type id / title keyword / hashtag / link. Increase limit if needed."
+            }
+          },
+          {
+            title: { ru: "Открой карточку", en: "Open editor" },
+            text: {
+              ru: "Кликни по нужной карточке. Справа откроется редактор. После правок нажми «Сохранить».",
+              en: "Click an item to open editor. Apply changes and press “Save”."
+            }
+          },
+          {
+            title: { ru: "Загрузи обложку/картинку", en: "Upload cover/image" },
+            text: {
+              ru: "В редакторе используй загрузку изображения. Файл автоматически проверяется и при необходимости сжимается перед отправкой.",
+              en: "Use image upload in editor. The file is validated and compressed when needed."
+            }
+          }
+        ],
+        createdAt: now,
+        updatedAt: now
+      },
+      {
+        id: "doc_telegram_sync",
+        kind: "instruction",
+        category: "Telegram",
+        tags: ["telegram", "sync", "webhook"],
+        title: { ru: "Telegram: синхронизация и webhook", en: "Telegram: sync and webhook" },
+        body: {
+          ru: "В «Материалы» есть кнопки управления синхронизацией: «Обновить» подтягивает новые посты, «Webhook» включает приём обновлений, «Webhook off» выключает, «Проверить» показывает диагностику токена/супабейза/чата.",
+          en: "In “Materials” you can control Telegram sync: “Update” pulls new posts, “Webhook” enables updates, “Webhook off” disables, “Check” shows diagnostics."
+        },
+        steps: [
+          {
+            title: { ru: "Обнови ленту", en: "Update feed" },
+            text: {
+              ru: "Нажми «Обновить». В статусе появится сколько добавлено/обновлено.",
+              en: "Press “Update”. Status will show how many items were added/updated."
+            }
+          },
+          {
+            title: { ru: "Проверь диагностику", en: "Run diagnostics" },
+            text: {
+              ru: "Нажми «Проверить» и смотри: TG_TOKEN ok/нет, SUPABASE ok/нет, webhook активен или нет, pending updates.",
+              en: "Press “Check” to see TG token, Supabase status, webhook state and pending updates."
+            }
+          }
+        ],
+        createdAt: now,
+        updatedAt: now
+      },
+      {
+        id: "doc_docs_section",
+        kind: "instruction",
+        category: "Инструкции",
+        tags: ["docs", "errors", "feedback"],
+        title: { ru: "Раздел «Инструкции»: как добавлять статьи и ошибки", en: "Docs: how to add articles and errors" },
+        body: {
+          ru: "Вкладка «Инструкции» внутри админки — это внутренняя база знаний. Тут можно создавать инструкции и карточки ошибок, добавлять шаги, скриншоты, категории и теги. Всё ищется через строку поиска.",
+          en: "The “Docs” tab is an internal knowledge base. Create instructions and error entries with steps, screenshots, categories and tags. Use search to find anything."
+        },
+        steps: [
+          {
+            title: { ru: "Добавь новую запись", en: "Create a new entry" },
+            text: {
+              ru: "Открой «Инструкции» или «Ошибки» → нажми «+ Добавить» → заполни категорию, теги, текст и шаги.",
+              en: "Open “Instructions” or “Errors” → press “+ Add” → fill category, tags, text and steps."
+            }
+          },
+          {
+            title: { ru: "Прикрепи скриншот", en: "Attach a screenshot" },
+            text: {
+              ru: "Внутри шага можно указать URL или загрузить файл кнопкой «+ Файл». После загрузки появится превью.",
+              en: "In a step you can paste an URL or upload a file via “+ File”. Preview will appear after upload."
+            }
+          },
+          {
+            title: { ru: "Отправь новую проблему", en: "Send feedback" },
+            text: {
+              ru: "Во вкладке «Обратная связь» опиши баг и страницу. Сообщения сохраняются и видны админам.",
+              en: "In “Feedback” describe the issue and page. Messages are stored and visible to admins."
+            }
+          }
+        ],
+        createdAt: now,
+        updatedAt: now
+      },
+      {
+        id: "err_tg_token_missing",
+        kind: "error",
+        category: "Telegram",
+        tags: ["telegram", "token", "env"],
+        title: { ru: "TG_TOKEN: нет / синк не работает", en: "TG token missing / sync fails" },
+        body: {
+          ru: "Симптомы: в админке «TG_TOKEN: нет», кнопка «Обновить» не подтягивает посты, диагностика показывает tokenPresent=false.\n\nПричина: в переменных окружения Vercel не задан TELEGRAM_BOT_TOKEN или TG_TOKEN.\n\nРешение: добавь токен бота в Vercel → Project → Settings → Environment Variables и перезапусти деплой.",
+          en: "Symptoms: “TG_TOKEN: missing”, “Update” does nothing, diagnostics shows tokenPresent=false.\n\nCause: TELEGRAM_BOT_TOKEN/TG_TOKEN is not set in environment.\n\nFix: add token in Vercel env vars and redeploy."
+        },
+        steps: [
+          {
+            title: { ru: "Проверь диагностику", en: "Check diagnostics" },
+            text: { ru: "Материалы → «Проверить» → TG_TOKEN должен быть ok.", en: "Materials → “Check” → TG token should be ok." }
+          },
+          {
+            title: { ru: "Обнови переменные окружения", en: "Update env vars" },
+            text: {
+              ru: "В Vercel добавь TELEGRAM_BOT_TOKEN или TG_TOKEN. Не публикуй токен в чат/код.",
+              en: "Add TELEGRAM_BOT_TOKEN/TG_TOKEN in Vercel. Never paste token into chat or code."
+            }
+          }
+        ],
+        createdAt: now,
+        updatedAt: now
+      },
+      {
+        id: "err_supabase_missing",
+        kind: "error",
+        category: "Supabase",
+        tags: ["supabase", "env", "storage"],
+        title: { ru: "Supabase: нет доступа / не сохраняется", en: "Supabase missing / save fails" },
+        body: {
+          ru: "Симптомы: в админке «SUPABASE_URL: нет» или «ключ: нет», сохранение/загрузка файлов не работает.\n\nПричина: не заданы SUPABASE_URL и ключ (SUPABASE_SERVICE_ROLE_KEY или SUPABASE_SECRET_KEY).\n\nРешение: добавь переменные окружения в Vercel и перезапусти деплой.",
+          en: "Symptoms: SUPABASE_URL/key missing, saving or uploads fail.\n\nCause: SUPABASE_URL and service role key are not set.\n\nFix: set env vars in Vercel and redeploy."
+        },
+        steps: [
+          {
+            title: { ru: "Проверь статус в шапке админки", en: "Check admin header" },
+            text: { ru: "В шапке админки видно SUPABASE_URL и ключ.", en: "Admin header shows SUPABASE_URL and key status." }
+          }
+        ],
+        createdAt: now,
+        updatedAt: now
+      }
+    ]
+  };
+}
+
 type MaterialItem = {
   id: string;
   title?: string;
@@ -320,6 +502,27 @@ export async function GET(request: Request) {
 
     // For UI keys (categories, etc.)
     // If Supabase didn't have it, we use the local file version
+    if (key === "admin_docs" || key === "admin_docs_feedback") {
+      if (!isAdminAuthorized(request)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403, headers: noStoreHeaders });
+      }
+    }
+
+    if (key === "admin_docs") {
+      const value = fileUi[key];
+      const hasItems =
+        value &&
+        typeof value === "object" &&
+        Array.isArray((value as { items?: unknown }).items) &&
+        (value as { items: unknown[] }).items.length > 0;
+      return NextResponse.json(hasItems ? value : defaultAdminDocsStore(), { headers: withSource("file") });
+    }
+
+    if (key === "admin_docs_feedback") {
+      const value = fileUi[key];
+      return NextResponse.json(Array.isArray(value) ? value : [], { headers: withSource("file") });
+    }
+
     const value = fileUi[key];
     return NextResponse.json(value ?? null, { headers: withSource("file") });
 } catch (error) {
