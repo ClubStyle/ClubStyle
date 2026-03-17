@@ -357,6 +357,45 @@ function findMaterialById(value: unknown, id: string): MaterialItem | null {
   return null;
 }
 
+function extractMonthIndex(text: string) {
+  const t = (text || "").toLowerCase();
+  if (t.includes("январ")) return 1;
+  if (t.includes("феврал")) return 2;
+  if (t.includes("март")) return 3;
+  if (t.includes("апрел")) return 4;
+  if (t.includes("мая") || t.includes("май")) return 5;
+  if (t.includes("июн")) return 6;
+  if (t.includes("июл")) return 7;
+  if (t.includes("август")) return 8;
+  if (t.includes("сентябр")) return 9;
+  if (t.includes("октябр")) return 10;
+  if (t.includes("ноябр")) return 11;
+  if (t.includes("декабр")) return 12;
+  if (t.includes("новогод")) return 12;
+  return 0;
+}
+
+function extractYearFromTitle(text: string) {
+  const m = (text || "").match(/(20\d{2})/g);
+  if (!m || m.length === 0) return 0;
+  const last = m[m.length - 1] || "";
+  const y = Number(last);
+  return Number.isFinite(y) ? y : 0;
+}
+
+function isBrandsMaterial(m: MaterialItem) {
+  const tag = (m.hashtag || "").toLowerCase();
+  const id = (m.id || "").toLowerCase();
+  return (
+    tag.includes("#обзорыбрендов") ||
+    tag.includes("#обзорбрендов") ||
+    tag.includes("#обзорбренда") ||
+    tag.includes("#бренд") ||
+    tag.includes("#обзор") ||
+    id.startsWith("brand_")
+  );
+}
+
 async function readUiFile(): Promise<Record<string, unknown>> {
   try {
     const fileContents = await fs.promises.readFile(uiPath, 'utf8');
@@ -404,6 +443,7 @@ export async function GET(request: Request) {
     const limit = limitRaw ? Number(limitRaw) : NaN;
     const safeLimit = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : null;
     const searchQuery = (url.searchParams.get("search") || "").trim().toLowerCase();
+    const categoryParam = (url.searchParams.get("category") || "").trim().toLowerCase();
     const isVercel = Boolean(process.env.VERCEL);
     const noStoreHeaders = {
       'cache-control': 'no-store, no-cache, must-revalidate, max-age=0',
@@ -477,6 +517,19 @@ export async function GET(request: Request) {
       
       const hidden = await getHiddenMaterialIds(supabase);
       let visible = filterMaterials(combined, hidden);
+
+      if (categoryParam === "brands") {
+        visible = visible.filter(isBrandsMaterial);
+        visible = [...visible].sort((a, b) => {
+          const ay = extractYearFromTitle(a.title || "");
+          const by = extractYearFromTitle(b.title || "");
+          if (ay !== by) return by - ay;
+          const am = extractMonthIndex(a.title || "");
+          const bm = extractMonthIndex(b.title || "");
+          if (am !== bm) return bm - am;
+          return (b.date || 0) - (a.date || 0);
+        });
+      }
       
       if (searchQuery) {
         visible = visible.filter((m) => {

@@ -436,6 +436,7 @@ export default function AdminPage() {
   const [categoriesDraft, setCategoriesDraft] = useState<CategoryConfig[]>(DEFAULT_CATEGORIES);
   const [search, setSearch] = useState("");
   const [limit, setLimit] = useState(50);
+  const [materialsCategory, setMaterialsCategory] = useState<string | null>(null);
   const [docsLocale, setDocsLocale] = useState<DocsLocale>("ru");
   const [docsTab, setDocsTab] = useState<"instructions" | "errors" | "feedback">("instructions");
   const [docsSearch, setDocsSearch] = useState("");
@@ -520,6 +521,7 @@ export default function AdminPage() {
     setStatus(null);
     const query = new URLSearchParams();
     if (search) query.set("search", search);
+    if (materialsCategory) query.set("category", materialsCategory);
     if (limit > 0) query.set("limit", String(limit));
     
     const res = await fetch(`/api/materials?${query.toString()}&t=${Date.now()}`, { cache: "no-store" });
@@ -534,7 +536,7 @@ export default function AdminPage() {
       throw new Error("Неверный формат данных /api/materials");
     }
     setMaterials(data as MaterialItem[]);
-  }, [search, limit]);
+  }, [search, materialsCategory, limit]);
 
   // We need to fetch materials on search change or limit change
   useEffect(() => {
@@ -543,7 +545,7 @@ export default function AdminPage() {
         loadMaterials().catch(() => {});
     }, 500); // Debounce search
     return () => clearTimeout(t);
-  }, [search, limit, adminUser, adminPass, loadMaterials]);
+  }, [search, materialsCategory, limit, adminUser, adminPass, loadMaterials]);
 
   const [feedAddOpen, setFeedAddOpen] = useState(false);
   const [feedAddInput, setFeedAddInput] = useState("");
@@ -1393,42 +1395,43 @@ export default function AdminPage() {
     setSection("materials");
     setMaterialsView("list");
     setActiveHubCategory(category);
+    const nextCategory = category === "Бренды" ? "brands" : null;
+    setMaterialsCategory(nextCategory);
     const nextSearch =
       category === "Лента новостей"
         ? "#вленту"
-        : category === "Бренды"
-          ? "бренд"
-          : category === "Мастер-классы"
-            ? "мастер"
-            : category === "Эфиры"
-              ? "эфир"
-              : category === "Гайды и чек-листы"
-                ? "гайд"
-                : category === "Идеи образов"
-                  ? "идеиобразов"
-                  : category === "#lookдняЛена"
-                    ? "lookдня"
-                    : category === "Советы"
-                      ? "советы"
-                      : category === "Мои обучения"
-                        ? "edu_"
-                        : category.toLowerCase();
-    setSearch(nextSearch);
+        : category === "Мастер-классы"
+          ? "мастер"
+          : category === "Эфиры"
+            ? "эфир"
+            : category === "Гайды и чек-листы"
+              ? "гайд"
+              : category === "Идеи образов"
+                ? "идеиобразов"
+                : category === "#lookдняЛена"
+                  ? "lookдня"
+                  : category === "Советы"
+                    ? "советы"
+                    : category === "Мои обучения"
+                      ? "edu_"
+                      : "";
+    setSearch(nextCategory ? "" : nextSearch);
     setLimit(500);
     setFilter("");
     setDraft(null);
     setSelectedId(null);
-  }, [setLimit, setSearch]);
+  }, [setLimit, setSearch, setMaterialsCategory]);
 
   const backToHub = useCallback(() => {
     setMaterialsView("hub");
     setActiveHubCategory(null);
     setSearch("");
+    setMaterialsCategory(null);
     setLimit(50);
     setFilter("");
     setDraft(null);
     setSelectedId(null);
-  }, [setLimit, setSearch]);
+  }, [setLimit, setMaterialsCategory, setSearch]);
 
   const saveAll = useCallback(async () => {
     setBusy(true);
