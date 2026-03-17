@@ -862,13 +862,31 @@ export async function POST(request: Request) {
 
         if (supabase) {
           if (key === MATERIALS_BASE_KEY) {
+            const currentRaw = await readKvValue(supabase, MATERIALS_OVERRIDES_KEY);
+            const current = Array.isArray(currentRaw) ? (currentRaw as MaterialItem[]) : [];
+            const byId = new Map<string, MaterialItem>();
+            for (const it of current) {
+              if (!it || typeof it !== "object" || typeof it.id !== "string") continue;
+              const id = it.id.trim();
+              if (!id) continue;
+              byId.set(id, it);
+            }
+            for (const it of body as unknown[]) {
+              if (!it || typeof it !== "object") continue;
+              const obj = it as Record<string, unknown>;
+              const id = typeof obj.id === "string" ? obj.id.trim() : "";
+              if (!id) continue;
+              byId.set(id, obj as unknown as MaterialItem);
+            }
+            const next = Array.from(byId.values());
+
             const { error } = await supabase.client
               .from(supabase.table)
-              .upsert({ key: MATERIALS_OVERRIDES_KEY, value: body }, { onConflict: "key" });
+              .upsert({ key: MATERIALS_OVERRIDES_KEY, value: next }, { onConflict: "key" });
             if (error) {
               return NextResponse.json({ error: "Failed to save data" }, { status: 500 });
             }
-            return NextResponse.json({ success: true });
+            return NextResponse.json({ success: true, merged: (body as unknown[]).length, total: next.length });
           }
           const { error } = await supabase.client
             .from(supabase.table)
