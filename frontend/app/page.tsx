@@ -1596,6 +1596,8 @@ function HomeContent() {
                           LENA_LOOKS.find((m) => m.id === item || m.title === item);
                          const categoryItem = categories.find(c => c.name === (material?.title || item) && c.subCategories);
 
+                        const isDirectIdMatch = Boolean(material && material.id === item);
+                        const isNumericTelegramId = /^\d+$/.test(item);
                         const baseQuery = SUBCATEGORY_HASHTAG_OVERRIDES[item] || (material?.title || item);
                         const queries: string[] = [baseQuery].map((q: string) => (q || "").toLowerCase()).filter(Boolean);
                         const baseMatches = materials
@@ -1610,9 +1612,12 @@ function HomeContent() {
                               ((m.images?.[0] || "").trim() && (m.images?.[0] || "").trim() !== "/ban.png") ||
                               ((m.image || "").trim() && (m.image || "").trim() !== "/ban.png")
                           ) || baseMatches[0];
-                        const preferredImage = previewMaterial
-                          ? (previewMaterial.images?.[0] || previewMaterial.image || "/ban.png")
-                          : (material ? (material.images?.[0] || material.image || "/ban.png") : "/ban.png");
+                        const preferredImage =
+                          isDirectIdMatch || isNumericTelegramId
+                            ? (material ? (material.images?.[0] || material.image || "/ban.png") : "/ban.png")
+                            : previewMaterial
+                              ? (previewMaterial.images?.[0] || previewMaterial.image || "/ban.png")
+                              : (material ? (material.images?.[0] || material.image || "/ban.png") : "/ban.png");
                         const displayImage = activeCategory === "Мои обучения"
                           ? (TRAINING_IMAGES[item] ?? preferredImage)
                           : activeCategory === "Типы фигуры"
