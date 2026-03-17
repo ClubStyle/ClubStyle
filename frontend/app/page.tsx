@@ -1064,6 +1064,7 @@ function HomeContent() {
 
   const [feedCount, setFeedCount] = useState(80);
   const feedSentinelRef = useRef<HTMLDivElement | null>(null);
+  const autoFillCategoryRef = useRef<string | null>(null);
 
   const channelMaterials = materials.filter((m) => {
     const isChannelLink =
@@ -1097,6 +1098,20 @@ function HomeContent() {
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [materialsLoading, materialsError, channelMaterials.length, feedCount]);
+
+  useEffect(() => {
+    if (!subCategorySheet) return;
+    if (materialsLoading) return;
+    if (materialsError) return;
+    if (materials.length === 0) return;
+    if (subCategorySheet.items.length > 0) return;
+    const cat = categories.find((c) => c.name === subCategorySheet.title);
+    if (!cat) return;
+    const key = `${subCategorySheet.title}:${materials.length}`;
+    if (autoFillCategoryRef.current === key) return;
+    autoFillCategoryRef.current = key;
+    handleCategoryClick(cat);
+  }, [categories, handleCategoryClick, materials.length, materialsError, materialsLoading, subCategorySheet]);
 
  
 
