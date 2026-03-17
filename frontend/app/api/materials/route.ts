@@ -475,6 +475,19 @@ export async function GET(request: Request) {
             supabaseMaterials = data.value;
             supabaseFound = true;
           } else if (key !== 'materials') {
+            if (key === "admin_docs") {
+              const v = data.value as unknown;
+              const hasItems =
+                v &&
+                typeof v === "object" &&
+                Array.isArray((v as { items?: unknown }).items) &&
+                (v as { items: unknown[] }).items.length > 0;
+              return NextResponse.json(hasItems ? v : defaultAdminDocsStore(), { headers: withSource("supabase") });
+            }
+            if (key === "admin_docs_feedback") {
+              const v = data.value as unknown;
+              return NextResponse.json(Array.isArray(v) ? v : [], { headers: withSource("supabase") });
+            }
             return NextResponse.json(data.value, { headers: withSource("supabase") });
           }
         }
