@@ -396,6 +396,20 @@ function isBrandsMaterial(m: MaterialItem) {
   );
 }
 
+function isIdeasMaterial(m: MaterialItem) {
+  const tag = (m.hashtag || "").toLowerCase();
+  if (!tag) return false;
+  const link = typeof m.link === "string" ? m.link.toLowerCase() : "";
+  if (link.endsWith(".pdf")) return false;
+  if (m.link === "https://t.me/c/2055411531/15199" || m.id === "15199") return false;
+  return (
+    tag.includes("#идеиобразов") ||
+    tag.includes("#образ") ||
+    tag.includes("#образы") ||
+    tag.includes("#lookднялена")
+  );
+}
+
 async function readUiFile(): Promise<Record<string, unknown>> {
   try {
     const fileContents = await fs.promises.readFile(uiPath, 'utf8');
@@ -542,6 +556,10 @@ export async function GET(request: Request) {
           if (am !== bm) return bm - am;
           return (b.date || 0) - (a.date || 0);
         });
+      }
+
+      if (categoryParam === "ideas") {
+        visible = visible.filter(isIdeasMaterial);
       }
       
       if (searchQuery) {

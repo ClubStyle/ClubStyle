@@ -1395,7 +1395,12 @@ export default function AdminPage() {
     setSection("materials");
     setMaterialsView("list");
     setActiveHubCategory(category);
-    const nextCategory = category === "Бренды" ? "brands" : null;
+    const nextCategory =
+      category === "Бренды"
+        ? "brands"
+        : category === "Идеи образов"
+          ? "ideas"
+          : null;
     setMaterialsCategory(nextCategory);
     const nextSearch =
       category === "Лента новостей"
@@ -1406,9 +1411,7 @@ export default function AdminPage() {
             ? "эфир"
             : category === "Гайды и чек-листы"
               ? "гайд"
-              : category === "Идеи образов"
-                ? "идеиобразов"
-                : category === "#lookдняЛена"
+              : category === "#lookдняЛена"
                   ? "lookдня"
                   : category === "Советы"
                     ? "советы"
