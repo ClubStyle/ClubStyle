@@ -1400,6 +1400,8 @@ export default function AdminPage() {
         ? "brands"
         : category === "Идеи образов"
           ? "ideas"
+          : category === "#lookдняЛена"
+            ? "looklena"
           : null;
     setMaterialsCategory(nextCategory);
     const nextSearch =
@@ -1411,9 +1413,7 @@ export default function AdminPage() {
             ? "эфир"
             : category === "Гайды и чек-листы"
               ? "гайд"
-              : category === "#lookдняЛена"
-                  ? "lookдня"
-                  : category === "Советы"
+              : category === "Советы"
                     ? "советы"
                     : category === "Мои обучения"
                       ? "edu_"

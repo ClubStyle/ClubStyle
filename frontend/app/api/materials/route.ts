@@ -410,6 +410,15 @@ function isIdeasMaterial(m: MaterialItem) {
   );
 }
 
+function isLookdnyaLenaMaterial(m: MaterialItem) {
+  const tag = (m.hashtag || "").toLowerCase();
+  if (!tag) return false;
+  const tokens = tag.split(/\s+/).map((t) => t.trim()).filter(Boolean);
+  if (!tokens.includes("#lookднялена")) return false;
+  if (typeof m.id === "string" && m.id.startsWith("edu_")) return false;
+  return true;
+}
+
 async function readUiFile(): Promise<Record<string, unknown>> {
   try {
     const fileContents = await fs.promises.readFile(uiPath, 'utf8');
@@ -560,6 +569,10 @@ export async function GET(request: Request) {
 
       if (categoryParam === "ideas") {
         visible = visible.filter(isIdeasMaterial);
+      }
+
+      if (categoryParam === "looklena") {
+        visible = visible.filter(isLookdnyaLenaMaterial);
       }
       
       if (searchQuery) {
