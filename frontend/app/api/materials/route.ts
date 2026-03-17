@@ -482,6 +482,9 @@ function isAdminAuthorized(request: Request) {
   return reqUser === user && reqPass === pass;
 }
 
+const MATERIALS_BASE_KEY = "materials";
+const MATERIALS_OVERRIDES_KEY = "materials_overrides";
+
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
@@ -512,21 +515,36 @@ export async function GET(request: Request) {
       forceSupabaseParam === "true" ||
       forceSupabaseParam === "yes";
 
-    let supabaseMaterials: MaterialItem[] = [];
+    let supabaseBaseMaterials: MaterialItem[] = [];
+    let supabaseOverrideMaterials: MaterialItem[] = [];
     let supabaseFound = false;
 
     if (supabase && preferSupabase) {
       try {
-        const { data, error } = await supabase.client
-          .from(supabase.table)
-          .select('key,value')
-          .eq('key', key)
-          .maybeSingle();
-        if (!error && data?.value != null) {
-          if (key === 'materials' && Array.isArray(data.value)) {
-            supabaseMaterials = data.value;
-            supabaseFound = true;
-          } else if (key !== 'materials') {
+        if (key === MATERIALS_BASE_KEY) {
+          const { data, error } = await supabase.client
+            .from(supabase.table)
+            .select("key,value")
+            .in("key", [MATERIALS_BASE_KEY, MATERIALS_OVERRIDES_KEY]);
+          if (!error && Array.isArray(data)) {
+            const baseRow = data.find((r) => r?.key === MATERIALS_BASE_KEY);
+            const overridesRow = data.find((r) => r?.key === MATERIALS_OVERRIDES_KEY);
+            const baseCandidate = Array.isArray(baseRow?.value) ? (baseRow?.value as MaterialItem[]) : [];
+            const overridesCandidate = Array.isArray(overridesRow?.value)
+              ? (overridesRow?.value as MaterialItem[])
+              : [];
+            const treatBaseAsOverrides = overridesCandidate.length === 0 && baseCandidate.length > 0 && baseCandidate.length <= 2000;
+            supabaseBaseMaterials = treatBaseAsOverrides ? [] : baseCandidate;
+            supabaseOverrideMaterials = treatBaseAsOverrides ? baseCandidate : overridesCandidate;
+            supabaseFound = supabaseBaseMaterials.length > 0 || supabaseOverrideMaterials.length > 0;
+          }
+        } else {
+          const { data, error } = await supabase.client
+            .from(supabase.table)
+            .select("key,value")
+            .eq("key", key)
+            .maybeSingle();
+          if (!error && data?.value != null) {
             if (key === "admin_docs") {
               const v = data.value as unknown;
               const hasItems =
@@ -565,7 +583,7 @@ export async function GET(request: Request) {
 
     // Merge logic: use Supabase items to override/augment local file items
     // If Supabase has data, we prioritize it, but fill in the gaps from the file
-    if (key === 'materials') {
+    if (key === MATERIALS_BASE_KEY) {
       const mergedMap = new Map<string, MaterialItem>();
       
       // Add file materials first
@@ -573,8 +591,13 @@ export async function GET(request: Request) {
         if (m && m.id) mergedMap.set(String(m.id), m);
       }
       
-      // Add/overwrite with Supabase materials (these are the ones from admin panel)
-      for (const m of supabaseMaterials) {
+      // Add/overwrite with Supabase base (Telegram sync)
+      for (const m of supabaseBaseMaterials) {
+        if (m && m.id) mergedMap.set(String(m.id), m);
+      }
+
+      // Add/overwrite with Supabase overrides (admin edits and manual additions)
+      for (const m of supabaseOverrideMaterials) {
         if (m && m.id) mergedMap.set(String(m.id), m);
       }
       
@@ -623,7 +646,8 @@ export async function GET(request: Request) {
 
       let out = compactMaterials(visible, lite ? { lite } : undefined);
       if (safeLimit != null) out = out.slice(0, safeLimit);
-      return NextResponse.json(out, { headers: withSource(supabaseFound ? "supabase" : "file") });
+      const source: "supabase" | "file" = supabaseBaseMaterials.length > 0 ? "supabase" : "file";
+      return NextResponse.json(out, { headers: withSource(source) });
     }
 
     // For UI keys (categories, etc.)
@@ -689,7 +713,9 @@ export async function POST(request: Request) {
           if (!id) {
             return NextResponse.json({ error: "id is required" }, { status: 400 });
           }
-          const currentRaw = supabase ? await readKvValue(supabase, "materials") : JSON.parse(await fs.promises.readFile(dataPath, "utf8"));
+          const currentRaw = supabase
+            ? await readKvValue(supabase, MATERIALS_OVERRIDES_KEY)
+            : JSON.parse(await fs.promises.readFile(dataPath, "utf8"));
           const current = Array.isArray(currentRaw) ? (currentRaw as MaterialItem[]) : [];
           
           // IMPORTANT: If currentRaw is empty (first time saving to Supabase), we should probably init it with file data?
@@ -725,7 +751,7 @@ export async function POST(request: Request) {
           if (supabase) {
             const { error } = await supabase.client
               .from(supabase.table)
-              .upsert({ key: "materials", value: next }, { onConflict: "key" });
+              .upsert({ key: MATERIALS_OVERRIDES_KEY, value: next }, { onConflict: "key" });
             if (error) return NextResponse.json({ error: "Failed to save data" }, { status: 500 });
             
             // We do NOT write to local file in Vercel environment, that's fine.
@@ -757,7 +783,9 @@ export async function POST(request: Request) {
           if (!id) {
             return NextResponse.json({ error: "id is required" }, { status: 400 });
           }
-          const currentRaw = supabase ? await readKvValue(supabase, "materials") : JSON.parse(await fs.promises.readFile(dataPath, "utf8"));
+          const currentRaw = supabase
+            ? await readKvValue(supabase, MATERIALS_OVERRIDES_KEY)
+            : JSON.parse(await fs.promises.readFile(dataPath, "utf8"));
           const current = Array.isArray(currentRaw) ? (currentRaw as MaterialItem[]) : [];
           // If using Supabase, 'current' only contains overrides.
           // If we want to delete an item, we have 2 cases:
@@ -778,7 +806,7 @@ export async function POST(request: Request) {
           if (supabase) {
             const { error } = await supabase.client
               .from(supabase.table)
-              .upsert({ key: "materials", value: next }, { onConflict: "key" });
+              .upsert({ key: MATERIALS_OVERRIDES_KEY, value: next }, { onConflict: "key" });
             if (error) return NextResponse.json({ error: "Failed to save data" }, { status: 500 });
             
             // Also, we might want to ensure it's hidden if it exists in file?
@@ -833,6 +861,15 @@ export async function POST(request: Request) {
         }
 
         if (supabase) {
+          if (key === MATERIALS_BASE_KEY) {
+            const { error } = await supabase.client
+              .from(supabase.table)
+              .upsert({ key: MATERIALS_OVERRIDES_KEY, value: body }, { onConflict: "key" });
+            if (error) {
+              return NextResponse.json({ error: "Failed to save data" }, { status: 500 });
+            }
+            return NextResponse.json({ success: true });
+          }
           const { error } = await supabase.client
             .from(supabase.table)
             .upsert({ key, value: body }, { onConflict: 'key' });
