@@ -622,6 +622,7 @@ function HomeContent() {
   }, [hydrateMaterial, materials, recent]);
 
   const handleCategoryClick = useCallback((category: Category) => {
+    setSubCategorySearchQuery("");
     if (category.subCategories) {
       setActiveCategory(category.name);
       setSubCategorySheet({
@@ -655,12 +656,14 @@ function HomeContent() {
 
       const relatedMaterials = materials.filter(m => {
           const tag = (m.hashtag || "").toLowerCase();
+          const title = (m.title || "").toLowerCase();
+          const hasVideo = typeof m.video_link === "string" && m.video_link.trim().length > 0;
           const name = category.name.toLowerCase();
           return tag.includes(query) || 
           tag.includes("#" + query) ||
           (name === "разборы образов" && (tag.includes("#разборобразов") || tag.includes("#лукдня"))) ||
           (name === "мастер-классы" && (tag.includes("#мастеркласс") || tag.includes("#мастер-класс") || tag.includes("mk_") || tag.includes("мастер-класс"))) ||
-          (name === "эфиры" && (tag.includes("#эфир") || tag.includes("эфир"))) ||
+          (name === "эфиры" && (hasVideo || tag.includes("#эфир") || tag.includes("эфир") || title.includes("эфир"))) ||
           (name === "бренды" && (tag.includes("#обзорыбрендов") || tag.includes("#обзорбрендов") || tag.includes("#бренд") || tag.includes("#обзор") || m.id.startsWith("brand_"))) ||
           (name === "гайды и чек-листы" && (tag.includes("#гайд") || tag.includes("guide_") || (typeof m.link === "string" && m.link.toLowerCase().endsWith(".pdf")))) ||
           (name === "покупки по миру" && tag.includes("#покупкипомиру")) ||
