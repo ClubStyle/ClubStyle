@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -461,6 +462,41 @@ export async function POST(request: Request) {
              await fs.promises.writeFile(dataPath, JSON.stringify(nextFile, null, 2));
           }
           return NextResponse.json({ success: true });
+        }
+
+        if (op === "append") {
+          if (!body || typeof body !== "object") {
+            return NextResponse.json({ error: "Data must be an object" }, { status: 400 });
+          }
+          if (key === "materials") {
+            return NextResponse.json({ error: "append is not supported for materials" }, { status: 400 });
+          }
+          const entry = {
+            ...(body as Record<string, unknown>),
+            id: typeof (body as { id?: unknown }).id === "string" ? (body as { id: string }).id : crypto.randomUUID(),
+            createdAt:
+              typeof (body as { createdAt?: unknown }).createdAt === "number"
+                ? (body as { createdAt: number }).createdAt
+                : Date.now()
+          };
+          const existingRaw = supabase
+            ? await readKvValue(supabase, key)
+            : (await readUiFile())[key];
+          const existing = Array.isArray(existingRaw) ? existingRaw : [];
+          const next = [...existing, entry].slice(-1000);
+
+          if (supabase) {
+            const { error } = await supabase.client
+              .from(supabase.table)
+              .upsert({ key, value: next }, { onConflict: "key" });
+            if (error) {
+              return NextResponse.json({ error: "Failed to save data" }, { status: 500 });
+            }
+          } else {
+            const ui = await readUiFile();
+            await writeUiFile({ ...ui, [key]: next });
+          }
+          return NextResponse.json({ success: true, total: next.length });
         }
 
         if (key === 'materials' && !Array.isArray(body)) {

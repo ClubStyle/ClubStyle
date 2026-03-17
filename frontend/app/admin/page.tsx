@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, Search, X } from "lucide-react";
 import BottomNav from "../../components/BottomNav";
+import Fuse from "fuse.js";
 
 type MaterialItem = {
   id: string;
@@ -43,6 +44,41 @@ type ServerInfo = {
   supabaseUrlPresent?: boolean;
   supabaseKeyPresent?: boolean;
   uploadsBucket?: string | null;
+};
+
+type DocsLocale = "ru" | "en";
+
+type DocsStep = {
+  title: Record<DocsLocale, string>;
+  text: Record<DocsLocale, string>;
+  image?: string;
+};
+
+type DocsItem = {
+  id: string;
+  kind: "instruction" | "error";
+  category: string;
+  tags: string[];
+  title: Record<DocsLocale, string>;
+  body: Record<DocsLocale, string>;
+  steps: DocsStep[];
+  createdAt: number;
+  updatedAt: number;
+};
+
+type DocsStore = {
+  version: number;
+  items: DocsItem[];
+};
+
+type DocsFeedbackEntry = {
+  id: string;
+  createdAt: number;
+  title?: string;
+  message: string;
+  page?: string;
+  locale?: DocsLocale;
+  status?: "new" | "triaged" | "done";
 };
 
 type BottomNavConfig = {
@@ -379,7 +415,7 @@ export default function AdminPage() {
   const [adminPass, setAdminPass] = useState("");
   const [authed, setAuthed] = useState(false);
   const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
-  const [section, setSection] = useState<"materials" | "community" | "bottomNav">("materials");
+  const [section, setSection] = useState<"materials" | "community" | "bottomNav" | "docs">("materials");
   const [materialsView, setMaterialsView] = useState<"hub" | "list">("hub");
   const [activeHubCategory, setActiveHubCategory] = useState<string | null>(null);
 
@@ -400,6 +436,85 @@ export default function AdminPage() {
   const [categoriesDraft, setCategoriesDraft] = useState<CategoryConfig[]>(DEFAULT_CATEGORIES);
   const [search, setSearch] = useState("");
   const [limit, setLimit] = useState(50);
+  const [docsLocale, setDocsLocale] = useState<DocsLocale>("ru");
+  const [docsTab, setDocsTab] = useState<"instructions" | "errors" | "feedback">("instructions");
+  const [docsSearch, setDocsSearch] = useState("");
+  const [docsStore, setDocsStore] = useState<DocsStore>({ version: 1, items: [] });
+  const [docsSelectedId, setDocsSelectedId] = useState<string | null>(null);
+  const [docsDraft, setDocsDraft] = useState<DocsItem | null>(null);
+  const [docsFeedback, setDocsFeedback] = useState<DocsFeedbackEntry[]>([]);
+  const [docsFeedbackTitle, setDocsFeedbackTitle] = useState("");
+  const [docsFeedbackMessage, setDocsFeedbackMessage] = useState("");
+  const [docsFeedbackPage, setDocsFeedbackPage] = useState("");
+
+  const makeDocId = useCallback(() => {
+    return `doc_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  }, []);
+
+  const normalizeDocsItem = useCallback((raw: unknown): DocsItem | null => {
+    if (!raw || typeof raw !== "object") return null;
+    const r = raw as Record<string, unknown>;
+    const id = typeof r.id === "string" ? r.id.trim() : "";
+    if (!id) return null;
+    const kind = r.kind === "error" ? "error" : "instruction";
+    const category = typeof r.category === "string" ? r.category.trim() : "";
+    const tags = Array.isArray(r.tags)
+      ? r.tags.map((t) => (typeof t === "string" ? t.trim() : "")).filter(Boolean)
+      : [];
+    const titleRaw = (r.title && typeof r.title === "object" ? (r.title as Record<string, unknown>) : {}) as Record<
+      string,
+      unknown
+    >;
+    const bodyRaw = (r.body && typeof r.body === "object" ? (r.body as Record<string, unknown>) : {}) as Record<
+      string,
+      unknown
+    >;
+    const title = {
+      ru: typeof titleRaw.ru === "string" ? titleRaw.ru : "",
+      en: typeof titleRaw.en === "string" ? titleRaw.en : ""
+    } satisfies Record<DocsLocale, string>;
+    const body = {
+      ru: typeof bodyRaw.ru === "string" ? bodyRaw.ru : "",
+      en: typeof bodyRaw.en === "string" ? bodyRaw.en : ""
+    } satisfies Record<DocsLocale, string>;
+    const steps = Array.isArray(r.steps)
+      ? r.steps
+          .map((s) => {
+            if (!s || typeof s !== "object") return null;
+            const step = s as Record<string, unknown>;
+            const stepTitleRaw =
+              step.title && typeof step.title === "object" ? (step.title as Record<string, unknown>) : {};
+            const stepTextRaw =
+              step.text && typeof step.text === "object" ? (step.text as Record<string, unknown>) : {};
+            const title = {
+              ru: typeof stepTitleRaw.ru === "string" ? stepTitleRaw.ru : "",
+              en: typeof stepTitleRaw.en === "string" ? stepTitleRaw.en : ""
+            } satisfies Record<DocsLocale, string>;
+            const text = {
+              ru: typeof stepTextRaw.ru === "string" ? stepTextRaw.ru : "",
+              en: typeof stepTextRaw.en === "string" ? stepTextRaw.en : ""
+            } satisfies Record<DocsLocale, string>;
+            const image = typeof step.image === "string" ? step.image : undefined;
+            return { title, text, image } satisfies DocsStep;
+          })
+          .filter(Boolean) as DocsStep[]
+      : [];
+    const createdAt = typeof r.createdAt === "number" ? r.createdAt : Date.now();
+    const updatedAt = typeof r.updatedAt === "number" ? r.updatedAt : createdAt;
+    return { id, kind, category, tags, title, body, steps, createdAt, updatedAt } satisfies DocsItem;
+  }, []);
+
+  const normalizeDocsStore = useCallback(
+    (raw: unknown): DocsStore => {
+      if (!raw || typeof raw !== "object") return { version: 1, items: [] };
+      const r = raw as Record<string, unknown>;
+      const itemsRaw = Array.isArray(r.items) ? r.items : [];
+      const items = itemsRaw.map(normalizeDocsItem).filter(Boolean) as DocsItem[];
+      const version = typeof r.version === "number" ? r.version : 1;
+      return { version, items };
+    },
+    [normalizeDocsItem]
+  );
 
   const loadMaterials = useCallback(async () => {
     setStatus(null);
@@ -535,6 +650,36 @@ export default function AdminPage() {
       howItWorksText
     });
   }, [defaultCommunity]);
+
+  const loadDocs = useCallback(async () => {
+    const res = await fetch(`/api/materials?key=admin_docs&t=${Date.now()}`, { cache: "no-store" });
+    const data = await readJson<unknown>(res);
+    if (!res.ok) return;
+    setDocsStore(normalizeDocsStore(data));
+  }, [normalizeDocsStore]);
+
+  const loadDocsFeedback = useCallback(async () => {
+    const res = await fetch(`/api/materials?key=admin_docs_feedback&t=${Date.now()}`, { cache: "no-store" });
+    const data = await readJson<unknown>(res);
+    if (!res.ok) return;
+    const list = Array.isArray(data) ? data : [];
+    const cleaned = list
+      .map((it) => (it && typeof it === "object" ? (it as Record<string, unknown>) : null))
+      .filter(Boolean)
+      .map((it) => {
+        const id = typeof it!.id === "string" ? it!.id : `fb_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        const createdAt = typeof it!.createdAt === "number" ? it!.createdAt : Number(it!.createdAt || 0) || Date.now();
+        const title = typeof it!.title === "string" ? it!.title : undefined;
+        const message = typeof it!.message === "string" ? it!.message : "";
+        const page = typeof it!.page === "string" ? it!.page : undefined;
+        const locale = it!.locale === "en" ? "en" : it!.locale === "ru" ? "ru" : undefined;
+        const status = it!.status === "done" ? "done" : it!.status === "triaged" ? "triaged" : "new";
+        return { id, createdAt, title, message, page, locale, status } satisfies DocsFeedbackEntry;
+      })
+      .filter((it) => it.message.trim().length > 0)
+      .sort((a, b) => b.createdAt - a.createdAt);
+    setDocsFeedback(cleaned);
+  }, []);
 
   const loadQuickFilters = useCallback(async () => {
     const res = await fetch(`/api/materials?key=quickFilters&t=${Date.now()}`, { cache: "no-store" });
@@ -946,9 +1091,11 @@ export default function AdminPage() {
         loadMaterials().catch(() => {});
         loadBottomNav().catch(() => {});
         loadCommunity().catch(() => {});
+        loadDocs().catch(() => {});
+        loadDocsFeedback().catch(() => {});
         // loadTelegramSync().catch(() => {}); // Telegram sync can be heavy, load on demand or separately
     }
-  }, [loadMaterials, loadBottomNav, loadCommunity, adminUser, adminPass]);
+  }, [loadMaterials, loadBottomNav, loadCommunity, loadDocs, loadDocsFeedback, adminUser, adminPass]);
 
   const baseList = useMemo(() => {
     if (section !== "materials") return materials;
@@ -989,6 +1136,62 @@ export default function AdminPage() {
     // If using server side search, materials are already filtered
     return baseList;
   }, [baseList]);
+
+  const docsItemsByTab = useMemo(() => {
+    const kind: DocsItem["kind"] = docsTab === "errors" ? "error" : "instruction";
+    return docsStore.items.filter((it) => it.kind === kind);
+  }, [docsStore.items, docsTab]);
+
+  const docsFuse = useMemo(() => {
+    return new Fuse(docsItemsByTab, {
+      keys: ["id", "category", "tags", "title.ru", "title.en", "body.ru", "body.en", "steps.title.ru", "steps.title.en", "steps.text.ru", "steps.text.en"],
+      includeScore: true,
+      threshold: 0.35
+    });
+  }, [docsItemsByTab]);
+
+  const docsVisible = useMemo(() => {
+    const q = docsSearch.trim();
+    if (!q) return docsItemsByTab;
+    return docsFuse.search(q).map((r) => r.item);
+  }, [docsFuse, docsItemsByTab, docsSearch]);
+
+  const docsCategories = useMemo(() => {
+    return Array.from(new Set(docsStore.items.map((it) => (it.category || "").trim()).filter(Boolean))).sort((a, b) =>
+      a.localeCompare(b, "ru")
+    );
+  }, [docsStore.items]);
+
+  const openDocsItem = useCallback(
+    (id: string) => {
+      const found = docsStore.items.find((it) => it.id === id) || null;
+      setDocsSelectedId(id);
+      setDocsDraft(found ? JSON.parse(JSON.stringify(found)) : null);
+      setStatus(null);
+    },
+    [docsStore.items]
+  );
+
+  const createDocsItem = useCallback(
+    (kind: DocsItem["kind"]) => {
+      const now = Date.now();
+      const item: DocsItem = {
+        id: makeDocId(),
+        kind,
+        category: "",
+        tags: [],
+        title: { ru: "", en: "" },
+        body: { ru: "", en: "" },
+        steps: [],
+        createdAt: now,
+        updatedAt: now
+      };
+      setDocsSelectedId(item.id);
+      setDocsDraft(item);
+      setStatus(null);
+    },
+    [makeDocId]
+  );
 
   const selectItem = useCallback(
     (id: string) => {
@@ -1313,6 +1516,118 @@ export default function AdminPage() {
     }
   }, [communityDraft, defaultCommunity, headers, loadCommunity]);
 
+  const saveDocsStore = useCallback(
+    async (nextStore: DocsStore) => {
+      setBusy(true);
+      setStatus(null);
+      try {
+        const res = await fetch("/api/materials?key=admin_docs", {
+          method: "POST",
+          headers: { "content-type": "application/json", ...headers },
+          body: JSON.stringify(nextStore)
+        });
+        const data = await readJson<unknown>(res);
+        if (!res.ok) {
+          const message = pickStringField(data, "error") || `Не удалось сохранить (${res.status})`;
+          throw new Error(message);
+        }
+        setDocsStore(nextStore);
+        setStatus("Сохранено");
+        await loadDocs();
+      } finally {
+        setBusy(false);
+      }
+    },
+    [headers, loadDocs]
+  );
+
+  const upsertDocsItem = useCallback(
+    async (item: DocsItem) => {
+      const cleaned: DocsItem = {
+        ...item,
+        category: (item.category || "").trim(),
+        tags: (Array.isArray(item.tags) ? item.tags : [])
+          .map((t) => (t || "").trim())
+          .filter(Boolean),
+        title: {
+          ru: (item.title?.ru || "").toString(),
+          en: (item.title?.en || "").toString()
+        },
+        body: {
+          ru: (item.body?.ru || "").toString(),
+          en: (item.body?.en || "").toString()
+        },
+        steps: Array.isArray(item.steps)
+          ? item.steps.map((s) => ({
+              title: { ru: (s.title?.ru || "").toString(), en: (s.title?.en || "").toString() },
+              text: { ru: (s.text?.ru || "").toString(), en: (s.text?.en || "").toString() },
+              image: typeof s.image === "string" && s.image.trim().length ? s.image.trim() : undefined
+            }))
+          : [],
+        updatedAt: Date.now()
+      };
+      const byId = new Map(docsStore.items.map((it) => [it.id, it] as const));
+      const existing = byId.get(cleaned.id);
+      byId.set(
+        cleaned.id,
+        existing ? { ...existing, ...cleaned, createdAt: existing.createdAt } : { ...cleaned, createdAt: Date.now() }
+      );
+      const next: DocsStore = {
+        ...docsStore,
+        items: Array.from(byId.values()).sort((a, b) => b.updatedAt - a.updatedAt)
+      };
+      await saveDocsStore(next);
+      setDocsSelectedId(cleaned.id);
+      setDocsDraft(null);
+    },
+    [docsStore, saveDocsStore]
+  );
+
+  const deleteDocsItem = useCallback(
+    async (id: string) => {
+      const next: DocsStore = { ...docsStore, items: docsStore.items.filter((it) => it.id !== id) };
+      await saveDocsStore(next);
+      setDocsSelectedId(null);
+      setDocsDraft(null);
+    },
+    [docsStore, saveDocsStore]
+  );
+
+  const submitDocsFeedback = useCallback(async () => {
+    const message = docsFeedbackMessage.trim();
+    if (!message) {
+      setStatus("Опиши проблему");
+      return;
+    }
+    setBusy(true);
+    setStatus(null);
+    try {
+      const res = await fetch("/api/materials?key=admin_docs_feedback&op=append", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...headers },
+        body: JSON.stringify({
+          title: docsFeedbackTitle.trim() || undefined,
+          message,
+          page: docsFeedbackPage.trim() || undefined,
+          locale: docsLocale,
+          status: "new"
+        })
+      });
+      const data = await readJson<unknown>(res);
+      if (!res.ok) {
+        const msg = pickStringField(data, "error") || `Не удалось отправить (${res.status})`;
+        throw new Error(msg);
+      }
+      setDocsFeedbackTitle("");
+      setDocsFeedbackMessage("");
+      setDocsFeedbackPage("");
+      await loadDocsFeedback();
+      setStatus("Отправлено");
+    } finally {
+      setBusy(false);
+    }
+  }, [docsFeedbackMessage, docsFeedbackPage, docsFeedbackTitle, docsLocale, headers, loadDocsFeedback]);
+
   const saveQuickFilters = useCallback(async () => {
     setBusy(true);
     setStatus(null);
@@ -1508,6 +1823,8 @@ export default function AdminPage() {
                       ? saveBottomNav()
                       : section === "community"
                         ? saveCommunity()
+                        : section === "docs"
+                          ? saveDocsStore(docsStore)
                         : saveAll()
                     ).catch((e: unknown) => setStatus(e instanceof Error ? e.message : "Ошибка"))
                   }
@@ -1592,6 +1909,16 @@ export default function AdminPage() {
                   }`}
                 >
                   Навбар
+                </button>
+                <button
+                  onClick={() => setSection("docs")}
+                  className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all duration-300 ${
+                    section === "docs"
+                      ? "bg-white text-pink-500 shadow-sm"
+                      : "text-gray-400 hover:text-gray-600"
+                  }`}
+                >
+                  Инструкции
                 </button>
               </div>
 
@@ -1919,6 +2246,505 @@ export default function AdminPage() {
                     Ничего не найдено
                   </div>
                 ) : null}
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {authed && section === "docs" ? (
+          <div className="px-4 lg:px-10 2xl:px-16 mt-6 grid gap-4">
+            <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-lg font-black text-gray-900">Инструкция и устранение ошибок</h2>
+                  <div className="flex bg-gray-100 rounded-xl p-1">
+                    <button
+                      onClick={() => setDocsLocale("ru")}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
+                        docsLocale === "ru" ? "bg-white text-pink-500 shadow-sm" : "text-gray-400 hover:text-gray-600"
+                      }`}
+                    >
+                      RU
+                    </button>
+                    <button
+                      onClick={() => setDocsLocale("en")}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
+                        docsLocale === "en" ? "bg-white text-pink-500 shadow-sm" : "text-gray-400 hover:text-gray-600"
+                      }`}
+                    >
+                      EN
+                    </button>
+                  </div>
+                </div>
+                <div className="flex bg-gray-100 rounded-2xl p-1">
+                  <button
+                    onClick={() => {
+                      setDocsTab("instructions");
+                      setDocsSearch("");
+                      setDocsSelectedId(null);
+                      setDocsDraft(null);
+                    }}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all duration-300 ${
+                      docsTab === "instructions"
+                        ? "bg-white text-pink-500 shadow-sm"
+                        : "text-gray-400 hover:text-gray-600"
+                    }`}
+                  >
+                    Инструкции
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDocsTab("errors");
+                      setDocsSearch("");
+                      setDocsSelectedId(null);
+                      setDocsDraft(null);
+                    }}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all duration-300 ${
+                      docsTab === "errors" ? "bg-white text-pink-500 shadow-sm" : "text-gray-400 hover:text-gray-600"
+                    }`}
+                  >
+                    Ошибки
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDocsTab("feedback");
+                      setDocsSearch("");
+                      setDocsSelectedId(null);
+                      setDocsDraft(null);
+                    }}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all duration-300 ${
+                      docsTab === "feedback"
+                        ? "bg-white text-pink-500 shadow-sm"
+                        : "text-gray-400 hover:text-gray-600"
+                    }`}
+                  >
+                    Обратная связь
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-4 relative">
+                <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={docsSearch}
+                  onChange={(e) => setDocsSearch(e.target.value)}
+                  className="w-full rounded-2xl border border-gray-100 bg-white px-10 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200 shadow-sm"
+                  placeholder="Поиск по ключевым словам..."
+                  disabled={docsTab === "feedback"}
+                />
+              </div>
+            </div>
+
+            {docsTab === "feedback" ? (
+              <div className="grid gap-4">
+                <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100">
+                  <h3 className="text-sm font-black text-gray-900 mb-3">Сообщить о проблеме</h3>
+                  <div className="grid gap-3">
+                    <label className="grid gap-1">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        Заголовок
+                      </span>
+                      <input
+                        value={docsFeedbackTitle}
+                        onChange={(e) => setDocsFeedbackTitle(e.target.value)}
+                        className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                        placeholder="Например: не открывается пост / ошибка 403"
+                      />
+                    </label>
+                    <label className="grid gap-1">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        Страница
+                      </span>
+                      <input
+                        value={docsFeedbackPage}
+                        onChange={(e) => setDocsFeedbackPage(e.target.value)}
+                        className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                        placeholder="/admin, /, /community ..."
+                      />
+                    </label>
+                    <label className="grid gap-1">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        Описание
+                      </span>
+                      <textarea
+                        value={docsFeedbackMessage}
+                        onChange={(e) => setDocsFeedbackMessage(e.target.value)}
+                        rows={6}
+                        className="w-full rounded-[1.5rem] border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                        placeholder="Что произошло, шаги, скриншот-ссылка..."
+                      />
+                    </label>
+                    <button
+                      onClick={() =>
+                        submitDocsFeedback().catch((e: unknown) =>
+                          setStatus(e instanceof Error ? e.message : "Ошибка")
+                        )
+                      }
+                      disabled={busy}
+                      className="w-full bg-pink-500 text-white font-bold py-3 rounded-xl hover:bg-pink-600 transition-colors text-sm disabled:opacity-60"
+                    >
+                      Отправить
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100">
+                  <h3 className="text-sm font-black text-gray-900 mb-3">Сообщения</h3>
+                  <div className="grid gap-3">
+                    {docsFeedback.length ? (
+                      docsFeedback.slice(0, 100).map((it) => (
+                        <div
+                          key={it.id}
+                          className="rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-xs font-bold text-gray-900">
+                              {(it.title || "").trim() || "Без заголовка"}
+                            </div>
+                            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                              {it.locale ? it.locale.toUpperCase() : "—"} • {it.status || "new"}
+                            </div>
+                          </div>
+                          {it.page ? <div className="text-[11px] text-gray-400 mt-1">{it.page}</div> : null}
+                          <div className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">{it.message}</div>
+                          <div className="text-[11px] text-gray-400 mt-2">
+                            {new Date(it.createdAt).toLocaleString("ru-RU")}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-gray-500">Пока пусто</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <h3 className="text-sm font-black text-gray-900">
+                      {docsTab === "errors" ? "Ошибки" : "Инструкции"}
+                    </h3>
+                    <button
+                      onClick={() => createDocsItem(docsTab === "errors" ? "error" : "instruction")}
+                      className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs"
+                    >
+                      + Добавить
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {docsCategories.slice(0, 20).map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setDocsSearch(c)}
+                        className="bg-pink-50 text-pink-500 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider hover:bg-pink-100 transition-colors"
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid gap-2">
+                    {docsVisible.length ? (
+                      docsVisible.slice(0, 200).map((it) => {
+                        const title = (it.title[docsLocale] || it.title.ru || it.title.en || "").trim() || it.id;
+                        const isSelected = docsSelectedId === it.id;
+                        return (
+                          <button
+                            key={it.id}
+                            onClick={() => openDocsItem(it.id)}
+                            className={`w-full text-left rounded-2xl border px-4 py-3 transition-colors ${
+                              isSelected
+                                ? "border-pink-300 ring-2 ring-pink-100 bg-white"
+                                : "border-gray-100 bg-white hover:border-pink-200"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="text-xs font-bold text-gray-900 line-clamp-2">{title}</div>
+                              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                {it.category || "без категории"}
+                              </div>
+                            </div>
+                            {it.tags.length ? (
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {it.tags.slice(0, 6).map((t) => (
+                                  <span
+                                    key={`${it.id}-${t}`}
+                                    className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md"
+                                  >
+                                    {t}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null}
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="text-sm text-gray-500">Ничего не найдено</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <h3 className="text-sm font-black text-gray-900">Редактор</h3>
+                    {docsDraft ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() =>
+                            upsertDocsItem(docsDraft).catch((e: unknown) =>
+                              setStatus(e instanceof Error ? e.message : "Ошибка")
+                            )
+                          }
+                          disabled={busy}
+                          className="bg-pink-500 text-white font-bold px-4 py-2 rounded-2xl shadow-lg shadow-pink-200 hover:bg-pink-600 transition-colors disabled:opacity-60 text-xs"
+                        >
+                          Сохранить
+                        </button>
+                        <button
+                          onClick={() =>
+                            deleteDocsItem(docsDraft.id).catch((e: unknown) =>
+                              setStatus(e instanceof Error ? e.message : "Ошибка")
+                            )
+                          }
+                          disabled={busy}
+                          className="bg-white text-red-600 border border-red-200 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-red-50 transition-colors disabled:opacity-60 text-xs"
+                        >
+                          Удалить
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {docsDraft ? (
+                    <div className="grid gap-3">
+                      <div className="flex flex-wrap gap-2">
+                        <span className="bg-pink-50 text-pink-500 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                          {docsDraft.kind === "error" ? "ошибка" : "инструкция"}
+                        </span>
+                      </div>
+
+                      <label className="grid gap-1">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                          Категория
+                        </span>
+                        <input
+                          value={docsDraft.category}
+                          onChange={(e) => setDocsDraft({ ...docsDraft, category: e.target.value })}
+                          list="docs-categories"
+                          className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                          placeholder="Telegram / Админка / Публикации ..."
+                        />
+                        <datalist id="docs-categories">
+                          {docsCategories.map((c) => (
+                            <option key={c} value={c} />
+                          ))}
+                        </datalist>
+                      </label>
+
+                      <label className="grid gap-1">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                          Теги (через запятую)
+                        </span>
+                        <input
+                          value={docsDraft.tags.join(", ")}
+                          onChange={(e) =>
+                            setDocsDraft({
+                              ...docsDraft,
+                              tags: e.target.value
+                                .split(",")
+                                .map((t) => t.trim())
+                                .filter(Boolean)
+                            })
+                          }
+                          className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                          placeholder="sync, vercel, token..."
+                        />
+                      </label>
+
+                      <label className="grid gap-1">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                          Заголовок ({docsLocale.toUpperCase()})
+                        </span>
+                        <input
+                          value={docsDraft.title[docsLocale]}
+                          onChange={(e) =>
+                            setDocsDraft({
+                              ...docsDraft,
+                              title: { ...docsDraft.title, [docsLocale]: e.target.value }
+                            })
+                          }
+                          className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                        />
+                      </label>
+
+                      <label className="grid gap-1">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                          Текст ({docsLocale.toUpperCase()})
+                        </span>
+                        <textarea
+                          value={docsDraft.body[docsLocale]}
+                          onChange={(e) =>
+                            setDocsDraft({
+                              ...docsDraft,
+                              body: { ...docsDraft.body, [docsLocale]: e.target.value }
+                            })
+                          }
+                          rows={8}
+                          className="w-full rounded-[1.5rem] border border-gray-100 bg-gray-50/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                          placeholder="Пиши шаги, ссылки, примеры. Картинки вставляй ссылками."
+                        />
+                      </label>
+
+                      <div className="grid gap-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-xs font-bold text-gray-900">Шаги</div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDocsDraft({
+                                ...docsDraft,
+                                steps: [
+                                  ...(docsDraft.steps || []),
+                                  {
+                                    title: { ru: "", en: "" },
+                                    text: { ru: "", en: "" }
+                                  }
+                                ]
+                              })
+                            }
+                            className="bg-white text-gray-700 border border-gray-100 font-bold px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-colors text-xs"
+                          >
+                            + Шаг
+                          </button>
+                        </div>
+                        {(docsDraft.steps || []).length ? (
+                          <div className="grid gap-3">
+                            {(docsDraft.steps || []).map((s, idx) => (
+                              <div key={idx} className="rounded-2xl border border-gray-100 bg-gray-50/50 p-4">
+                                <div className="flex items-center justify-between gap-3 mb-2">
+                                  <div className="text-xs font-bold text-gray-900">Шаг {idx + 1}</div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const next = [...(docsDraft.steps || [])];
+                                      next.splice(idx, 1);
+                                      setDocsDraft({ ...docsDraft, steps: next });
+                                    }}
+                                    className="rounded-xl bg-white px-3 py-2 text-xs font-bold text-gray-700 border border-gray-100 hover:bg-gray-50"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                                <label className="grid gap-1 mb-2">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                    Заголовок ({docsLocale.toUpperCase()})
+                                  </span>
+                                  <input
+                                    value={s.title[docsLocale]}
+                                    onChange={(e) => {
+                                      const next = [...(docsDraft.steps || [])];
+                                      next[idx] = {
+                                        ...next[idx],
+                                        title: { ...next[idx].title, [docsLocale]: e.target.value }
+                                      };
+                                      setDocsDraft({ ...docsDraft, steps: next });
+                                    }}
+                                    className="w-full rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                                  />
+                                </label>
+                                <label className="grid gap-1 mb-2">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                    Текст ({docsLocale.toUpperCase()})
+                                  </span>
+                                  <textarea
+                                    value={s.text[docsLocale]}
+                                    onChange={(e) => {
+                                      const next = [...(docsDraft.steps || [])];
+                                      next[idx] = {
+                                        ...next[idx],
+                                        text: { ...next[idx].text, [docsLocale]: e.target.value }
+                                      };
+                                      setDocsDraft({ ...docsDraft, steps: next });
+                                    }}
+                                    rows={4}
+                                    className="w-full rounded-[1.5rem] border border-gray-100 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                                  />
+                                </label>
+                                <div className="grid gap-2">
+                                  <label className="grid gap-1">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                    Скриншот (url)
+                                  </span>
+                                  <input
+                                    value={s.image || ""}
+                                    onChange={(e) => {
+                                      const next = [...(docsDraft.steps || [])];
+                                      next[idx] = { ...next[idx], image: e.target.value };
+                                      setDocsDraft({ ...docsDraft, steps: next });
+                                    }}
+                                    className="w-full rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200"
+                                    placeholder="https://..."
+                                  />
+                                  </label>
+                                  <div className="flex items-center gap-2">
+                                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-white px-4 py-3 text-xs font-bold text-gray-700 border border-gray-100 hover:bg-gray-50">
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (!file) return;
+                                          e.target.value = "";
+                                          setStatus(`Загружаю: ${file.name}`);
+                                          setBusy(true);
+                                          uploadFile(file)
+                                            .then((url) => {
+                                              const next = [...(docsDraft.steps || [])];
+                                              next[idx] = { ...next[idx], image: url };
+                                              setDocsDraft({ ...docsDraft, steps: next });
+                                              setStatus("Загружено");
+                                            })
+                                            .catch((err: unknown) =>
+                                              setStatus(err instanceof Error ? err.message : "Ошибка загрузки")
+                                            )
+                                            .finally(() => setBusy(false));
+                                        }}
+                                      />
+                                      + Файл
+                                    </label>
+                                    {s.image ? (
+                                      <a
+                                        href={s.image}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-xs font-bold text-pink-500 hover:text-pink-600"
+                                      >
+                                        Открыть
+                                      </a>
+                                    ) : null}
+                                  </div>
+                                  {s.image ? (
+                                    <div className="relative h-40 w-full rounded-2xl overflow-hidden bg-gray-100 border border-gray-100">
+                                      <SafeImage src={s.image} alt={`Step ${idx + 1}`} fill className="object-cover" />
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-500">Пока нет шагов</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500">Выбери запись слева или нажми “+ Добавить”</div>
+                  )}
+                </div>
               </div>
             )}
           </div>
